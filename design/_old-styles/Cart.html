@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HomeHaat bag</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF}
+a{color:#111111}a:hover{color:#000000}
+.btn-dark{background:#111111;color:#FFFFFF;transition:background .15s ease,transform .15s ease}
+.btn-dark:hover{background:#333333;color:#FFFFFF}
+.btn-dark:active{transform:scale(0.98)}
+.step{background:transparent;transition:background .15s ease}
+.step:hover{background:#F5F5F5}
+:focus-visible{outline:2px solid #111111;outline-offset:3px}
+@media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 100vh; background: #FFFFFF; color: #111111; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 16px; padding-bottom: 96px;">
+
+<header style="border-bottom: 1px solid #EBEBEB;">
+<div style="max-width: 1280px; margin: 0 auto; padding: 0 32px; height: 72px; display: flex; align-items: center; justify-content: space-between;">
+<a href="Main.dc.html" style="font-weight: 700; font-size: 22px; letter-spacing: -0.6px; text-decoration: none; color: #111111;">homehaat</a>
+<a href="Main.dc.html" style="font-size: 15px; font-weight: 500; padding: 12px 0; text-underline-offset: 4px;">Continue shopping</a>
+</div>
+</header>
+
+<main style="max-width: 1280px; margin: 0 auto; padding: 56px 32px 0;">
+<h1 style="margin: 0; font-weight: 600; font-size: 52px; letter-spacing: -2px;">Your bag</h1>
+<p style="margin: 8px 0 40px; font-size: 16px; color: #6B6B6B;">{{itemCount}} items from {{sellerCount}} makers</p>
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 64px;">
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 40px;">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+<section aria-label="{{g.seller}}">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; padding-bottom: 14px; border-bottom: 1px solid #111111;">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;">
+<a href="Store.dc.html" style="font-size: 18px; font-weight: 600; text-decoration: none;">{{g.seller}}</a>
+<span style="font-size: 14px; color: #6B6B6B;">{{g.area}}</span>
+</div>
+<span style="font-size: 14px; color: #6B6B6B;">{{g.delivery}}</span>
+</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="1">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 20px 0; border-bottom: 1px solid #EBEBEB;">
+<div style="width: 104px; height: 104px; border-radius: 12px; background: {{g.bg}}; flex: none;"></div>
+<div style="flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; gap: 4px;">
+<span style="font-size: 16px; font-weight: 600;">{{it.name}}</span>
+<span style="font-size: 14px; color: #6B6B6B;">{{it.unit}} each</span>
+<button type="button" aria-label="Remove {{it.name}}" style="align-self: flex-start; margin-top: 6px; padding: 8px 0; border: 0; background: transparent; color: #555555; font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;">Remove</button>
+</div>
+<div role="group" aria-label="Quantity of {{it.name}}" style="display: flex; align-items: center; border: 1px solid #DDDDDD; border-radius: 999px; height: 44px;">
+<button type="button" class="step" onClick="{{it.dec}}" aria-label="Decrease quantity" style="width: 44px; height: 42px; border: 0; border-radius: 999px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button>
+<span aria-live="polite" style="min-width: 24px; text-align: center; font-weight: 600;">{{it.qty}}</span>
+<button type="button" class="step" onClick="{{it.inc}}" aria-label="Increase quantity" style="width: 44px; height: 42px; border: 0; border-radius: 999px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg></button>
+</div>
+<span style="min-width: 88px; text-align: right; font-size: 16px; font-weight: 600;">{{it.line}}</span>
+</div>
+</sc-for>
+<div style="display: flex; flex-direction: column; gap: 6px; padding-top: 14px; font-size: 14px; color: #6B6B6B;">
+<div style="display: flex; justify-content: space-between;"><span>Delivery</span><span>{{g.fee}}</span></div>
+<div style="display: flex; justify-content: space-between; color: #111111; font-weight: 600;"><span>Subtotal from {{g.seller}}</span><span>{{g.subtotal}}</span></div>
+</div>
+</section>
+</sc-for>
+</div>
+
+<aside aria-label="Order summary" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 32px;">
+<h2 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.4px;">Summary</h2>
+<div style="display: flex; justify-content: space-between; font-size: 15px; color: #555555;"><span>Items ({{itemCount}})</span><span>{{itemsAll}}</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 15px; color: #555555;"><span>Delivery ({{sellerCount}} makers)</span><span>{{feesAll}}</span></div>
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 18px 0; border-top: 1px solid #EBEBEB; border-bottom: 1px solid #EBEBEB;"><span style="font-size: 16px; font-weight: 600;">Total</span><span style="font-size: 28px; font-weight: 600; letter-spacing: -0.8px;">{{grand}}</span></div>
+<p style="margin: 0; font-size: 14px; line-height: 1.55; color: #6B6B6B;">One payment. HomeHaat splits it into {{sellerCount}} orders, one for each maker.</p>
+<a href="#" class="btn-dark" style="display: flex; align-items: center; justify-content: center; height: 56px; border-radius: 999px; font-size: 16px; font-weight: 600; text-decoration: none;">Checkout</a>
+<span style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: #6B6B6B;">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B6B6B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Secure payment by Razorpay</span>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1180}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { qty: { cake: 1, pickle: 2, toy: 1 } };
+}
+renderVals() {
+const q = this.state.qty;
+const inr = (p) => '₹' + (p / 100).toLocaleString('en-IN');
+const setQ = (id, v) => this.setState({ qty: { ...q, [id]: Math.max(1, Math.min(50, v)) } });
+const groups = [
+{ seller: "Meera's Oven", area: 'Indiranagar', delivery: 'Delivers Tue–Sun', bg: '#F3F0EC', fee: 4000, items: [{ id: 'cake', name: 'Chocolate truffle cake, 1 kg', price: 95000 }] },
+{ seller: "Amma's Achaar", area: 'Jayanagar', delivery: 'Delivers Mon–Sat', bg: '#F1EFE8', fee: 4000, items: [{ id: 'pickle', name: 'Avakaya mango pickle, 500 g', price: 32000 }] },
+{ seller: 'Dhaaga Crafts', area: 'Whitefield', delivery: 'Ships in 2–4 days', bg: '#EEF0EC', fee: 5000, items: [{ id: 'toy', name: 'Crochet elephant toy', price: 80000 }] }
+];
+let itemsAll = 0, feesAll = 0, itemCount = 0;
+const out = groups.map((g) => {
+const items = g.items.map((i) => {
+const qty = q[i.id];
+itemCount += qty;
+return { ...i, qty, unit: inr(i.price), line: inr(i.price * qty), inc: () => setQ(i.id, qty + 1), dec: () => setQ(i.id, qty - 1) };
+});
+const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+itemsAll += total; feesAll += g.fee;
+return { ...g, items, fee: inr(g.fee), subtotal: inr(total + g.fee) };
+});
+return { groups: out, itemCount, sellerCount: groups.length, itemsAll: inr(itemsAll), feesAll: inr(feesAll), grand: inr(itemsAll + feesAll) };
+}
+}
+</script>
+</body>
+</html>

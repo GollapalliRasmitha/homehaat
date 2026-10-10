@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Meera's Oven store</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF}
+a{color:#111111}a:hover{color:#000000}
+.tile .img{transition:transform .5s ease}
+.tile:hover .img{transform:scale(1.03)}
+.btn-dark{background:#111111;color:#FFFFFF;transition:background .15s ease,transform .15s ease}
+.btn-dark:hover{background:#333333;color:#FFFFFF}
+.btn-dark:active{transform:scale(0.98)}
+.btn-light{background:#FFFFFF;color:#111111;border:1px solid #111111;transition:background .15s ease,transform .15s ease}
+.btn-light:hover{background:#F5F5F5;color:#111111}
+.btn-light:active{transform:scale(0.98)}
+:focus-visible{outline:2px solid #111111;outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 100vh; background: #FFFFFF; color: #111111; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 16px; padding-bottom: 96px;">
+
+<header style="position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,0.96); border-bottom: 1px solid #EBEBEB;">
+<div style="max-width: 1280px; margin: 0 auto; padding: 0 32px; height: 72px; display: flex; align-items: center; gap: 24px;">
+<a href="Main.dc.html" style="font-weight: 700; font-size: 22px; letter-spacing: -0.6px; text-decoration: none; color: #111111;">homehaat</a>
+<form role="search" style="flex: 1; max-width: 520px; margin: 0 auto; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 18px; border: 1px solid #DDDDDD; border-radius: 999px;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B6B6B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<label for="store-search" class="sr">Search HomeHaat</label>
+<input id="store-search" type="search" placeholder="Search makers and products" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 15px; color: #111111; outline: none;">
+</form>
+<div style="display: flex; align-items: center; gap: 4px;">
+<a href="#" aria-label="Wishlist" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"></path></svg></a>
+<a href="Cart.dc.html" aria-label="Bag, 3 items" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1 12H6z"></path><path d="M9 8a3 3 0 0 1 6 0"></path></svg>
+<span style="position: absolute; top: 7px; right: 5px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #111111; color: #FFFFFF; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;">3</span></a>
+</div>
+</div>
+</header>
+
+<section style="max-width: 1280px; margin: 0 auto; padding: 32px 32px 0;">
+<div style="aspect-ratio: 16 / 6; min-height: 240px; border-radius: 24px; background: #F3F0EC; display: flex; align-items: flex-end; padding: 20px; box-sizing: border-box;">
+<span style="font-size: 12px; color: #6B6B6B; background: rgba(255,255,255,0.85); padding: 6px 12px; border-radius: 999px;">Cover photo of Meera's kitchen</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 36px 0 32px; border-bottom: 1px solid #EBEBEB;">
+<div style="flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<span style="font-size: 13px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: #6B6B6B;">Home baker · Indiranagar</span>
+<h1 style="margin: 0; font-weight: 600; font-size: 60px; line-height: 1; letter-spacing: -2.4px;">Meera's Oven</h1>
+<p style="margin: 0; max-width: 620px; font-size: 17px; line-height: 1.6; color: #555555;">[Seller bio: what she bakes, how far ahead to order, and how delivery works, in her own words.]</p>
+<dl style="margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 12px 40px;">
+<div><dt style="font-size: 13px; color: #6B6B6B;">Delivery</dt><dd style="margin: 4px 0 0; font-size: 15px; font-weight: 600;">Tue–Sun · ₹40</dd></div>
+<div><dt style="font-size: 13px; color: #6B6B6B;">Reviews</dt><dd style="margin: 4px 0 0; font-size: 15px; font-weight: 600;">None yet</dd></div>
+<div><dt style="font-size: 13px; color: #6B6B6B;">Products</dt><dd style="margin: 4px 0 0; font-size: 15px; font-weight: 600;">{{productCount}}</dd></div>
+</dl>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px;">
+<button type="button" class="btn-light" style="height: 50px; padding: 0 22px; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v13"></path><path d="m7 8 5-5 5 5"></path><path d="M5 14v6h14v-6"></path></svg>Share</button>
+<a href="#" class="btn-dark" style="height: 50px; padding: 0 24px; border-radius: 999px; display: inline-flex; align-items: center; font-size: 15px; font-weight: 600; text-decoration: none;">Request a custom order</a>
+</div>
+</div>
+
+<div role="tablist" aria-label="Store sections" style="display: flex; flex-wrap: wrap; gap: 32px; padding-top: 8px;">
+<button type="button" role="tab" aria-selected="true" style="height: 52px; padding: 0; border: 0; border-bottom: 2px solid #111111; background: transparent; color: #111111; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;">All products</button>
+<button type="button" role="tab" aria-selected="false" style="height: 52px; padding: 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #6B6B6B; font: inherit; font-size: 15px; font-weight: 500; cursor: pointer;">Cakes</button>
+<button type="button" role="tab" aria-selected="false" style="height: 52px; padding: 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #6B6B6B; font: inherit; font-size: 15px; font-weight: 500; cursor: pointer;">Cookies &amp; loaves</button>
+<button type="button" role="tab" aria-selected="false" style="height: 52px; padding: 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #6B6B6B; font: inherit; font-size: 15px; font-weight: 500; cursor: pointer;">Reviews</button>
+</div>
+</section>
+
+<section style="max-width: 1280px; margin: 0 auto; padding: 32px 32px 0;" aria-label="Products">
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 40px 20px;">
+<sc-for list="{{products}}" as="p" hint-placeholder-count="4">
+<article class="tile" style="display: flex; flex-direction: column; gap: 14px;">
+<div style="position: relative; aspect-ratio: 1; border-radius: 16px; overflow: hidden; background: {{p.bg}};">
+<div class="img" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;"><svg width="44%" viewBox="0 0 120 120" fill="none" stroke="#B9B2A8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{p.art}}"></path></svg></div>
+<sc-if value="{{p.low}}" hint-placeholder-val="{{false}}"><span style="position: absolute; left: 12px; top: 12px; padding: 6px 11px; border-radius: 999px; background: #FFFFFF; font-size: 12px; font-weight: 600;">{{p.stockLabel}}</span></sc-if>
+<sc-if value="{{p.soldOut}}" hint-placeholder-val="{{false}}"><span style="position: absolute; left: 12px; top: 12px; padding: 6px 11px; border-radius: 999px; background: #111111; color: #FFFFFF; font-size: 12px; font-weight: 600;">Sold out</span></sc-if>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="display: flex; justify-content: space-between; gap: 12px;">
+<h3 style="margin: 0; font-size: 16px; font-weight: 600; line-height: 1.35;">{{p.name}}</h3>
+<span style="font-size: 16px; font-weight: 600; white-space: nowrap;">{{p.price}}</span>
+</div>
+<span style="font-size: 14px; color: #6B6B6B;">{{p.meta}}</span>
+<sc-if value="{{p.canBuy}}" hint-placeholder-val="{{true}}">
+<button type="button" class="btn-light" style="margin-top: 10px; height: 44px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">Add to bag</button>
+</sc-if>
+<sc-if value="{{p.soldOut}}" hint-placeholder-val="{{false}}">
+<button type="button" disabled style="margin-top: 10px; height: 44px; border-radius: 999px; border: 1px solid #EBEBEB; background: #F7F7F5; color: #6B6B6B; font: inherit; font-size: 14px; font-weight: 600;">Sold out</button>
+</sc-if>
+</div>
+</article>
+</sc-for>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1600}}'>
+class Component extends DCLogic {
+renderVals() {
+const items = [
+{ name: 'Chocolate truffle cake, 1 kg', meta: 'Order 2 days ahead', price: '₹950', stock: 8, bg: '#F3F0EC',
+art: 'M25 95h70M30 95V70h60v25M30 70c0-6 8-8 15-6s10 6 15 4 10-6 15-4 15 0 15 6M40 70V52h40v18M40 52c5-4 10-4 15 0s10 4 15 0 10-4 10 0M60 52V40M57 34c0-4 3-7 3-7s3 3 3 7a3 3 0 0 1-6 0z' },
+{ name: 'Red velvet cupcakes (6)', meta: 'Eggless option on request', price: '₹450', stock: 2, bg: '#F2EEEE',
+art: 'M24 60h30l-4 26H28zM24 60c0-10 6-16 15-16s15 6 15 16M66 60h30l-4 26H70zM66 60c0-10 6-16 15-16s15 6 15 16' },
+{ name: 'Banana walnut loaf', meta: 'About 450 g', price: '₹380', stock: 12, bg: '#F1EFE8',
+art: 'M28 82c0-22 14-36 32-36s32 14 32 36v8H28zM44 58l6 10M58 54l6 10M72 58l6 10' },
+{ name: 'Assorted cookie box (12)', meta: 'Butter, oat and choco-chip', price: '₹420', stock: 0, bg: '#EEF0EC',
+art: 'M28 50h64v40H28zM28 50l8-14h48l8 14M44 70a6 6 0 1 0 .1 0M62 66a6 6 0 1 0 .1 0M76 74a5 5 0 1 0 .1 0' }
+];
+return {
+productCount: items.length,
+products: items.map((p) => ({ ...p, low: p.stock > 0 && p.stock <= 3, soldOut: p.stock === 0, canBuy: p.stock > 0, stockLabel: 'Only ' + p.stock + ' left' }))
+};
+}
+}
+</script>
+</body>
+</html>

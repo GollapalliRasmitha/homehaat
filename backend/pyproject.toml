@@ -1,0 +1,9 @@
+[tool.ruff]
+line-length = 120
+extend-exclude = ["*/migrations/*", ".venv"]
+
+[tool.ruff.lint]
+# E/F: real errors, I: import order, B: common bugs, UP: modern Python, DJ: Django rules
+select = ["E", "F", "I", "B", "UP", "DJ"]
+# DJ001: CharField(null=True) is intentional for the unique Razorpay ids. DJ008: not every model needs __str__.
+ignore = ["DJ001", "DJ008"]

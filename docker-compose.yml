@@ -1,0 +1,22 @@
+# Only Postgres runs in Docker. Django and Next.js run directly on Windows.
+# Port 5433 on your PC -> 5432 in the container, so it never clashes with Oppora (5432).
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: homehaat-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-homehaat}
+      POSTGRES_USER: ${POSTGRES_USER:-homehaat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-homehaat}
+    ports:
+      - "5433:5432"
+    volumes:
+      - homehaat-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-homehaat} -d ${POSTGRES_DB:-homehaat}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  homehaat-pgdata:

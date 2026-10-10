@@ -1,0 +1,248 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   HomeHaat design tokens (UI-UX.md section 2).
+   Components use these, never raw hex values. Ask before changing one.
+   ------------------------------------------------------------------ */
+:root {
+  --ink: #111111;
+  --muted: #5f5f5f;
+  --line: #eaeaea;
+  --page: #ffffff;
+  --soft: #f6f5f2;
+  --black-2: #2b2b2b;
+  --error: #b42318;
+
+  /* category tints, shown behind photos and line drawings */
+  --sand: #f2efea;
+  --mist: #eef0f2;
+  --linen: #f1eee6;
+  --sage: #edf0ea;
+  --blush: #f5edec;
+  --stone: #efedea;
+
+  /* status pills: background / text */
+  --st-new-bg: #fbf0e4;
+  --st-new: #8a4b12;
+  --st-preparing-bg: #f1eee6;
+  --st-preparing: #5a4a2a;
+  --st-out-bg: #edf1f6;
+  --st-out: #2d4a73;
+  --st-delivered-bg: #e9f4ec;
+  --st-delivered: #1f6a3b;
+  --st-cancelled-bg: #f1f1f1;
+  --st-cancelled: #666666;
+}
+
+/* Let Tailwind classes use the tokens: text-ink, bg-soft, border-line, font-serif… */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-page: var(--page);
+  --color-soft: var(--soft);
+  --color-black-2: var(--black-2);
+  --color-error: var(--error);
+  --color-sand: var(--sand);
+  --color-mist: var(--mist);
+  --color-linen: var(--linen);
+  --color-sage: var(--sage);
+  --color-blush: var(--blush);
+  --color-stone: var(--stone);
+  --font-sans: var(--font-inter-tight), "Segoe UI", system-ui, sans-serif;
+  --font-serif: var(--font-instrument-serif), Georgia, "Times New Roman", serif;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--page);
+    color: var(--ink);
+  }
+  body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+}
+
+/* Shared building blocks. Stage 4 turns these into full components. */
+@layer components {
+  .wrap {
+    max-width: 1600px;
+    margin-inline: auto;
+    padding-inline: clamp(16px, 7vw, 150px);
+  }
+  .serif {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+  .eyebrow {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .title {
+    font-size: clamp(34px, 4.8vw, 56px);
+    line-height: 1.02;
+    letter-spacing: -0.045em;
+  }
+  .price {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 48px;
+    padding: 0 24px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition:
+      transform 0.15s,
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .btn:active {
+    transform: scale(0.97);
+  }
+  .btn[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-black {
+    background: var(--ink);
+    color: #fff;
+  }
+  .btn-black:hover {
+    background: var(--black-2);
+  }
+  .btn-white {
+    background: #fff;
+    color: var(--ink);
+    border-color: #1111112b;
+  }
+  .btn-white:hover {
+    border-color: var(--ink);
+  }
+  .btn-lg {
+    height: 56px;
+    padding: 0 30px;
+    font-size: 17px;
+  }
+
+  .panel {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 26px;
+  }
+  .field-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .input,
+  .textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    padding: 12px 14px;
+    font-size: 16px;
+    outline: none;
+  }
+  .input {
+    height: 50px;
+  }
+  .input:focus,
+  .textarea:focus {
+    border-color: var(--ink);
+  }
+  .field-error {
+    color: var(--error);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .status::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+  .st-new {
+    background: var(--st-new-bg);
+    color: var(--st-new);
+  }
+  .st-preparing {
+    background: var(--st-preparing-bg);
+    color: var(--st-preparing);
+  }
+  .st-out_for_delivery {
+    background: var(--st-out-bg);
+    color: var(--st-out);
+  }
+  .st-delivered {
+    background: var(--st-delivered-bg);
+    color: var(--st-delivered);
+  }
+  .st-cancelled {
+    background: var(--st-cancelled-bg);
+    color: var(--st-cancelled);
+  }
+
+  .testpill {
+    display: inline-block;
+    background: var(--sand);
+    color: var(--st-preparing);
+    border-radius: 999px;
+    padding: 5px 11px;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

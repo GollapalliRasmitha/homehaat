@@ -1,0 +1,1 @@
+Earlier design directions, NOT used. Ignore these. Follow HomeHaat-demo.html and UI-UX.md.

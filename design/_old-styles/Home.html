@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HomeHaat home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&amp;family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF}
+a{color:#111111}a:hover{color:#000000}
+.tile .img{transition:transform .5s ease}
+.tile:hover .img{transform:scale(1.03)}
+.btn-dark{background:#111111;color:#FFFFFF;transition:background .15s ease,transform .15s ease}
+.btn-dark:hover{background:#333333;color:#FFFFFF}
+.btn-dark:active{transform:scale(0.98)}
+.btn-light{background:#FFFFFF;color:#111111;border:1px solid #111111;transition:background .15s ease,transform .15s ease}
+.btn-light:hover{background:#F5F5F5;color:#111111}
+.btn-light:active{transform:scale(0.98)}
+.navlink{color:#111111;text-decoration:none;border-bottom:1px solid transparent}
+.navlink:hover{border-bottom-color:#111111;color:#111111}
+.heart{transition:transform .2s ease}
+.heart:active{transform:scale(1.2)}
+:focus-visible{outline:2px solid #111111;outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 100vh; background: #FFFFFF; color: #111111; font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 16px;">
+
+<header style="position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,0.96); border-bottom: 1px solid #EBEBEB;">
+<div style="max-width: 1280px; margin: 0 auto; padding: 0 32px; height: 72px; display: flex; align-items: center; gap: 32px;">
+<a href="#" style="font-weight: 700; font-size: 22px; letter-spacing: -0.6px; text-decoration: none; color: #111111;">homehaat</a>
+<nav aria-label="Main" style="flex: 1; display: flex; flex-wrap: wrap; gap: 28px; font-size: 15px; font-weight: 500;">
+<a href="#" class="navlink" style="padding: 6px 0;">Explore</a>
+<a href="#categories" class="navlink" style="padding: 6px 0;">Categories</a>
+<a href="#makers" class="navlink" style="padding: 6px 0;">Makers</a>
+<a href="#custom" class="navlink" style="padding: 6px 0;">Custom orders</a>
+</nav>
+<div style="display: flex; align-items: center; gap: 4px;">
+<a href="#" style="font-size: 15px; font-weight: 500; padding: 12px; text-decoration: none;">Sell on HomeHaat</a>
+<a href="#" aria-label="Search" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></a>
+<a href="#" aria-label="Wishlist, {{wishCount}} saved" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"></path></svg>
+<sc-if value="{{hasWish}}" hint-placeholder-val="{{false}}"><span style="position: absolute; top: 7px; right: 5px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #111111; color: #FFFFFF; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{wishCount}}</span></sc-if></a>
+<a href="Cart.dc.html" aria-label="Bag, {{cartCount}} items" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1 12H6z"></path><path d="M9 8a3 3 0 0 1 6 0"></path></svg>
+<span style="position: absolute; top: 7px; right: 5px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #111111; color: #FFFFFF; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{cartCount}}</span></a>
+<a href="#" class="btn-light" style="margin-left: 8px; height: 40px; padding: 0 18px; border-radius: 999px; display: inline-flex; align-items: center; font-size: 14px; font-weight: 600; text-decoration: none;">Sign in</a>
+</div>
+</div>
+</header>
+
+<section style="max-width: 1280px; margin: 0 auto; padding: 72px 32px 40px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 22px;">
+<span style="font-size: 13px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: #6B6B6B;">Handmade by people near you</span>
+<h1 style="margin: 0; max-width: 900px; font-weight: 600; font-size: 76px; line-height: 0.98; letter-spacing: -3px;">Made at home.<br><span style="font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; letter-spacing: -1.5px;">Made for you.</span></h1>
+<p style="margin: 0; max-width: 560px; font-size: 18px; line-height: 1.6; color: #555555;">Cakes, pickles, art and tailoring from home makers in your neighbourhood. One bag, many makers, one payment.</p>
+<form role="search" style="margin-top: 8px; width: 100%; max-width: 620px; display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 24px; border: 1px solid #DDDDDD; border-radius: 999px; box-shadow: 0 6px 24px rgba(0,0,0,0.06); box-sizing: border-box; background: #FFFFFF;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B6B6B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+<label for="hero-search" class="sr">What are you looking for today?</label>
+<input id="hero-search" type="search" placeholder="What are you looking for today?" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 16px; color: #111111; outline: none;">
+<button type="submit" class="btn-dark" style="height: 48px; padding: 0 26px; border: 0; border-radius: 999px; font: inherit; font-weight: 600; font-size: 15px; cursor: pointer;">Search</button>
+</form>
+</section>
+
+<section id="categories" style="max-width: 1280px; margin: 0 auto; padding: 24px 32px 96px;" aria-label="Featured categories">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+<a href="#" class="tile" style="display: flex; flex-direction: column; gap: 14px; text-decoration: none; color: #111111;">
+<div style="aspect-ratio: 4 / 5; border-radius: 20px; overflow: hidden; background: #F3F0EC;"><div class="img" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;"><svg width="42%" viewBox="0 0 120 120" fill="none" stroke="#B9B2A8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M25 95h70M30 95V70h60v25M30 70c0-6 8-8 15-6s10 6 15 4 10-6 15-4 15 0 15 6M40 70V52h40v18M40 52c5-4 10-4 15 0s10 4 15 0 10-4 10 0M60 52V40M57 34c0-4 3-7 3-7s3 3 3 7a3 3 0 0 1-6 0z"></path></svg></div></div>
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px;">Cakes &amp; bakery</span><span style="font-size: 15px; color: #6B6B6B;">Shop</span></div>
+</a>
+<a href="#" class="tile" style="display: flex; flex-direction: column; gap: 14px; text-decoration: none; color: #111111;">
+<div style="aspect-ratio: 4 / 5; border-radius: 20px; overflow: hidden; background: #EEF0F1;"><div class="img" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;"><svg width="42%" viewBox="0 0 120 120" fill="none" stroke="#A9B0B5" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M25 28h70v64H25zM33 36h54v48H33zM33 72l14-14 12 12 10-8 18 14M70 46a5 5 0 1 0 .1 0"></path></svg></div></div>
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px;">Art &amp; paintings</span><span style="font-size: 15px; color: #6B6B6B;">Shop</span></div>
+</a>
+<a href="#" class="tile" style="display: flex; flex-direction: column; gap: 14px; text-decoration: none; color: #111111;">
+<div style="aspect-ratio: 4 / 5; border-radius: 20px; overflow: hidden; background: #F1EFE8;"><div class="img" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;"><svg width="42%" viewBox="0 0 120 120" fill="none" stroke="#B5AF9C" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M42 30h36v10H42zM38 40h44l4 10v42a6 6 0 0 1-6 6H40a6 6 0 0 1-6-6V50zM34 62h52M34 80h52"></path></svg></div></div>
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px;">Homemade pickles</span><span style="font-size: 15px; color: #6B6B6B;">Shop</span></div>
+</a>
+</div>
+<div style="margin-top: 28px; display: flex; flex-wrap: wrap; gap: 10px;">
+<sc-for list="{{categories}}" as="c" hint-placeholder-count="6">
+<a href="#" style="height: 44px; padding: 0 18px; display: inline-flex; align-items: center; border: 1px solid #DDDDDD; border-radius: 999px; font-size: 14px; font-weight: 500; text-decoration: none; color: #111111;">{{c}}</a>
+</sc-for>
+</div>
+</section>
+
+<section style="max-width: 1280px; margin: 0 auto; padding: 0 32px 104px;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 28px;">
+<h2 style="margin: 0; font-weight: 600; font-size: 40px; letter-spacing: -1.4px;">New this week</h2>
+<a href="#" style="font-size: 15px; font-weight: 500; text-underline-offset: 4px;">View all</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 40px 20px;">
+<sc-for list="{{products}}" as="p" hint-placeholder-count="4">
+<article class="tile" style="display: flex; flex-direction: column; gap: 14px;">
+<div style="position: relative; aspect-ratio: 1; border-radius: 16px; overflow: hidden; background: {{p.bg}};">
+<div class="img" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;"><svg width="46%" viewBox="0 0 120 120" fill="none" stroke="{{p.line}}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{p.art}}"></path></svg></div>
+<button type="button" class="heart" onClick="{{p.toggleWish}}" aria-pressed="{{p.wished}}" aria-label="{{p.wishLabel}}" style="position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border-radius: 999px; border: 0; background: rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="{{p.heartFill}}" stroke="#111111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"></path></svg>
+</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<div style="display: flex; justify-content: space-between; gap: 12px;">
+<h3 style="margin: 0; font-size: 16px; font-weight: 600; line-height: 1.35;">{{p.name}}</h3>
+<span style="font-size: 16px; font-weight: 600; white-space: nowrap;">{{p.price}}</span>
+</div>
+<a href="Store.dc.html" style="font-size: 14px; color: #6B6B6B; text-decoration: none;">{{p.seller}}</a>
+<span style="font-size: 14px; color: #6B6B6B;">{{p.delivery}}</span>
+<button type="button" class="btn-light" onClick="{{p.add}}" style="margin-top: 10px; height: 44px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;">Add to bag</button>
+</div>
+</article>
+</sc-for>
+</div>
+</section>
+
+<section id="makers" style="background: #F7F7F5;">
+<div style="max-width: 1280px; margin: 0 auto; padding: 96px 32px;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 32px;">
+<div>
+<span style="font-size: 13px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: #6B6B6B;">The makers</span>
+<h2 style="margin: 8px 0 0; font-weight: 600; font-size: 40px; letter-spacing: -1.4px;">Real people. <span style="font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400;">Real kitchens and studios.</span></h2>
+</div>
+<a href="#" style="font-size: 15px; font-weight: 500; text-underline-offset: 4px;">All makers</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px;">
+<sc-for list="{{makers}}" as="m" hint-placeholder-count="4">
+<a href="Store.dc.html" class="tile" style="display: flex; flex-direction: column; gap: 14px; text-decoration: none; color: #111111;">
+<div style="aspect-ratio: 3 / 4; border-radius: 16px; overflow: hidden; background: {{m.bg}};"><div class="img" style="width: 100%; height: 100%; display: flex; align-items: flex-end; padding: 16px; box-sizing: border-box;"><span style="font-size: 12px; color: #6B6B6B; background: rgba(255,255,255,0.85); padding: 5px 10px; border-radius: 999px;">Maker photo</span></div></div>
+<div style="display: flex; flex-direction: column; gap: 3px;">
+<span style="font-size: 18px; font-weight: 600; letter-spacing: -0.3px;">{{m.name}}</span>
+<span style="font-size: 14px; color: #6B6B6B;">{{m.kind}} · {{m.area}}</span>
+</div>
+</a>
+</sc-for>
+</div>
+</div>
+</section>
+
+<section id="custom" style="max-width: 1280px; margin: 0 auto; padding: 104px 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 56px;">
+<div style="flex: 1 1 460px; min-width: 0; aspect-ratio: 5 / 4; border-radius: 24px; background: #EFEDE9; display: flex; align-items: center; justify-content: center;">
+<svg width="34%" viewBox="0 0 120 120" fill="none" stroke="#B5ADA2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M30 92h60M36 92V64h48v28M36 64c0-5 6-7 12-5s8 5 12 3 8-5 12-3 12 0 12 5M60 64V48M52 40l8-12 8 12z"></path></svg>
+</div>
+<div style="flex: 1 1 400px; min-width: 0; display: flex; flex-direction: column; gap: 20px;">
+<span style="font-size: 13px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: #6B6B6B;">Custom orders</span>
+<h2 style="margin: 0; font-weight: 600; font-size: 48px; line-height: 1.02; letter-spacing: -1.8px;">Have something in mind? <span style="font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400;">Ask a maker.</span></h2>
+<p style="margin: 0; font-size: 17px; line-height: 1.6; color: #555555; max-width: 460px;">Describe it, add reference photos and get a quote. You pay only when you approve.</p>
+<ol style="margin: 4px 0 0; padding: 0; list-style: none; border-top: 1px solid #EBEBEB;">
+<li style="display: flex; gap: 20px; padding: 16px 0; border-bottom: 1px solid #EBEBEB; font-size: 16px;"><span style="color: #6B6B6B; width: 24px;">01</span>Describe what you need</li>
+<li style="display: flex; gap: 20px; padding: 16px 0; border-bottom: 1px solid #EBEBEB; font-size: 16px;"><span style="color: #6B6B6B; width: 24px;">02</span>Share reference photos</li>
+<li style="display: flex; gap: 20px; padding: 16px 0; border-bottom: 1px solid #EBEBEB; font-size: 16px;"><span style="color: #6B6B6B; width: 24px;">03</span>Get the maker's quote</li>
+<li style="display: flex; gap: 20px; padding: 16px 0; border-bottom: 1px solid #EBEBEB; font-size: 16px;"><span style="color: #6B6B6B; width: 24px;">04</span>Approve and pay securely</li>
+</ol>
+<a href="#" class="btn-dark" style="align-self: flex-start; height: 52px; padding: 0 28px; border-radius: 999px; display: inline-flex; align-items: center; font-size: 15px; font-weight: 600; text-decoration: none;">Request a custom order</a>
+</div>
+</section>
+
+<section style="border-top: 1px solid #EBEBEB;">
+<div style="max-width: 1280px; margin: 0 auto; padding: 72px 32px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 40px;">
+<div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 18px; font-weight: 600;">One bag, many makers</span><p style="margin: 0; font-size: 15px; line-height: 1.6; color: #6B6B6B;">Add a cake, a painting and a jar of pickle from different homes.</p></div>
+<div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 18px; font-weight: 600;">Pay once</span><p style="margin: 0; font-size: 15px; line-height: 1.6; color: #6B6B6B;">HomeHaat splits your payment into one order per maker. Prices are checked by our server.</p></div>
+<div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 18px; font-weight: 600;">Track every part</span><p style="margin: 0; font-size: 15px; line-height: 1.6; color: #6B6B6B;">Follow each order from New to Delivered, maker by maker.</p></div>
+</div>
+</section>
+
+<footer style="border-top: 1px solid #EBEBEB;">
+<div style="max-width: 1280px; margin: 0 auto; padding: 56px 32px 32px; display: flex; flex-direction: column; gap: 40px;">
+<div style="display: flex; flex-wrap: wrap; gap: 40px;">
+<div style="flex: 2 1 280px; display: flex; flex-direction: column; gap: 10px;">
+<span style="font-weight: 700; font-size: 22px; letter-spacing: -0.6px;">homehaat</span>
+<p style="margin: 0; max-width: 320px; font-size: 15px; line-height: 1.6; color: #6B6B6B;">Every home has a story. Every creation deserves a marketplace.</p>
+</div>
+<nav aria-label="Shop" style="flex: 1 1 150px; display: flex; flex-direction: column; gap: 10px; font-size: 14px;"><span style="font-weight: 600;">Shop</span><a href="#" style="color: #555555; text-decoration: none;">Explore</a><a href="#categories" style="color: #555555; text-decoration: none;">Categories</a><a href="#custom" style="color: #555555; text-decoration: none;">Custom orders</a><a href="#" style="color: #555555; text-decoration: none;">Wishlist</a></nav>
+<nav aria-label="Makers" style="flex: 1 1 150px; display: flex; flex-direction: column; gap: 10px; font-size: 14px;"><span style="font-weight: 600;">Makers</span><a href="#" style="color: #555555; text-decoration: none;">Open your shop</a><a href="#" style="color: #555555; text-decoration: none;">Seller guide</a><a href="#" style="color: #555555; text-decoration: none;">Seller dashboard</a></nav>
+<nav aria-label="Help" style="flex: 1 1 150px; display: flex; flex-direction: column; gap: 10px; font-size: 14px;"><span style="font-weight: 600;">Help</span><a href="#" style="color: #555555; text-decoration: none;">Support</a><a href="#" style="color: #555555; text-decoration: none;">Privacy</a><a href="#" style="color: #555555; text-decoration: none;">Terms</a></nav>
+</div>
+<div style="border-top: 1px solid #EBEBEB; padding-top: 20px; font-size: 13px; color: #6B6B6B;">© HomeHaat</div>
+</div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":3640}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { wish: {}, added: 0 };
+}
+renderVals() {
+const wish = this.state.wish || {};
+const base = [
+{ id: 'cake', name: 'Chocolate truffle cake, 1 kg', seller: "Meera's Oven", delivery: 'Delivers Tue–Sun', price: '₹950', bg: '#F3F0EC', line: '#B9B2A8',
+art: 'M25 95h70M30 95V70h60v25M30 70c0-6 8-8 15-6s10 6 15 4 10-6 15-4 15 0 15 6M40 70V52h40v18M40 52c5-4 10-4 15 0s10 4 15 0 10-4 10 0M60 52V40M57 34c0-4 3-7 3-7s3 3 3 7a3 3 0 0 1-6 0z' },
+{ id: 'art', name: 'Madhubani postcard set (6)', seller: 'Rang by Arjun', delivery: 'Ships in 3–5 days', price: '₹450', bg: '#EEF0F1', line: '#A9B0B5',
+art: 'M25 28h70v64H25zM33 36h54v48H33zM33 72l14-14 12 12 10-8 18 14M70 46a5 5 0 1 0 .1 0' },
+{ id: 'pickle', name: 'Avakaya mango pickle, 500 g', seller: "Amma's Achaar", delivery: 'Delivers Mon–Sat', price: '₹320', bg: '#F1EFE8', line: '#B5AF9C',
+art: 'M42 30h36v10H42zM38 40h44l4 10v42a6 6 0 0 1-6 6H40a6 6 0 0 1-6-6V50zM34 62h52M34 80h52' },
+{ id: 'toy', name: 'Crochet elephant toy', seller: 'Dhaaga Crafts', delivery: 'Ships in 2–4 days', price: '₹800', bg: '#EEF0EC', line: '#A8B0A4',
+art: 'M30 80c0-20 12-32 32-32s28 12 28 26v6M90 74c6 0 8 6 8 12s-4 8-6 4M38 80v12h10V82M70 82v10h10V80M44 58a10 10 0 0 1-12-6c-2-6 2-12 8-12M66 60a2 2 0 1 0 .1 0' }
+];
+const products = base.map((p) => {
+const on = !!wish[p.id];
+return {
+...p,
+wished: on ? 'true' : 'false',
+heartFill: on ? '#111111' : 'none',
+wishLabel: on ? 'Remove ' + p.name + ' from wishlist' : 'Save ' + p.name + ' to wishlist',
+toggleWish: () => this.setState({ wish: { ...wish, [p.id]: !on } }),
+add: () => this.setState({ added: this.state.added + 1 })
+};
+});
+const wishCount = Object.values(wish).filter(Boolean).length;
+return {
+products,
+wishCount,
+hasWish: wishCount > 0,
+cartCount: 3 + this.state.added,
+categories: ['Fashion & tailoring', 'Handmade jewellery', 'Crafts & gifts', 'Homemade snacks', 'Home décor'],
+makers: [
+{ name: "Meera's Oven", kind: 'Home baker', area: 'Indiranagar', bg: '#F3F0EC' },
+{ name: 'Rang by Arjun', kind: 'Artist', area: 'Koramangala', bg: '#EEF0F1' },
+{ name: 'Silai Studio', kind: 'Tailor', area: 'HSR Layout', bg: '#F2EEEE' },
+{ name: "Amma's Achaar", kind: 'Home cook', area: 'Jayanagar', bg: '#F1EFE8' }
+]
+};
+}
+}
+</script>
+</body>
+</html>

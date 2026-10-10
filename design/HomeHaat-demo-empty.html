@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HomeHaat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://images.unsplash.com">
+<style>
+/* Editorial and minimal: white page, black ink, one italic serif accent, soft neutral cards */
+:root{
+  --ink:#111111; --muted:#5F5F5F; --line:#EAEAEA; --page:#FFFFFF; --soft:#F6F5F2; --card:#FFFFFF;
+  --black:#111111; --black-2:#2B2B2B;
+  --sand:#F2EFEA; --mist:#EEF0F2; --linen:#F1EEE6; --sage:#EDF0EA; --blush:#F5EDEC; --stone:#EFEDEA;
+  --ok-bg:#E9F4EC; --ok:#1F6A3B;
+  --display:'Inter Tight', 'Segoe UI', system-ui, sans-serif;
+  --body:'Inter Tight', 'Segoe UI', system-ui, sans-serif;
+  --serif:'Instrument Serif', Georgia, 'Times New Roman', serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.wrap{max-width:1600px;margin:0 auto;padding-inline:clamp(16px,7vw,150px)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;font-weight:700;letter-spacing:-.03em}
+.serif{font-family:var(--serif);font-style:italic;font-weight:400;letter-spacing:-.02em}
+.demo-bar{background:var(--soft);color:var(--muted);font-size:13px;text-align:center;padding:8px 16px;border-bottom:1px solid var(--line)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:48px;padding:0 24px;border-radius:999px;border:1px solid transparent;font-weight:600;font-size:16px;cursor:pointer;text-decoration:none;transition:transform .15s,background .15s,border-color .15s}
+.btn:active{transform:scale(.97)}
+.btn-black{background:var(--black);color:#fff}.btn-black:hover{background:var(--black-2)}
+.btn-white{background:#fff;color:var(--ink);border-color:#1111112b}.btn-white:hover{border-color:var(--ink)}
+.btn-lg{height:56px;padding:0 30px;font-size:17px}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.arrow{display:none}
+.icon-btn{width:44px;height:44px;border-radius:999px;border:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;position:relative;text-decoration:none}
+.icon-btn:hover{background:var(--soft)}
+.count{position:absolute;top:4px;right:2px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--ink);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.count.bump{animation:bump .35s}
+@keyframes bump{50%{transform:scale(1.35)}}
+
+/* header */
+.top{background:#fff;border-bottom:1px solid var(--line)}
+.nav{height:88px;display:flex;align-items:center;gap:8px 34px}
+.logo{display:flex;align-items:center;text-decoration:none}
+.logo-mark{display:none}
+.logo-word{font-family:var(--display);font-weight:800;font-size:25px;letter-spacing:-.04em}
+.links{flex:1 1 auto;display:flex;flex-wrap:wrap;gap:2px 30px}
+.links a{font-weight:500;font-size:18px;text-decoration:none;padding:6px 0;border-bottom:1.5px solid transparent}
+.links a:hover,.links a.on{border-bottom-color:var(--ink)}
+.actions{display:flex;gap:4px;align-items:center;margin-left:auto}
+.actions .sell{font-weight:500;font-size:18px;text-decoration:none;margin-right:18px}
+.actions .sell:hover{text-decoration:underline;text-underline-offset:4px}
+.actions .btn{margin-left:14px;height:52px;padding:0 22px;font-size:17px}
+
+/* hero */
+.hero{text-align:center;padding:96px 0 80px;display:flex;flex-direction:column;align-items:center}
+.eyebrow{font-size:15px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 30px}
+.hero h1{font-size:clamp(52px,8.4vw,104px);line-height:.95;letter-spacing:-.055em;font-weight:700}
+.hero h1 .serif{display:block;font-size:1.04em;line-height:1.02;letter-spacing:-.03em;margin-top:6px}
+.hero p.lede{margin:34px auto 0;max-width:620px;font-size:clamp(17px,1.5vw,21px);line-height:1.7;color:#3B3B3B}
+.pill-search{margin:44px auto 0;width:min(774px,100%);display:flex;align-items:center;gap:14px;height:82px;padding:0 10px 0 30px;border:1px solid var(--line);border-radius:999px;background:#fff;box-shadow:0 14px 40px rgba(0,0,0,.06)}
+.pill-search input{flex:1;min-width:0;border:0;outline:none;background:transparent;font-size:19px}
+.pill-search input::placeholder{color:#6F6F6F}
+.pill-search .btn{height:60px;padding:0 32px;font-size:18px}
+.showcase{display:grid;gap:20px;grid-template-columns:repeat(3,minmax(0,1fr));padding-bottom:20px}
+.show{position:relative;border-radius:28px;aspect-ratio:1.18;display:flex;align-items:center;justify-content:center;text-decoration:none;overflow:hidden;transition:transform .35s}
+.show:hover{transform:none}
+.show .float{display:block;width:40%;margin-bottom:40px}
+.show svg{width:100%;height:auto;display:block;transition:transform .5s}
+.show img{transition:transform .6s}.show:hover img{transform:scale(1.04)}
+.show .lbl{position:absolute;left:26px;bottom:24px;text-align:left}
+.show .lbl b{display:block;font-size:24px;font-weight:700;letter-spacing:-.03em}
+.show .lbl span{font-size:15px;color:var(--muted)}
+.show .go{position:absolute;right:22px;bottom:22px;width:46px;height:46px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center}
+.float{animation:float 7s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+
+/* sections */
+section.block{padding-block:72px 8px}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:28px}
+.head h2{font-size:clamp(30px,3.6vw,46px);line-height:1.05}
+.head h2 .serif{font-size:1.08em}
+.head a{font-weight:500;font-size:16px;text-underline-offset:4px}
+.grid{display:grid;gap:22px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.cats{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.cat{border-radius:22px;padding:20px;height:190px;display:flex;flex-direction:column;justify-content:space-between;text-decoration:none;transition:transform .25s}
+.cat span{font-weight:600;font-size:18px;letter-spacing:-.02em}
+.cat svg{align-self:flex-end}
+.lift{transition:transform .25s}
+.lift:hover,.cat:hover{transform:translateY(-4px)}
+.field-label{font-size:14px;font-weight:600;display:block;margin-bottom:8px}
+
+/* product card */
+.pcard{position:relative;display:flex;flex-direction:column;gap:14px}
+.pimg{position:relative;aspect-ratio:1;border-radius:22px;display:flex;align-items:center;justify-content:center;text-decoration:none;overflow:hidden}
+.pimg svg{width:52%;height:auto;transition:transform .45s}
+.pcard:hover .pimg svg,.pcard:hover .pimg img{transform:scale(1.04)}
+.pimg img{transition:transform .45s}
+.tag{position:absolute;left:14px;top:14px;background:#fff;border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600}
+.tag.dark{background:var(--black);color:#fff}
+.heart{position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:999px;border:0;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s}
+.heart:active{transform:scale(1.2)}
+.pbody{display:flex;flex-direction:column;gap:2px;padding:0 2px}
+.maker-link{font-size:14px;font-weight:500;color:var(--muted);text-decoration:none}
+.maker-link:hover{color:var(--ink);text-decoration:underline}
+.pname{font-size:18px;font-weight:600;line-height:1.3;text-decoration:none;letter-spacing:-.02em}
+.meta{font-size:14.5px;color:var(--muted)}
+.prow{margin-top:8px;display:flex;align-items:center;justify-content:space-between}
+.price{font-weight:600;font-size:19px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.plus{width:44px;height:44px;border-radius:999px;border:0;background:var(--black);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.plus:hover{background:var(--black-2)}.plus[disabled]{opacity:.3;cursor:not-allowed}
+
+/* makers */
+.mcard{background:var(--soft);border-radius:22px;padding:20px;display:flex;align-items:center;gap:16px;text-decoration:none}
+.mono{width:58px;height:58px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;font-size:28px;color:#fff;flex:none}
+
+/* promo */
+.promo{border-radius:30px;background:var(--black);padding:clamp(28px,5vw,64px);display:flex;flex-wrap:wrap;align-items:center;gap:28px;color:#fff;margin-top:72px}
+.promo h2{font-size:clamp(34px,4.4vw,58px);line-height:1}
+.promo h2 .serif{font-size:1.08em}
+.promo p{color:#CFCFCF}
+.promo .btn-black{background:#fff;color:var(--ink)}.promo .btn-black:hover{background:#EDEDED}
+.pill-light{display:inline-block;font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#BDBDBD}
+
+/* generic page */
+.page{padding-block:48px 80px}
+.title{font-size:clamp(34px,4.8vw,56px);line-height:1.02;letter-spacing:-.045em}
+.crumbs{font-size:14px;color:var(--muted);margin-bottom:16px}
+.crumbs a{color:var(--muted)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:24px;padding:26px}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:22px 0 28px}
+.chip{height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:#fff;font-weight:500;font-size:15px;cursor:pointer}
+.chip:hover{border-color:var(--ink)}
+.chip.on{background:var(--black);color:#fff;border-color:var(--black)}
+.select{height:42px;border-radius:999px;border:1px solid var(--line);background:#fff;padding:0 14px;font-weight:500;font-size:15px}
+.search{display:flex;align-items:center;gap:10px;height:50px;padding:0 20px;border-radius:999px;background:#fff;border:1px solid var(--line);flex:1 1 280px;min-width:0}
+.search input{border:0;outline:none;background:transparent;flex:1;min-width:0;font-size:16px}
+.empty{text-align:center;padding:64px 20px;display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--soft);border:0}
+.empty h2{font-size:26px!important}
+.empty p{margin:0 0 6px;color:var(--muted);max-width:440px}
+
+/* store */
+.cover{border-radius:28px;height:260px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.store-head{padding:28px 0 0;display:flex;flex-wrap:wrap;gap:18px 26px;align-items:center}
+.facts{display:flex;flex-wrap:wrap;gap:8px 30px;margin:10px 0 0;padding:0}
+.facts div{display:flex;flex-direction:column}
+.facts dt{font-size:13px;color:var(--muted)}.facts dd{margin:0;font-weight:600}
+
+/* product page */
+.pdp{display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start}
+.pdp-img{flex:1 1 460px;min-width:0;aspect-ratio:1;border-radius:28px;display:flex;align-items:center;justify-content:center;max-width:100%}
+.pdp-img svg{width:52%}
+.pdp-info{flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:18px}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);background:#fff;border-radius:999px;height:46px}
+.stepper button{width:46px;height:44px;border:0;background:transparent;border-radius:999px;cursor:pointer;font-size:20px}
+.stepper button:hover{background:var(--soft)}
+.stepper span{min-width:28px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+textarea,.input{width:100%;border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px 14px;font-size:16px;outline:none}
+textarea:focus,.input:focus{border-color:var(--ink)}
+.input{height:50px}
+.rows{border-top:1px solid var(--line)}
+.rows div{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);font-size:15px}
+.rows dt{color:var(--muted)}.rows dd{margin:0;font-weight:500;text-align:right}
+
+/* bag */
+.bag{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.bag-list{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:18px}
+.summary{flex:1 1 320px;min-width:0;position:sticky;top:16px;display:flex;flex-direction:column;gap:14px}
+.summary.panel{background:var(--soft);border:0}
+.group-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 14px;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.line{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--line)}
+.thumb{width:84px;height:84px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex:none;overflow:hidden}
+.thumb svg{width:60%}
+.sum-row{display:flex;justify-content:space-between;font-size:15px;color:var(--muted)}
+.total{display:flex;justify-content:space-between;align-items:baseline;padding:14px 0;border-top:1px solid #DDDDDD}
+.total b{font-size:30px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.note-box{background:var(--soft);border-radius:14px;padding:12px 14px;font-size:14px}
+.summary .note-box{background:#fff}
+.linkish{border:0;background:none;padding:8px 0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:14px}
+
+/* checkout */
+.steps{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0 28px;align-items:center}
+.step{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--muted)}
+.step i{font-style:normal;width:28px;height:28px;border-radius:999px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:#fff}
+.step.on{color:var(--ink)}.step.on i{background:var(--black);color:#fff;border-color:var(--black)}
+.form-grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.form-grid .full{grid-column:1/-1}
+.err{color:#B42318;font-size:13px;margin-top:4px}
+.testpill{display:inline-block;background:var(--sand);color:#5A4A2A;border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:600}
+.spinner{width:44px;height:44px;border-radius:999px;border:3px solid var(--line);border-top-color:var(--ink);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* status */
+.status{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:600}
+.status::before{content:"";width:6px;height:6px;border-radius:999px;background:currentColor}
+.st-new{background:#FBF0E4;color:#8A4B12}.st-preparing{background:#F1EEE6;color:#5A4A2A}
+.st-out{background:#EDF1F6;color:#2D4A73}.st-delivered{background:var(--ok-bg);color:var(--ok)}.st-cancelled{background:#F1F1F1;color:#666}
+.timeline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:16px 0}
+.tl{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+.tl b{height:4px;border-radius:999px;background:var(--line)}
+.tl.done{color:var(--ink);font-weight:600}.tl.done b{background:var(--ink)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--black);color:#fff;padding:12px 20px;border-radius:999px;font-weight:500;font-size:14.5px;box-shadow:0 12px 30px rgba(0,0,0,.2);z-index:50}
+
+/* footer */
+footer{padding-block:40px;margin-top:80px;border-top:1px solid var(--line)}
+.foot{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center}
+.foot nav{display:flex;flex-wrap:wrap;gap:26px;font-size:15px}
+.foot nav a{color:var(--muted);text-decoration:none}.foot nav a:hover{color:var(--ink)}
+
+.pimg img,.thumb img,.pdp-img img,.cover img{width:100%;height:100%;object-fit:cover}
+.photo-drop{border:1.5px dashed #D6D6D6;border-radius:18px;padding:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;background:var(--soft)}
+.photo-drop img{width:88px;height:88px;object-fit:cover;border-radius:14px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px 28px;border-bottom:1px solid var(--line);margin:22px 0 26px}
+.tabs button{height:48px;padding:0;border:0;border-bottom:2px solid transparent;background:transparent;font-weight:500;font-size:16px;color:var(--muted);cursor:pointer;margin-bottom:-1px}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
+.stats{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));margin-bottom:8px}
+.stat{background:var(--soft);border-radius:22px;padding:22px}
+.stat b{display:block;font-size:32px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:14px}
+.table-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.show img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.show .lbl{background:#fff;border-radius:18px;padding:12px 16px;left:16px;bottom:16px;right:80px}
+.show .lbl b{font-size:20px}
+.show .go{right:16px;bottom:16px;width:52px;height:52px}
+.cat{height:auto;padding:0;gap:12px;justify-content:flex-start}
+.cimg{display:block;aspect-ratio:1;border-radius:20px;overflow:hidden}
+.cimg img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s}
+.cat:hover .cimg img{transform:scale(1.05)}
+.cat>span:last-child{padding:0 2px}
+.empty-ph{width:120px;height:120px;border-radius:999px;object-fit:cover;margin-bottom:6px}
+.promo-ph{flex:0 1 360px;min-width:220px;aspect-ratio:4/3;border-radius:22px;overflow:hidden}
+.promo-ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ln *{vector-effect:non-scaling-stroke}
+.promo .ln{stroke:#fff}.promo .ln [fill="#fff"]{fill:#111}.promo .ln [fill^="rgba"]{fill:rgba(255,255,255,.12)}
+.cat svg{width:76px}
+@media (max-width:900px){
+  .nav{height:auto;padding-block:14px;flex-wrap:wrap}
+  .links{order:3;flex-basis:100%;gap:2px 20px}
+  .links a,.actions .sell{font-size:16px}
+  .showcase{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .hero{padding:56px 0 48px}
+  .pill-search{height:64px;padding-left:20px}
+  .pill-search .btn{height:48px;padding:0 20px}
+  .actions .sell{display:none}
+  .form-grid{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="demo-bar">Demo · starts empty · open your shop, add products and try ordering · payments are pretend</div>
+<div id="app"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+/* ---------- fixed lists (not sample data) ---------- */
+const CATS = [
+  {id:'cakes', name:'Cakes & bakes', bg:'var(--blush)', art:'cake', ph:'1588195538326-c5b1e9f80a1b'},
+  {id:'pickles', name:'Homemade pickles', bg:'var(--sand)', art:'jar', ph:'1618150615391-6d1acab1e561'},
+  {id:'snacks', name:'Homemade snacks', bg:'var(--linen)', art:'chakli', ph:'1657196118354-f25f29fe636d'},
+  {id:'art', name:'Art & paintings', bg:'var(--stone)', art:'frame', ph:'1638430323177-8cb2d1febb0c'},
+  {id:'tailoring', name:'Tailoring', bg:'var(--sage)', art:'spool', ph:'1711318510657-e626bb0c8068'},
+  {id:'crafts', name:'Crafts & gifts', bg:'var(--mist)', art:'gift', ph:'1707944145479-12755f0434d8'},
+  {id:'jewellery', name:'Jewellery', bg:'var(--sand)', art:'ring', ph:'1608042314453-ae338d80c427'},
+  {id:'decor', name:'Home décor', bg:'var(--mist)', art:'pot', ph:'1631125915902-d8abe9225ff2'}
+];
+const photo = (catId, w) => `https://images.unsplash.com/photo-${cat(catId).ph}?w=${w||800}&q=70&auto=format&fit=crop`;
+const ART_CAT = {cake:'cakes', jar:'pickles', chakli:'snacks', frame:'art', spool:'tailoring', gift:'crafts', ring:'jewellery', pot:'decor'};
+const KINDS = ['Home baker','Home cook','Artist','Tailor','Crafter','Jewellery maker','Other'];
+const GRADS = ['#111111','#7A5C3E','#3F5B4A','#5B4A6B','#2D4A73'];
+const STATUS = ['new','preparing','out','delivered'];
+const STATUS_LABEL = {new:'New', preparing:'Preparing', out:'Out for delivery', delivered:'Delivered', cancelled:'Cancelled'};
+const NEXT_ACTION = {new:'Start preparing', preparing:'Out for delivery', out:'Mark delivered'};
+
+/* ---------- state (starts empty, saved in this browser) ---------- */
+function load(k, d){ try { const v = localStorage.getItem('hh2_'+k); return v ? JSON.parse(v) : d; } catch(e){ return d; } }
+function save(k, v){ try { localStorage.setItem('hh2_'+k, JSON.stringify(v)); return true; } catch(e){ return false; } }
+let sellers = load('sellers', []);
+let products = load('products', []);
+let bag = load('bag', {});
+let wish = load('wish', []);
+let orders = load('orders', []);
+let requests = load('requests', []);
+let addresses = load('addresses', []);
+let reviews = load('reviews', []);
+let myShop = load('myShop', null);
+let me = load('me', '');
+const ui = {exploreCat:'all', sort:'popular', q:'', inStock:false, qty:1, step:1, addr:0, paying:false, tab:'products', editing:null, photos:[]};
+function persist(){
+  const ok = [['sellers',sellers],['products',products],['bag',bag],['wish',wish],['orders',orders],['requests',requests],['addresses',addresses],['reviews',reviews],['myShop',myShop],['me',me]].every(([k,v])=>save(k,v));
+  if(!ok) toast('Browser storage is full. Use smaller photos.');
+}
+
+/* ---------- helpers ---------- */
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const inr = (p) => '₹' + (p/100).toLocaleString('en-IN', {maximumFractionDigits:2});
+const seller = (id) => sellers.find(s => s.id === id);
+const cat = (id) => CATS.find(c => c.id === id) || CATS[5];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+function product(id){ return products.find(p => p.id === id) || customItem(id); }
+function customItem(id){ const r = requests.find(x => 'c'+x.id === id); if(!r) return null; const s = seller(r.seller); return {id:'c'+r.id, seller:r.seller, cat:s?s.cat:'crafts', name:'Custom: '+r.desc.slice(0,40), price:r.quote, stock:1, custom:true}; }
+const ordered = (pid) => orders.reduce((a,o)=>a+o.parts.reduce((b,pt)=>b+pt.lines.filter(l=>l.pid===pid).reduce((c,l)=>c+l.q,0),0),0);
+function bagCount(){ return Object.values(bag).reduce((a,b)=>a+b,0); }
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(()=>{ t.hidden = true; }, 2400); }
+function bump(){ const c = document.querySelector('[data-bagcount]'); if(c){ c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); } }
+const pBg = (p) => cat(p.cat).bg;
+const pImg = (p, w) => p.photos && p.photos.length ? `<img src="${p.photos[0]}" alt="${esc(p.name)}">` : art(cat(p.cat).art, w);
+const rating = (sid) => { const r = reviews.filter(x=>x.seller===sid); return r.length ? (r.reduce((a,b)=>a+b.stars,0)/r.length).toFixed(1)+' ('+r.length+')' : 'None yet'; };
+
+const ICON = {
+  heart:(fill)=>`<svg width="20" height="20" viewBox="0 0 24 24" fill="${fill?'#111':'none'}" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>`,
+  heartInk:`<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>`,
+  bag:`<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>`,
+  plus:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>`,
+  arrow:`<span class="arrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B0B14" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>`,
+  searchInk:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
+  goArrow:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>`,
+  search:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#55557A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
+  pin:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>`
+};
+
+function art(kind, w){
+  /* fine-line drawings: one ink colour, white fills, one soft tone */
+  const T = 'rgba(17,17,17,.06)';
+  const D = {
+    cake:`<path d="M14 100h92"/><path d="M28 64v30c0 4 14 7 32 7s32-3 32-7V64"/><ellipse cx="60" cy="64" rx="32" ry="7" fill="#fff"/><path d="M28 68c3 7 7 7 9 2 2 8 7 8 9 1 3 8 8 8 10 0 3 8 8 8 10 1 3 7 8 7 10-1 3 6 7 6 8-3" fill="none"/><path d="M28 84c0 4 14 7 32 7s32-3 32-7" fill="none" stroke-dasharray="2 4"/><rect x="57" y="42" width="6" height="18" rx="1" fill="${T}"/><path d="M60 28c4 4 5 8 0 11-5-3-4-7 0-11z" fill="#fff"/>`,
+    jar:`<path d="M14 104h92"/><rect x="36" y="22" width="48" height="14" rx="3" fill="${T}"/><path d="M42 22v14M50 22v14M58 22v14M66 22v14M74 22v14" stroke-opacity=".35"/><path d="M34 40h52v52a10 10 0 0 1-10 10H44a10 10 0 0 1-10-10z" fill="#fff"/><rect x="43" y="56" width="34" height="24" rx="2" fill="#fff"/><path d="M49 64h22M52 71h16"/><path d="M40 46v40" stroke-opacity=".3"/>`,
+    chakli:`<ellipse cx="60" cy="96" rx="46" ry="8" fill="#fff"/><ellipse cx="60" cy="96" rx="36" ry="5" fill="${T}" stroke="none"/><path d="M60 62a3 3 0 0 1 6 0a6 6 0 0 1-12 0a9 9 0 0 1 18 0a12 12 0 0 1-24 0a15 15 0 0 1 30 0a18 18 0 0 1-36 0a21 21 0 0 1 42 0a24 24 0 0 1-48 0" fill="none" stroke-width="2.2"/>`,
+    frame:`<path d="M44 16l16-10 16 10"/><rect x="22" y="16" width="76" height="88" rx="2" fill="#fff"/><rect x="31" y="25" width="58" height="70" fill="${T}"/><path d="M33 86l16-18 10 10 8-7 20 15" fill="none"/><circle cx="73" cy="42" r="6" fill="#fff"/>`,
+    spool:`<path d="M14 106h92"/><rect x="34" y="18" width="52" height="8" rx="3" fill="#fff"/><rect x="40" y="26" width="40" height="68" fill="${T}"/><path d="M40 34l40 6M40 44l40 6M40 54l40 6M40 64l40 6M40 74l40 6M40 84l40 6" stroke-opacity=".45"/><rect x="34" y="94" width="52" height="8" rx="3" fill="#fff"/><path d="M80 58c12 2 18 12 12 24s-2 18 8 20" fill="none"/><path d="M100 26l-6 56" /><ellipse cx="99.5" cy="31" rx="1.2" ry="3" fill="#fff"/>`,
+    gift:`<path d="M14 104h92"/><rect x="26" y="56" width="68" height="46" rx="2" fill="#fff"/><rect x="22" y="44" width="76" height="14" rx="2" fill="${T}"/><path d="M56 44v58M64 44v58"/><path d="M60 44c-6-14-24-16-22-4 2 6 14 6 22 4zM60 44c6-14 24-16 22-4-2 6-14 6-22 4z" fill="#fff"/>`,
+    ring:`<circle cx="60" cy="78" r="28" fill="none"/><circle cx="60" cy="78" r="23" fill="none" stroke-opacity=".4"/><path d="M48 38l6-8h12l6 8-12 14z" fill="#fff"/><path d="M48 38h24M54 30l6 8 6-8M60 52l-6-14M60 52l6-14" stroke-opacity=".6"/><path d="M84 26l3-3M88 34h4M36 26l-3-3" stroke-opacity=".5"/>`,
+    pot:`<path d="M14 104h92"/><path d="M60 62V32"/><path d="M60 52c-14-2-22-12-20-22 12 2 20 10 20 22zM60 42c12-2 20-12 18-22-12 2-18 10-18 22z" fill="${T}"/><path d="M38 72h44l-6 32H44z" fill="#fff"/><rect x="34" y="62" width="52" height="10" rx="2" fill="#fff"/>`
+  };
+  return `<svg class="ln" viewBox="0 0 120 120" width="${w}" fill="none" stroke="#111" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${D[kind] || D.gift}</svg>`;
+}
+
+/* ---------- shared pieces ---------- */
+function header(active, hero){
+  const n = bagCount();
+  return `<div class="top"><div class="wrap"><header class="nav">
+    <a class="logo" href="#/"><span class="logo-word">homehaat</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="#/explore" class="${active==='explore'?'on':''}">Explore</a>
+      <a href="#/categories" class="${active==='categories'?'on':''}">Categories</a>
+      <a href="#/makers" class="${active==='makers'?'on':''}">Makers</a>
+      <a href="#/custom" class="${active==='custom'?'on':''}">Custom orders</a>
+    </nav>
+    <div class="actions">
+      <a class="sell" href="${myShop?'#/seller':'#/sell'}">${myShop?'My shop':'Sell on HomeHaat'}</a>
+      <a class="icon-btn" href="#/explore" aria-label="Search">${ICON.searchInk}</a>
+      <a class="icon-btn" href="#/wishlist" aria-label="Wishlist, ${wish.length} saved">${ICON.heartInk}${wish.length?`<span class="count">${wish.length}</span>`:''}</a>
+      <a class="icon-btn" href="#/bag" aria-label="Bag, ${n} items">${ICON.bag}${n?`<span class="count" data-bagcount>${n}</span>`:''}</a>
+      <a class="btn btn-white" href="#/account">${me?esc(me.split(' ')[0]):'Sign in'}</a>
+    </div>
+  </header></div></div>${hero||''}`;
+}
+function footer(){
+  return `<footer><div class="wrap foot">
+    <span style="font-weight:800;font-size:20px;letter-spacing:-.04em">homehaat</span>
+    <nav aria-label="Footer"><a href="${myShop?'#/seller':'#/sell'}">Sell on HomeHaat</a><a href="#/custom">Custom orders</a><a href="#/orders">My orders</a><a href="#/account">Account</a><a href="#/reset">Reset demo</a><span class="meta" style="font-size:13px">Photos: Unsplash</span></nav>
+  </div></footer>`;
+}
+function empty(kind, title, text, action){ return `<div class="panel empty"><img class="empty-ph" src="${photo(ART_CAT[kind]||'crafts',300)}" alt="" loading="lazy"><h2 style="font-size:24px">${title}</h2><p>${text}</p>${action||''}</div>`; }
+function pcard(p){
+  const s = seller(p.seller), on = wish.includes(p.id);
+  const badge = p.stock === 0 ? '<span class="tag dark">Sold out</span>' : p.stock <= 3 ? `<span class="tag">Only ${p.stock} left</span>` : p.tag ? `<span class="tag">${esc(p.tag)}</span>` : '';
+  return `<article class="pcard lift">
+    <a class="pimg" href="#/p/${p.id}" style="background:${pBg(p)}" aria-label="${esc(p.name)}">${pImg(p,'56%')}${badge}</a>
+    <button class="heart" data-wish="${p.id}" aria-pressed="${on}" aria-label="${on?'Remove from':'Save to'} wishlist: ${esc(p.name)}">${ICON.heart(on)}</button>
+    <div class="pbody">
+      <a class="maker-link" href="#/store/${s.id}">${esc(s.name)}</a>
+      <a class="pname" href="#/p/${p.id}">${esc(p.name)}</a>
+      <span class="meta">${esc(s.delivery)}</span>
+      <div class="prow"><span class="price">${inr(p.price)}</span>
+      <button class="plus" data-add="${p.id}" ${p.stock===0?'disabled':''} aria-label="Add ${esc(p.name)} to bag">${ICON.plus}</button></div>
+    </div></article>`;
+}
+function mcard(s){
+  const n = products.filter(p=>p.seller===s.id && p.active).length;
+  return `<a class="mcard lift" href="#/store/${s.id}"><span class="mono" style="background:${s.grad}">${esc(s.name[0]||'?').toUpperCase()}</span>
+    <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-family:var(--display);font-weight:600;font-size:17px">${esc(s.name)}</span>
+    <span class="meta">${esc(s.kind)} · ${esc(s.area)} · ${n} ${n===1?'product':'products'}</span></span></a>`;
+}
+const live = () => products.filter(p => p.active && seller(p.seller) && !seller(p.seller).paused);
+const openShop = `<a class="btn btn-black" href="${myShop?'#/seller':'#/sell'}">${myShop?'Go to my shop':'Open your shop'} ${ICON.arrow}</a>`;
+
+/* ---------- pages ---------- */
+function home(){
+  const L = live();
+  const popular = L.filter(p=>p.stock>0 && ordered(p.id)>0).sort((a,b)=>ordered(b.id)-ordered(a.id)).slice(0,4);
+  const fresh = [...L].sort((a,b)=>b.created-a.created).slice(0,8);
+  const shops = sellers.filter(s=>!s.paused);
+  const tiles = [['cakes','Cakes & bakes','For birthdays and Sundays'],['pickles','Pickles & snacks','From home kitchens'],['art','Art & gifts','Painted and made by hand']];
+  const hero = `<div class="wrap"><section class="hero">
+      <p class="eyebrow">Handmade by people near you</p>
+      <h1>Made at home.<span class="serif">Made for you.</span></h1>
+      <p class="lede">Cakes, pickles, art and tailoring from home makers in your neighbourhood. One bag, many makers, one payment.</p>
+      <form class="pill-search" id="finder" role="search">
+        ${ICON.search}<label class="sr" for="f-q">Search</label>
+        <input id="f-q" type="search" placeholder="What are you looking for today?" autocomplete="off">
+        <button class="btn btn-black" type="submit">Search</button>
+      </form>
+    </section>
+    <div class="showcase">${tiles.map(([id,name,sub])=>`<a class="show" href="#/explore/${id}" style="background:${cat(id).bg}">
+      <img src="${photo(id,1000)}" alt="">
+      <span class="lbl"><b>${name}</b><span>${sub}</span></span><span class="go">${ICON.goArrow}</span></a>`).join('')}</div></div>`;
+  return header('home', hero) + `<main class="wrap">
+    <section class="block" style="padding-top:56px"><div class="head"><h2>Browse by <span class="serif">category</span></h2><a href="#/categories">All categories</a></div>
+      <div class="cats">${CATS.map(c=>`<a class="cat" href="#/explore/${c.id}"><span class="cimg" style="background:${c.bg}"><img src="${photo(c.id,500)}" alt="" loading="lazy"></span><span>${esc(c.name)}</span></a>`).join('')}</div></section>
+    ${popular.length?`<section class="block"><div class="head"><h2>Trending <span class="serif">nearby</span></h2><a href="#/explore">See all</a></div><div class="grid">${popular.map(pcard).join('')}</div></section>`:''}
+    <section class="block"><div class="head"><h2>Fresh <span class="serif">this week</span></h2>${fresh.length?'<a href="#/explore">Explore</a>':''}</div>
+      ${fresh.length?`<div class="grid">${fresh.map(pcard).join('')}</div>`:empty('cake','Handmade finds will appear here','No products yet. Makers add their cakes, pickles, art and more from their shop.',openShop)}</section>
+    <div class="promo">
+      <div style="flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:14px;align-items:flex-start">
+        <span class="pill-light">Custom orders</span>
+        <h2>Can't find it?<br><span class="serif">Ask a maker to make it.</span></h2>
+        <p style="margin:0;max-width:480px;font-size:18px">A photo cake for Saturday, a blouse in your design, a painting of your home. Describe it, get a quote, and pay only when you approve.</p>
+        <a class="btn btn-black btn-lg" href="#/custom">Request a custom order ${ICON.arrow}</a>
+      </div>
+      <div class="promo-ph"><img src="${photo('crafts',900)}" alt="" loading="lazy"></div>
+    </div>
+    <section class="block"><div class="head"><h2>Makers <span class="serif">near you</span></h2>${shops.length?'<a href="#/makers">All makers</a>':''}</div>
+      ${shops.length?`<div class="grid">${shops.slice(0,6).map(mcard).join('')}</div>`:empty('gift','No makers yet','Be the first home maker on HomeHaat. It takes two minutes.',openShop)}</section>
+  </main>` + footer();
+}
+
+function explore(catId){
+  ui.exploreCat = catId || 'all';
+  const sorters = {popular:(a,b)=>ordered(b.id)-ordered(a.id), low:(a,b)=>a.price-b.price, high:(a,b)=>b.price-a.price, new:(a,b)=>b.created-a.created};
+  const list = live().filter(p => (ui.exploreCat==='all' || p.cat===ui.exploreCat) && (!ui.inStock || p.stock>0) &&
+    (!ui.q || (p.name+' '+seller(p.seller).name+' '+(p.desc||'')).toLowerCase().includes(ui.q.toLowerCase()))).sort(sorters[ui.sort]);
+  const c = ui.exploreCat==='all' ? null : cat(ui.exploreCat), anyAtAll = live().length > 0;
+  return header('explore') + `<main class="wrap page">
+    <div class="crumbs"><a href="#/">Home</a> / Explore</div>
+    <h1 class="title">${c?esc(c.name):'Explore handmade'}</h1>
+    <p class="meta" style="margin:6px 0 0">${list.length} ${list.length===1?'product':'products'}</p>
+    <div class="filters">
+      <label class="search"><span class="sr">Search products</span>${ICON.search}<input id="q" type="search" placeholder="Search cakes, pickles, art…" value="${esc(ui.q)}"></label>
+      <label class="sr" for="sort">Sort</label>
+      <select class="select" id="sort">${[['popular','Most popular'],['new','Newest'],['low','Price: low to high'],['high','Price: high to low']].map(([v,l])=>`<option value="${v}" ${ui.sort===v?'selected':''}>${l}</option>`).join('')}</select>
+      <button class="chip ${ui.inStock?'on':''}" data-instock aria-pressed="${ui.inStock}">In stock only</button>
+    </div>
+    <div class="filters" style="margin-top:-12px">
+      <button class="chip ${ui.exploreCat==='all'?'on':''}" data-cat="all">All</button>
+      ${CATS.map(x=>`<button class="chip ${ui.exploreCat===x.id?'on':''}" data-cat="${x.id}">${esc(x.name)}</button>`).join('')}
+    </div>
+    ${list.length ? `<div class="grid">${list.map(pcard).join('')}</div>` : anyAtAll ?
+      empty('gift','No products match','Try another word or clear the filters.','<button class="btn btn-white" data-clear>Clear filters</button>') :
+      empty(c?c.art:'cake','No products yet','When makers add products, you will find them here.',openShop)}
+  </main>` + footer();
+}
+
+function categories(){
+  return header('categories') + `<main class="wrap page">
+    <div class="crumbs"><a href="#/">Home</a> / Categories</div>
+    <h1 class="title">All <span class="serif">categories</span></h1>
+    <div class="cats" style="margin-top:28px">${CATS.map(c=>{ const n = live().filter(p=>p.cat===c.id).length; return `<a class="cat" href="#/explore/${c.id}"><span class="cimg" style="background:${c.bg}"><img src="${photo(c.id,500)}" alt="" loading="lazy"></span><span>${esc(c.name)}<br><small class="meta" style="font-weight:400">${n} ${n===1?'product':'products'}</small></span></a>`; }).join('')}</div>
+  </main>` + footer();
+}
+function makers(){
+  const shops = sellers.filter(s=>!s.paused);
+  return header('makers') + `<main class="wrap page">
+    <div class="crumbs"><a href="#/">Home</a> / Makers</div>
+    <h1 class="title">Makers near you</h1>
+    <p class="meta" style="margin:6px 0 24px">Home bakers, cooks, artists, tailors and crafters.</p>
+    ${shops.length?`<div class="grid">${shops.map(mcard).join('')}</div>`:empty('gift','No makers yet','Be the first home maker on HomeHaat.',openShop)}
+    ${myShop?'':`<div class="panel" style="margin-top:28px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between">
+      <div><h3 style="font-size:22px">Make things at home?</h3><p class="meta" style="margin:4px 0 0">Open your shop in two minutes and start adding products.</p></div>${openShop}</div>`}
+  </main>` + footer();
+}
+
+function store(id){
+  const s = seller(id); if(!s) return notFound();
+  const items = products.filter(p=>p.seller===id && p.active);
+  const c = cat(s.cat), mine = myShop===id;
+  return header('makers') + `<main class="wrap page">
+    <div class="crumbs"><a href="#/">Home</a> / <a href="#/makers">Makers</a> / ${esc(s.name)}</div>
+    <div class="cover" style="background:${c.bg}"><img src="${s.cover||photo(s.cat,1600)}" alt=""></div>
+    <div class="store-head">
+      <span class="mono" style="width:84px;height:84px;font-size:34px;background:${s.grad}">${esc(s.name[0]).toUpperCase()}</span>
+      <div style="flex:1 1 320px;min-width:0">
+        <span class="meta" style="display:inline-flex;align-items:center;gap:6px">${ICON.pin}${esc(s.kind)} · ${esc(s.area)}</span>
+        <h1 class="title" style="margin-top:4px">${esc(s.name)}</h1>
+        ${s.bio?`<p style="margin:8px 0 0;color:var(--muted);max-width:620px">${esc(s.bio)}</p>`:''}
+        <dl class="facts"><div><dt>Delivery</dt><dd>${esc(s.delivery)} · ${inr(s.fee)}</dd></div><div><dt>Products</dt><dd>${items.length}</dd></div><div><dt>Reviews</dt><dd>${rating(s.id)}</dd></div></dl>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        ${mine?`<a class="btn btn-black" href="#/seller">Manage my shop</a>`:`<a class="btn btn-black" href="#/custom/${s.id}">Request a custom order</a>`}
+      </div>
+    </div>
+    ${s.paused?'<div class="panel" style="margin-top:20px">This shop is paused and not taking orders right now.</div>':''}
+    <section class="block"><div class="head"><h2>Products</h2></div>
+      ${items.length?`<div class="grid">${items.map(pcard).join('')}</div>`:empty(c.art,'No products yet',mine?'Add your first product from your shop dashboard.':'This maker hasn’t added products yet.',mine?'<a class="btn btn-black" href="#/seller/new">Add a product</a>':'')}</section>
+    ${reviews.filter(r=>r.seller===id).length?`<section class="block"><div class="head"><h2>Reviews</h2></div><div style="display:flex;flex-direction:column;gap:12px">${reviews.filter(r=>r.seller===id).map(r=>`<div class="panel"><b>${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</b> <span class="meta">· ${esc(r.by)}</span><p style="margin:6px 0 0">${esc(r.text)}</p></div>`).join('')}</div></section>`:''}
+  </main>` + footer();
+}
+
+function pdp(id){
+  const p = products.find(x=>x.id===id); if(!p) return notFound();
+  const s = seller(p.seller), on = wish.includes(p.id);
+  const more = live().filter(x=>x.seller===p.seller && x.id!==p.id).slice(0,4);
+  const stockLine = p.stock===0 ? '<span class="status st-cancelled">Sold out</span>' : p.stock<=3 ? `<span class="status st-new">Only ${p.stock} left</span>` : '<span class="status st-delivered">In stock</span>';
+  return header('explore') + `<main class="wrap page">
+    <div class="crumbs"><a href="#/">Home</a> / <a href="#/explore/${p.cat}">${esc(cat(p.cat).name)}</a> / ${esc(p.name)}</div>
+    <div class="pdp">
+      <div class="pdp-img" style="background:${pBg(p)};overflow:hidden">${p.photos&&p.photos.length?pImg(p):`<div class="float" style="width:58%">${pImg(p,'100%')}</div>`}</div>
+      <div class="pdp-info">
+        <a class="maker-link" href="#/store/${s.id}" style="font-size:15px">${esc(s.name)} · ${esc(s.area)}</a>
+        <h1 class="title">${esc(p.name)}</h1>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="price" style="font-size:30px">${inr(p.price)}</span>${stockLine}${p.tag?`<span class="status st-preparing">${esc(p.tag)}</span>`:''}</div>
+        <p style="margin:0;color:var(--muted);font-size:17px">${esc(p.desc||'Not provided by the maker')}</p>
+        <div><span class="field-label">Quantity</span><div class="stepper"><button data-qty="-1" aria-label="Decrease quantity">−</button><span aria-live="polite">${ui.qty}</span><button data-qty="1" aria-label="Increase quantity">+</button></div></div>
+        <div><label class="field-label" for="pnote">Note to the maker (optional)</label><textarea id="pnote" rows="2"></textarea></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-black btn-lg" style="flex:1 1 220px" data-addqty="${p.id}" ${p.stock===0||myShop===p.seller?'disabled':''}>${myShop===p.seller?'This is your product':'Add to bag'} ${ICON.arrow}</button>
+          <button class="btn btn-white btn-lg" data-wish="${p.id}" aria-pressed="${on}">${ICON.heart(on)} ${on?'Saved':'Save'}</button>
+        </div>
+        <dl class="rows"><div><dt>Delivery</dt><dd>${esc(s.delivery)}</dd></div><div><dt>Delivery fee</dt><dd>${inr(s.fee)} per order from this maker</dd></div><div><dt>Payment</dt><dd>One payment for your whole bag</dd></div></dl>
+      </div>
+    </div>
+    ${more.length?`<section class="block"><div class="head"><h2>More from ${esc(s.name)}</h2><a href="#/store/${s.id}">Visit shop</a></div><div class="grid">${more.map(pcard).join('')}</div></section>`:''}
+  </main>` + footer();
+}
+
+function groups(){
+  const g = {};
+  for(const [id, q] of Object.entries(bag)){ const p = product(id); if(!p || !seller(p.seller)){ delete bag[id]; continue; } (g[p.seller] = g[p.seller] || []).push({p, q}); }
+  return Object.entries(g).map(([sid, lines]) => { const s = seller(sid); const items = lines.reduce((a,l)=>a+l.p.price*l.q,0); return {s, lines, items, fee:s.fee, sub:items+s.fee}; });
+}
+function totals(gs){ const items = gs.reduce((a,g)=>a+g.items,0), fees = gs.reduce((a,g)=>a+g.fee,0); return {items, fees, grand:items+fees, count:bagCount()}; }
+
+function bagPage(){
+  const gs = groups(), t = totals(gs);
+  if(!gs.length) return header('bag') + `<main class="wrap page">${empty('gift','Your bag is empty','Find something handmade by a maker near you.',`<a class="btn btn-black" href="#/explore">Start exploring ${ICON.arrow}</a>`)}</main>` + footer();
+  return header('bag') + `<main class="wrap page">
+    <h1 class="title">Your bag</h1><p class="meta" style="margin:6px 0 26px">${t.count} items from ${gs.length} ${gs.length===1?'maker':'makers'}</p>
+    <div class="bag"><div class="bag-list">
+      ${gs.map(g=>`<section class="panel" aria-label="${esc(g.s.name)}">
+        <div class="group-head"><div style="display:flex;align-items:center;gap:12px"><span class="mono" style="width:40px;height:40px;font-size:16px;background:${g.s.grad}">${esc(g.s.name[0]).toUpperCase()}</span>
+          <div><a href="#/store/${g.s.id}" style="font-family:var(--display);font-weight:600;font-size:18px;text-decoration:none">${esc(g.s.name)}</a><div class="meta">${esc(g.s.area)}</div></div></div>
+          <span class="status st-delivered">${esc(g.s.delivery)}</span></div>
+        ${g.lines.map(({p,q})=>`<div class="line"><div class="thumb" style="background:${pBg(p)}">${pImg(p,'60%')}</div>
+          <div style="flex:1 1 180px;min-width:0"><div style="font-weight:700">${esc(p.name)}</div><div class="meta">${inr(p.price)} each</div>
+          <button class="linkish" data-remove="${p.id}">Remove</button></div>
+          <div class="stepper"><button data-bagqty="${p.id}" data-d="-1" aria-label="Decrease quantity">−</button><span aria-live="polite">${q}</span><button data-bagqty="${p.id}" data-d="1" aria-label="Increase quantity">+</button></div>
+          <span class="price" style="min-width:90px;text-align:right">${inr(p.price*q)}</span></div>`).join('')}
+        <div style="display:flex;flex-direction:column;gap:6px;padding-top:12px">
+          <div class="sum-row"><span>Delivery</span><span>${inr(g.fee)}</span></div>
+          <div class="sum-row" style="color:var(--ink);font-weight:700"><span>Subtotal from ${esc(g.s.name)}</span><span>${inr(g.sub)}</span></div></div>
+      </section>`).join('')}
+    </div>
+    <aside class="summary panel" aria-label="Order summary">
+      <h2 style="font-size:22px">Summary</h2>
+      <div class="sum-row"><span>Items (${t.count})</span><span>${inr(t.items)}</span></div>
+      <div class="sum-row"><span>Delivery (${gs.length} ${gs.length===1?'maker':'makers'})</span><span>${inr(t.fees)}</span></div>
+      <div class="total"><span style="font-weight:700">Total</span><b>${inr(t.grand)}</b></div>
+      <div class="note-box">One payment. HomeHaat splits it into ${gs.length} ${gs.length===1?'order':'orders'}, one for each maker.</div>
+      <a class="btn btn-black btn-lg" href="#/checkout">Checkout ${ICON.arrow}</a>
+      <span class="meta" style="text-align:center;font-size:13px">In the real app, payment is by Razorpay</span>
+    </aside></div>
+  </main>` + footer();
+}
+
+function checkout(){
+  const gs = groups(), t = totals(gs);
+  if(!gs.length) return bagPage();
+  if(!me) return header('bag') + `<main class="wrap page" style="max-width:520px">${signInForm('Sign in to check out')}</main>` + footer();
+  if(ui.addr >= addresses.length) ui.addr = 0;
+  if(!addresses.length) ui.step = 1;
+  const a = addresses[ui.addr];
+  const stepper = `<div class="steps">${['Address','Review','Pay'].map((l,i)=>`<span class="step ${ui.step>=i+1?'on':''}"><i>${i+1}</i>${l}</span>`).join('<span class="meta">—</span>')}</div>`;
+  let body = '';
+  if(ui.paying){
+    body = `<div class="panel empty"><div class="spinner" role="img" aria-label="Loading"></div><h2>Confirming payment…</h2><p>Waiting for the payment to be confirmed.</p></div>`;
+  } else if(ui.step===1){
+    body = `<div class="panel"><h2 style="font-size:22px;margin-bottom:14px">Deliver to</h2>
+      ${addresses.length?addresses.map((x,i)=>`<label style="display:flex;gap:12px;align-items:flex-start;padding:14px;border:1px solid ${ui.addr===i?'var(--violet)':'var(--line)'};border-radius:16px;margin-bottom:10px;cursor:pointer">
+        <input type="radio" name="addr" value="${i}" ${ui.addr===i?'checked':''} data-addr style="margin-top:4px">
+        <span><b>${esc(x.name)}</b> · ${esc(x.phone)}<br><span class="meta">${esc(x.line1)}, ${esc(x.city)} ${esc(x.pin)}</span></span></label>`).join(''):'<p class="meta" style="margin:0 0 10px">Add the address where you want your order delivered.</p>'}
+      <details ${addresses.length?'':'open'} style="margin-top:8px"><summary style="cursor:pointer;font-weight:700;padding:8px 0">Add a new address</summary>
+      <form id="addrform" class="form-grid" style="margin-top:10px" novalidate>
+        <div><label class="field-label" for="a-name">Name</label><input class="input" id="a-name" value="${esc(me)}"></div>
+        <div><label class="field-label" for="a-phone">Phone</label><input class="input" id="a-phone" inputmode="numeric" maxlength="10" aria-describedby="ph-err"><div class="err" id="ph-err" hidden>Enter a 10-digit phone number.</div></div>
+        <div class="full"><label class="field-label" for="a-line">Address</label><input class="input" id="a-line"></div>
+        <div><label class="field-label" for="a-city">City</label><input class="input" id="a-city"></div>
+        <div><label class="field-label" for="a-pin">Pincode</label><input class="input" id="a-pin" inputmode="numeric" maxlength="6" aria-describedby="pin-err"><div class="err" id="pin-err" hidden>Enter a 6-digit pincode.</div></div>
+        <div class="full"><button class="btn btn-white" type="submit">Save address</button></div>
+      </form></details>
+      <button class="btn btn-black btn-lg" style="margin-top:16px" data-step="2" ${addresses.length?'':'disabled'}>Continue to review ${ICON.arrow}</button></div>`;
+  } else {
+    body = `<div class="panel"><h2 style="font-size:22px">Review your order</h2>
+      <p class="meta" style="margin:6px 0 14px">Delivering to ${esc(a.name)}, ${esc(a.line1)}, ${esc(a.city)} ${esc(a.pin)}</p>
+      ${gs.map(g=>`<div style="padding:12px 0;border-top:1px solid var(--line)"><b>${esc(g.s.name)}</b> <span class="meta">· ${esc(g.s.delivery)}</span>
+        ${g.lines.map(({p,q})=>`<div class="sum-row" style="margin-top:6px"><span>${q} × ${esc(p.name)}</span><span>${inr(p.price*q)}</span></div>`).join('')}
+        <div class="sum-row" style="margin-top:6px"><span>Delivery</span><span>${inr(g.fee)}</span></div></div>`).join('')}
+      <div class="total"><span style="font-weight:700">Total</span><b>${inr(t.grand)}</b></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-white" data-step="1">Back</button>
+        <button class="btn btn-black btn-lg" data-pay>Pay ${inr(t.grand)} ${ICON.arrow}</button>
+        <span class="testpill">Pretend payment, no real money</span>
+      </div></div>`;
+  }
+  return header('bag') + `<main class="wrap page" style="max-width:820px"><h1 class="title">Checkout</h1>${stepper}${body}</main>` + footer();
+}
+
+function signInForm(title){
+  return `<form class="panel" id="signin" style="display:flex;flex-direction:column;gap:14px" novalidate>
+    <h1 class="title" style="font-size:32px">${title}</h1>
+    <p class="meta" style="margin:0">In this demo, just enter your name. The real app uses email and password.</p>
+    <div><label class="field-label" for="s-name">Your name</label><input class="input" id="s-name" value="${esc(me)}" autocomplete="name"></div>
+    <button class="btn btn-black btn-lg" type="submit">Continue ${ICON.arrow}</button></form>`;
+}
+function account(){
+  return header('') + `<main class="wrap page" style="max-width:560px">${me?`<div class="panel" style="display:flex;flex-direction:column;gap:12px">
+    <h1 class="title" style="font-size:32px">Hi, ${esc(me)}</h1>
+    <p class="meta" style="margin:0">${orders.length} orders · ${addresses.length} saved addresses${myShop?' · you run '+esc(seller(myShop).name):''}</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn btn-white" href="#/orders">My orders</a><a class="btn btn-white" href="${myShop?'#/seller':'#/sell'}">${myShop?'My shop':'Open your shop'}</a><button class="btn btn-white" data-signout>Sign out</button></div></div>`:signInForm('Sign in')}</main>` + footer();
+}
+
+function success(id){
+  const o = orders.find(x=>x.id===id); if(!o) return notFound();
+  return header('orders') + `<main class="wrap page" style="max-width:820px">
+    <div class="panel empty" style="padding:40px 20px"><img class="empty-ph" src="${photo('crafts',300)}" alt=""><h1 class="title">Order placed</h1>
+    <p>Payment of ${inr(o.grand)} confirmed. Your order was split into ${o.parts.length} ${o.parts.length===1?'order':'orders'}, one for each maker.</p>
+    <a class="btn btn-black" href="#/order/${o.id}">Track your order ${ICON.arrow}</a></div></main>` + footer();
+}
+
+function ordersPage(){
+  return header('orders') + `<main class="wrap page">
+    <h1 class="title">My orders</h1>
+    <div style="margin-top:24px">${!orders.length ? empty('jar','No orders yet','Your orders will show here after checkout.',`<a class="btn btn-black" href="#/explore">Start exploring</a>`) :
+    `<div style="display:flex;flex-direction:column;gap:14px">${orders.slice().reverse().map(o=>`<a class="panel lift" href="#/order/${o.id}" style="text-decoration:none;display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center">
+      <div><b style="font-family:var(--display);font-size:18px">Order #${o.id}</b><div class="meta">${new Date(o.at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})} · ${o.parts.length} ${o.parts.length===1?'maker':'makers'}</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${o.parts.map(p=>`<span class="status st-${p.status}">${esc(p.sellerName)}: ${STATUS_LABEL[p.status]}</span>`).join('')}</div>
+      <span class="price">${inr(o.grand)}</span></a>`).join('')}</div>`}</div>
+  </main>` + footer();
+}
+
+function orderPage(id){
+  const o = orders.find(x=>x.id===id); if(!o) return notFound();
+  return header('orders') + `<main class="wrap page" style="max-width:900px">
+    <div class="crumbs"><a href="#/orders">My orders</a> / #${o.id}</div>
+    <h1 class="title">Order #${o.id}</h1>
+    <p class="meta" style="margin:6px 0 22px">Paid ${inr(o.grand)} once · split into ${o.parts.length} maker ${o.parts.length===1?'order':'orders'} · delivering to ${esc(o.ship.name)}, ${esc(o.ship.city)}</p>
+    <div style="display:flex;flex-direction:column;gap:16px">${o.parts.map((p,i)=>{ const idx = STATUS.indexOf(p.status), reviewed = reviews.some(r=>r.order===o.id && r.seller===p.seller);
+      return `<section class="panel"><div class="group-head"><b style="font-family:var(--display);font-size:18px">${esc(p.sellerName)}</b><span class="status st-${p.status}">${STATUS_LABEL[p.status]}</span></div>
+        ${p.status==='cancelled'?'<p class="meta">This maker cancelled their part. In the real app you get a refund.</p>':`<div class="timeline">${STATUS.map((st,j)=>`<div class="tl ${j<=idx?'done':''}"><b></b>${STATUS_LABEL[st]}</div>`).join('')}</div>`}
+        ${p.lines.map(l=>`<div class="sum-row"><span>${l.q} × ${esc(l.name)}</span><span>${inr(l.price*l.q)}</span></div>`).join('')}
+        <div class="sum-row" style="margin-top:4px"><span>Delivery</span><span>${inr(p.fee)}</span></div>
+        ${p.status==='delivered' && !reviewed ? `<form class="reviewform" data-order="${o.id}" data-seller="${p.seller}" style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+          <label class="field-label" for="rv-${i}">Rate ${esc(p.sellerName)}</label>
+          <select class="input" id="rv-${i}" style="max-width:200px">${[5,4,3,2,1].map(n=>`<option value="${n}">${'★'.repeat(n)} (${n})</option>`).join('')}</select>
+          <textarea id="rt-${i}" rows="2" placeholder="What did you like?"></textarea>
+          <button class="btn btn-black" type="submit" style="align-self:flex-start">Post review</button></form>` : reviewed ? '<p class="meta" style="margin:12px 0 0">Thanks, your review is posted.</p>' : `<p class="meta" style="margin:12px 0 0">The maker updates this from their shop dashboard.</p>`}
+      </section>`; }).join('')}</div>
+  </main>` + footer();
+}
+
+function custom(sid){
+  const mine = requests.filter(r=>r.by===me).slice().reverse();
+  const shops = sellers.filter(s=>!s.paused && s.id!==myShop);
+  return header('custom') + `<main class="wrap page">
+    <h1 class="title">Custom orders</h1><p class="meta" style="margin:6px 0 24px">Describe what you need. The maker sends a quote and you pay only if you accept.</p>
+    ${!shops.length ? empty('gift','No makers to ask yet','When makers open shops, you can send them custom requests here.',myShop?'':openShop) : `<div class="bag"><form class="panel bag-list" id="reqform" novalidate style="gap:14px">
+      <div><label class="field-label" for="r-seller">Maker</label><select class="input" id="r-seller">${shops.map(s=>`<option value="${s.id}" ${sid===s.id?'selected':''}>${esc(s.name)} · ${esc(s.kind)}</option>`).join('')}</select></div>
+      <div><label class="field-label" for="r-desc">What do you need?</label><textarea id="r-desc" rows="4" aria-describedby="r-err"></textarea><div class="err" id="r-err" hidden>Please describe what you need.</div></div>
+      <div class="form-grid"><div><label class="field-label" for="r-date">Needed by</label><input class="input" type="date" id="r-date"></div>
+      <div><label class="field-label" for="r-budget">Budget (optional, ₹)</label><input class="input" id="r-budget" inputmode="numeric"></div></div>
+      <button class="btn btn-black btn-lg" type="submit">Send request ${ICON.arrow}</button>
+    </form>
+    <aside class="summary" style="position:static">
+      <h2 style="font-size:22px">Your requests</h2>
+      ${!mine.length?`<div class="panel empty" style="padding:28px 16px"><img class="empty-ph" style="width:84px;height:84px" src="${photo('crafts',200)}" alt=""><p>No requests yet.</p></div>`:
+      mine.map(r=>{ const s = seller(r.seller); return `<div class="panel" style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${esc(s?s.name:'Maker')}</b><span class="status ${r.status==='open'?'st-new':r.status==='quoted'?'st-preparing':r.status==='accepted'?'st-delivered':'st-cancelled'}">${r.status[0].toUpperCase()+r.status.slice(1)}</span></div>
+        <span class="meta">${esc(r.desc)}</span>
+        ${r.status==='open'?'<span class="meta" style="font-size:13px">Waiting for the maker’s quote.</span>':''}
+        ${r.status==='quoted'?`<div class="note-box">Quote: <b>${inr(r.quote)}</b>${r.note?' · '+esc(r.note):''}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-black" data-accept="${r.id}">Accept and add to bag</button><button class="btn btn-white" data-decline="${r.id}">Decline</button></div>`:''}
+      </div>`; }).join('')}
+    </aside></div>`}
+  </main>` + footer();
+}
+
+function wishlist(){
+  const items = live().filter(p=>wish.includes(p.id));
+  return header('wishlist') + `<main class="wrap page"><h1 class="title">Wishlist</h1><div style="margin-top:24px">
+    ${items.length?`<div class="grid">${items.map(pcard).join('')}</div>`:empty('ring','Nothing saved yet','Tap the heart on any product to save it here.',`<a class="btn btn-black" href="#/explore">Explore</a>`)}</div>
+  </main>` + footer();
+}
+
+/* ---------- seller ---------- */
+function sellOnboarding(){
+  if(myShop) { location.hash = '#/seller'; return ''; }
+  return header('seller') + `<main class="wrap page" style="max-width:720px">
+    <h1 class="title">Open your shop</h1><p class="meta" style="margin:6px 0 22px">Tell buyers who you are and how you deliver. You can change all of this later.</p>
+    <form class="panel" id="shopform" novalidate style="display:flex;flex-direction:column;gap:14px">
+      <div><label class="field-label" for="sh-owner">Your name</label><input class="input" id="sh-owner" value="${esc(me)}"></div>
+      <div><label class="field-label" for="sh-name">Shop name</label><input class="input" id="sh-name" placeholder="e.g. Your Name's Kitchen" aria-describedby="sh-err"><div class="err" id="sh-err" hidden>Please enter a shop name.</div></div>
+      <div class="form-grid">
+        <div><label class="field-label" for="sh-kind">What do you make?</label><select class="input" id="sh-kind">${KINDS.map(k=>`<option>${k}</option>`).join('')}</select></div>
+        <div><label class="field-label" for="sh-cat">Main category</label><select class="input" id="sh-cat">${CATS.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
+        <div><label class="field-label" for="sh-area">Area</label><input class="input" id="sh-area" placeholder="e.g. Indiranagar, Bengaluru"></div>
+        <div><label class="field-label" for="sh-fee">Delivery fee (₹)</label><input class="input" id="sh-fee" inputmode="numeric" value="40"></div>
+        <div class="full"><label class="field-label" for="sh-del">Delivery or pickup details</label><input class="input" id="sh-del" placeholder="e.g. Delivers Tue–Sun, or Ships in 3–5 days"></div>
+        <div class="full"><label class="field-label" for="sh-bio">About your shop (optional)</label><textarea id="sh-bio" rows="3"></textarea></div>
+      </div>
+      <button class="btn btn-black btn-lg" type="submit">Open my shop ${ICON.arrow}</button>
+    </form></main>` + footer();
+}
+
+function sellerDash(sub){
+  const s = seller(myShop); if(!s) { location.hash = '#/sell'; return ''; }
+  if(sub==='new' || sub==='edit') return productForm(sub==='edit' ? products.find(p=>p.id===ui.editing) : null);
+  const mine = products.filter(p=>p.seller===s.id);
+  const parts = []; orders.forEach(o=>o.parts.forEach((p,i)=>{ if(p.seller===s.id) parts.push({o, p, i}); }));
+  const open = parts.filter(x=>x.p.status!=='delivered' && x.p.status!=='cancelled');
+  const weekAgo = Date.now() - 7*864e5;
+  const earned = parts.filter(x=>x.o.at>weekAgo && x.p.status!=='cancelled').reduce((a,x)=>a+x.p.lines.reduce((b,l)=>b+l.price*l.q,0),0);
+  const reqs = requests.filter(r=>r.seller===s.id).slice().reverse();
+  const tabs = [['products','Products'],['orders','Orders'+(open.length?' ('+open.length+')':'')],['requests','Custom requests'+(reqs.filter(r=>r.status==='open').length?' ('+reqs.filter(r=>r.status==='open').length+')':'')],['settings','Shop settings']];
+  let body = '';
+  if(ui.tab==='products'){
+    body = mine.length ? `<div class="panel">${mine.map(p=>`<div class="table-row"><div class="thumb" style="background:${pBg(p)}">${pImg(p,'60%')}</div>
+      <div style="flex:1 1 200px;min-width:0"><b>${esc(p.name)}</b><div class="meta">${inr(p.price)} · ${p.stock} in stock · ${ordered(p.id)} sold</div></div>
+      <span class="status ${p.active?'st-delivered':'st-cancelled'}">${p.active?'Live':'Hidden'}</span>
+      <button class="btn btn-white" data-toggleactive="${p.id}">${p.active?'Hide':'Show'}</button>
+      <button class="btn btn-white" data-edit="${p.id}">Edit</button></div>`).join('')}
+      <a class="btn btn-black" style="margin-top:16px" href="#/seller/new">Add a product ${ICON.arrow}</a></div>`
+      : empty(cat(s.cat).art,'Add your first product','Upload a photo, name it, set a price and stock. Buyers can then find it.','<a class="btn btn-black btn-lg" href="#/seller/new">Add a product</a>');
+  } else if(ui.tab==='orders'){
+    body = parts.length ? `<div style="display:flex;flex-direction:column;gap:14px">${parts.slice().reverse().map(({o,p,i})=>`<div class="panel">
+      <div class="group-head"><div><b style="font-family:var(--display);font-size:18px">Order #${o.id}</b><div class="meta">${new Date(o.at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})} · ${esc(o.ship.name)}, ${esc(o.ship.phone)} · ${esc(o.ship.line1)}, ${esc(o.ship.city)} ${esc(o.ship.pin)}</div></div>
+      <span class="status st-${p.status}">${STATUS_LABEL[p.status]}</span></div>
+      ${p.lines.map(l=>`<div class="sum-row" style="margin-top:8px"><span>${l.q} × ${esc(l.name)}</span><span>${inr(l.price*l.q)}</span></div>`).join('')}
+      ${NEXT_ACTION[p.status]?`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn btn-black btn-lg" data-advance="${o.id}:${i}">${NEXT_ACTION[p.status]} ${ICON.arrow}</button>
+        ${p.status==='new'||p.status==='preparing'?`<button class="btn btn-white" data-cancel="${o.id}:${i}">Cancel</button>`:''}</div>`:''}
+      ${ui.confirmCancel===o.id+':'+i?`<div class="note-box" style="margin-top:10px">Cancel this order? The buyer will be told. <button class="btn btn-black" data-cancelyes="${o.id}:${i}" style="height:40px;margin-left:8px">Yes, cancel</button> <button class="linkish" data-cancelno>Keep it</button></div>`:''}
+    </div>`).join('')}</div>` : empty('jar','No orders yet','When someone buys from your shop, the order appears here with their address.','');
+  } else if(ui.tab==='requests'){
+    body = reqs.length ? `<div style="display:flex;flex-direction:column;gap:14px">${reqs.map(r=>`<div class="panel" style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;gap:10px"><b>From ${esc(r.by)}</b><span class="status ${r.status==='open'?'st-new':r.status==='quoted'?'st-preparing':r.status==='accepted'?'st-delivered':'st-cancelled'}">${r.status[0].toUpperCase()+r.status.slice(1)}</span></div>
+      <p style="margin:0">${esc(r.desc)}</p><span class="meta">${r.date?'Needed by '+esc(r.date)+' · ':''}${r.budget?'Budget '+inr(r.budget*100):'No budget given'}</span>
+      ${r.status==='open'?`<form class="quoteform form-grid" data-req="${r.id}" novalidate>
+        <div><label class="field-label" for="qp-${r.id}">Your price (₹)</label><input class="input" id="qp-${r.id}" inputmode="numeric"></div>
+        <div><label class="field-label" for="qn-${r.id}">Note</label><input class="input" id="qn-${r.id}" placeholder="e.g. I'll share a sketch first"></div>
+        <div class="full" style="display:flex;gap:10px"><button class="btn btn-black" type="submit">Send quote</button><button class="btn btn-white" type="button" data-decline="${r.id}">Decline</button></div></form>`:''}
+    </div>`).join('')}</div>` : empty('gift','No custom requests yet','Buyers can ask you to make something special from your shop page.','');
+  } else {
+    body = `<form class="panel" id="settingsform" novalidate style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-grid">
+        <div><label class="field-label" for="st-name">Shop name</label><input class="input" id="st-name" value="${esc(s.name)}"></div>
+        <div><label class="field-label" for="st-area">Area</label><input class="input" id="st-area" value="${esc(s.area)}"></div>
+        <div><label class="field-label" for="st-del">Delivery details</label><input class="input" id="st-del" value="${esc(s.delivery)}"></div>
+        <div><label class="field-label" for="st-fee">Delivery fee (₹)</label><input class="input" id="st-fee" inputmode="numeric" value="${s.fee/100}"></div>
+        <div class="full"><label class="field-label" for="st-bio">About your shop</label><textarea id="st-bio" rows="3">${esc(s.bio)}</textarea></div>
+        <div class="full"><label class="field-label" for="st-cover">Cover photo</label><input type="file" id="st-cover" accept="image/*"></div>
+      </div>
+      <label style="display:flex;gap:10px;align-items:center;font-weight:600"><input type="checkbox" id="st-pause" ${s.paused?'checked':''}> Pause my shop (buyers can't order)</label>
+      <button class="btn btn-black" type="submit" style="align-self:flex-start">Save changes</button></form>`;
+  }
+  return header('seller') + `<main class="wrap page">
+    <div class="crumbs"><a href="#/store/${s.id}">View my shop page</a></div>
+    <h1 class="title">Hi${me?', '+esc(me.split(' ')[0]):''}</h1><p class="meta" style="margin:6px 0 18px">${esc(s.name)}${s.paused?' · paused':''}</p>
+    <div class="stats">
+      <div class="stat"><b>${inr(earned)}</b><span>Earned this week</span></div>
+      <div class="stat"><b>${open.length}</b><span>Open orders</span></div>
+      <div class="stat"><b>${mine.filter(p=>p.active).length}</b><span>Products live</span></div>
+      <div class="stat"><b>${rating(s.id)==='None yet'?'—':rating(s.id)}</b><span>Rating</span></div>
+    </div>
+    <div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${ui.tab===k}" class="${ui.tab===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</div>
+    ${body}
+  </main>` + footer();
+}
+
+function productForm(p){
+  const s = seller(myShop);
+  if(!ui.formInit){ ui.photos = p && p.photos ? [...p.photos] : []; ui.formInit = true; }
+  return header('seller') + `<main class="wrap page" style="max-width:760px">
+    <div class="crumbs"><a href="#/seller">My shop</a> / ${p?'Edit product':'Add a product'}</div>
+    <h1 class="title">${p?'Edit product':'Add a product'}</h1>
+    <form class="panel" id="productform" data-id="${p?p.id:''}" novalidate style="display:flex;flex-direction:column;gap:16px;margin-top:20px">
+      <div><span class="field-label">1. Photos (up to 5)</span>
+        <div class="photo-drop">${ui.photos.map((src,i)=>`<span style="position:relative"><img src="${src}" alt="Photo ${i+1}"><button type="button" class="icon-btn" data-delphoto="${i}" aria-label="Remove photo ${i+1}" style="position:absolute;top:-10px;right:-10px;width:30px;height:30px">×</button></span>`).join('')}
+        ${ui.photos.length<5?`<label class="btn btn-white" for="pf-photo" style="cursor:pointer">Add photos</label><input id="pf-photo" type="file" accept="image/*" multiple class="sr">`:''}
+        <span class="meta" style="font-size:13px">A clear photo on a plain background works best. Without a photo, buyers see the category drawing.</span></div></div>
+      <div><span class="field-label">2. Details</span>
+        <div class="note-box" style="margin-bottom:12px">In the real app, <b>Write listing with AI</b> suggests a title and description from your photo. You always check and edit before saving.</div>
+        <div class="form-grid">
+          <div class="full"><label class="field-label" for="pf-name">Product name</label><input class="input" id="pf-name" value="${esc(p?p.name:'')}" aria-describedby="pf-err"><div class="err" id="pf-err" hidden>Please enter a name.</div></div>
+          <div><label class="field-label" for="pf-cat">Category</label><select class="input" id="pf-cat">${CATS.map(c=>`<option value="${c.id}" ${(p?p.cat:s.cat)===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+          <div><label class="field-label" for="pf-tag">Short tag (optional)</label><input class="input" id="pf-tag" value="${esc(p?p.tag:'')}" placeholder="e.g. Made to order"></div>
+          <div class="full"><label class="field-label" for="pf-desc">Description</label><textarea id="pf-desc" rows="3">${esc(p?p.desc:'')}</textarea></div>
+        </div></div>
+      <div><span class="field-label">3. Price and stock</span>
+        <div class="form-grid">
+          <div><label class="field-label" for="pf-price">Price (₹)</label><input class="input" id="pf-price" inputmode="decimal" value="${p?p.price/100:''}" aria-describedby="pp-err"><div class="err" id="pp-err" hidden>Enter a price above 0.</div></div>
+          <div><label class="field-label" for="pf-stock">How many can you make?</label><input class="input" id="pf-stock" inputmode="numeric" value="${p?p.stock:''}" aria-describedby="ps-err"><div class="err" id="ps-err" hidden>Enter a number, 0 or more.</div></div>
+        </div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-black btn-lg" type="submit">${p?'Save changes':'Save and show in my shop'} ${ICON.arrow}</button><a class="btn btn-white btn-lg" href="#/seller">Cancel</a></div>
+    </form></main>` + footer();
+}
+
+function resetPage(){
+  return header('') + `<main class="wrap page" style="max-width:560px"><div class="panel" style="display:flex;flex-direction:column;gap:12px">
+    <h1 class="title" style="font-size:30px">Reset the demo?</h1><p class="meta" style="margin:0">This deletes every shop, product, order and request saved in this browser.</p>
+    <div style="display:flex;gap:10px"><button class="btn btn-black" data-reset>Yes, delete everything</button><a class="btn btn-white" href="#/">Keep it</a></div></div></main>` + footer();
+}
+function notFound(){ return header('') + `<main class="wrap page">${empty('gift','Page not found','This page doesn’t exist or was removed.','<a class="btn btn-black" href="#/">Go home</a>')}</main>` + footer(); }
+
+/* ---------- router ---------- */
+function route(){ return (location.hash.replace(/^#\/?/, '') || '').split('/'); }
+function render(){
+  const [r, a] = route();
+  const view = {'':home, explore:()=>explore(a), makers, store:()=>store(a), p:()=>pdp(a), bag:bagPage, checkout, success:()=>success(Number(a)), orders:ordersPage, order:()=>orderPage(Number(a)), custom:()=>custom(a), wishlist, sell:sellOnboarding, seller:()=>sellerDash(a), account, reset:resetPage, categories}[r] || notFound;
+  const html = view(); if(html) $('#app').innerHTML = html;
+}
+let lastBase = '';
+window.addEventListener('hashchange', () => {
+  const base = route()[0];
+  if(base !== 'checkout'){ ui.step = 1; ui.paying = false; }
+  if(base !== 'seller' || !route()[1]){ ui.formInit = false; }
+  ui.qty = 1; ui.confirmCancel = null; render();
+  if(base !== lastBase || base !== 'explore') window.scrollTo(0,0);
+  lastBase = base;
+});
+
+/* ---------- photos: shrink before saving ---------- */
+function shrink(file, max){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => { const img = new Image(); img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height)); const c = document.createElement('canvas');
+      c.width = Math.round(img.width*k); c.height = Math.round(img.height*k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', .78)); }; img.onerror = rej; img.src = fr.result; };
+    fr.onerror = rej; fr.readAsDataURL(file);
+  });
+}
+
+/* ---------- actions ---------- */
+function addToBag(id, q){
+  const p = product(id); if(!p || p.stock===0) return;
+  if(p.seller === myShop){ toast('You can’t buy from your own shop'); return; }
+  const cur = bag[id] || 0;
+  if(!p.custom && cur + q > p.stock){ toast(`Only ${p.stock} available`); return; }
+  bag[id] = cur + q; persist(); render(); bump(); toast(`Added to bag: ${p.name}`);
+}
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button'); if(!t) return;
+  const d = t.dataset;
+  if(d.add){ addToBag(d.add, 1); }
+  else if(d.addqty){ addToBag(d.addqty, ui.qty); }
+  else if(d.wish){ const id = d.wish; wish = wish.includes(id) ? wish.filter(x=>x!==id) : [...wish, id]; persist(); render(); toast(wish.includes(id)?'Saved to wishlist':'Removed from wishlist'); }
+  else if(d.qty){ const p = products.find(x=>x.id===route()[1]); ui.qty = Math.max(1, Math.min(p ? Math.max(p.stock,1) : 50, ui.qty + Number(d.qty))); render(); }
+  else if(d.bagqty){ const id = d.bagqty, p = product(id), n = (bag[id]||0) + Number(d.d);
+    if(n < 1){ delete bag[id]; toast('Removed from bag'); } else if(!p.custom && n > p.stock){ toast(`Only ${p.stock} available`); return; } else bag[id] = n;
+    persist(); render(); }
+  else if(d.remove){ delete bag[d.remove]; persist(); render(); toast('Removed from bag'); }
+  else if('cat' in d){ location.hash = d.cat==='all' ? '#/explore' : '#/explore/'+d.cat; }
+  else if('instock' in d){ ui.inStock = !ui.inStock; render(); }
+  else if('clear' in d){ ui.q=''; ui.inStock=false; if(location.hash==='#/explore') render(); else location.hash = '#/explore'; }
+  else if(d.step){ ui.step = Number(d.step); render(); window.scrollTo(0,0); }
+  else if('pay' in d){
+    const gs = groups();
+    for(const g of gs) for(const {p,q} of g.lines){ if(!p.custom && q > p.stock){ toast(`Sorry, only ${p.stock} of ${p.name} left. Please update your bag.`); location.hash = '#/bag'; return; } }
+    ui.paying = true; render();
+    setTimeout(() => {
+      const t2 = totals(gs), id = 1001 + orders.length;
+      gs.forEach(g=>g.lines.forEach(({p,q})=>{ if(!p.custom){ const real = products.find(x=>x.id===p.id); real.stock -= q; } }));
+      orders.push({id, at:Date.now(), by:me, grand:t2.grand, ship:addresses[ui.addr], parts:gs.map(g=>({seller:g.s.id, sellerName:g.s.name, fee:g.fee, status:'new', lines:g.lines.map(({p,q})=>({pid:p.id, name:p.name, price:p.price, q}))}))});
+      bag = {}; ui.paying = false; ui.step = 1; persist(); location.hash = '#/success/'+id;
+    }, 1500);
+  }
+  else if(d.advance){ const [oid, i] = d.advance.split(':').map(Number); const part = orders.find(o=>o.id===oid).parts[i];
+    part.status = STATUS[Math.min(STATUS.indexOf(part.status)+1, 3)]; persist(); render(); toast(`Order #${oid}: ${STATUS_LABEL[part.status]}`); }
+  else if(d.cancel){ ui.confirmCancel = d.cancel; render(); }
+  else if('cancelno' in d){ ui.confirmCancel = null; render(); }
+  else if(d.cancelyes){ const [oid, i] = d.cancelyes.split(':').map(Number); const part = orders.find(o=>o.id===oid).parts[i];
+    part.status = 'cancelled'; part.lines.forEach(l=>{ const p = products.find(x=>x.id===l.pid); if(p) p.stock += l.q; }); ui.confirmCancel = null; persist(); render(); toast('Order cancelled'); }
+  else if(d.accept){ const r = requests.find(x=>x.id===d.accept); r.status='accepted'; bag['c'+r.id] = 1; persist(); render(); bump(); toast('Custom order added to your bag'); }
+  else if(d.decline){ const r = requests.find(x=>x.id===d.decline); r.status='declined'; persist(); render(); toast('Request declined'); }
+  else if(d.tab){ ui.tab = d.tab; render(); }
+  else if(d.edit){ ui.editing = d.edit; ui.formInit = false; location.hash = '#/seller/edit'; }
+  else if(d.toggleactive){ const p = products.find(x=>x.id===d.toggleactive); p.active = !p.active; persist(); render(); toast(p.active?'Product is live':'Product hidden from buyers'); }
+  else if(d.delphoto){ ui.photos.splice(Number(d.delphoto),1); render(); }
+  else if('signout' in d){ me = ''; persist(); render(); toast('Signed out'); }
+  else if('reset' in d){ try { Object.keys(localStorage).filter(k=>k.startsWith('hh2_')).forEach(k=>localStorage.removeItem(k)); } catch(e){}
+    sellers=[];products=[];bag={};wish=[];orders=[];requests=[];addresses=[];reviews=[];myShop=null;me=''; location.hash = '#/'; toast('Demo reset'); }
+});
+document.addEventListener('change', async (e) => {
+  if(e.target.id === 'sort'){ ui.sort = e.target.value; render(); }
+  if(e.target.matches('[data-addr]')){ ui.addr = Number(e.target.value); render(); }
+  if(e.target.id === 'pf-photo'){
+    const keep = {name:$('#pf-name').value, cat:$('#pf-cat').value, tag:$('#pf-tag').value, desc:$('#pf-desc').value, price:$('#pf-price').value, stock:$('#pf-stock').value};
+    for(const f of [...e.target.files].slice(0, 5-ui.photos.length)){ try { ui.photos.push(await shrink(f, 700)); } catch(err){ toast('That file isn’t an image we can read'); } }
+    render(); Object.entries(keep).forEach(([k,v])=>{ const el = $('#pf-'+k); if(el) el.value = v; });
+  }
+});
+document.addEventListener('input', (e) => {
+  if(e.target.id === 'q'){ ui.q = e.target.value; const pos = e.target.selectionStart; render(); const q = $('#q'); q.focus(); q.setSelectionRange(pos,pos); }
+});
+document.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  if(f.id === 'finder'){ ui.q = $('#f-q').value.trim(); ui.exploreCat='all'; if(location.hash==='#/explore') render(); else location.hash = '#/explore'; }
+  else if(f.id === 'signin'){ const n = $('#s-name').value.trim(); if(!n){ toast('Please enter your name'); return; } me = n; persist(); render(); toast('Welcome, '+n.split(' ')[0]); }
+  else if(f.id === 'addrform'){
+    const pin = $('#a-pin').value.trim(), ph = $('#a-phone').value.trim(), okPin = /^\d{6}$/.test(pin), okPh = /^\d{10}$/.test(ph);
+    $('#pin-err').hidden = okPin; $('#ph-err').hidden = okPh; if(!okPin || !okPh) return;
+    if(!$('#a-name').value.trim() || !$('#a-line').value.trim() || !$('#a-city').value.trim()){ toast('Please fill in name, address and city'); return; }
+    addresses.push({name:$('#a-name').value.trim(), phone:ph, line1:$('#a-line').value.trim(), city:$('#a-city').value.trim(), pin});
+    ui.addr = addresses.length-1; persist(); render(); toast('Address saved');
+  }
+  else if(f.id === 'reqform'){
+    if(!me){ location.hash = '#/account'; toast('Please sign in first'); return; }
+    const desc = $('#r-desc').value.trim(); $('#r-err').hidden = !!desc; if(!desc) return;
+    requests.push({id:uid(), seller:$('#r-seller').value, by:me, desc, date:$('#r-date').value, budget:Number($('#r-budget').value)||0, status:'open'}); persist(); render(); toast('Request sent to the maker');
+  }
+  else if(f.id === 'shopform'){
+    const name = $('#sh-name').value.trim(); $('#sh-err').hidden = !!name; if(!name) return;
+    const owner = $('#sh-owner').value.trim(); if(owner) me = owner;
+    const id = uid();
+    sellers.push({id, name, kind:$('#sh-kind').value, cat:$('#sh-cat').value, area:$('#sh-area').value.trim()||'Not provided', delivery:$('#sh-del').value.trim()||'Ask the maker', fee:Math.max(0, Math.round((Number($('#sh-fee').value)||0)*100)), bio:$('#sh-bio').value.trim(), grad:GRADS[sellers.length % GRADS.length], paused:false, created:Date.now()});
+    myShop = id; ui.tab = 'products'; persist(); location.hash = '#/seller'; toast('Your shop is open');
+  }
+  else if(f.id === 'productform'){
+    const name = $('#pf-name').value.trim(), price = Number($('#pf-price').value), stock = $('#pf-stock').value.trim();
+    const okN = !!name, okP = price > 0, okS = /^\d+$/.test(stock);
+    $('#pf-err').hidden = okN; $('#pp-err').hidden = okP; $('#ps-err').hidden = okS; if(!okN || !okP || !okS) return;
+    const data = {name, cat:$('#pf-cat').value, tag:$('#pf-tag').value.trim(), desc:$('#pf-desc').value.trim(), price:Math.round(price*100), stock:Number(stock), photos:[...ui.photos]};
+    if(f.dataset.id){ Object.assign(products.find(p=>p.id===f.dataset.id), data); toast('Product updated'); }
+    else { products.push({id:uid(), seller:myShop, active:true, created:Date.now(), ...data}); toast('Product added to your shop'); }
+    ui.formInit = false; ui.tab = 'products'; persist(); location.hash = '#/seller';
+  }
+  else if(f.classList.contains('quoteform')){
+    const r = requests.find(x=>x.id===f.dataset.req), price = Number($('#qp-'+r.id).value);
+    if(!(price > 0)){ toast('Enter your price'); return; }
+    r.quote = Math.round(price*100); r.note = $('#qn-'+r.id).value.trim(); r.status = 'quoted'; persist(); render(); toast('Quote sent');
+  }
+  else if(f.classList.contains('reviewform')){
+    const sel = f.querySelector('select'), txt = f.querySelector('textarea');
+    reviews.push({order:Number(f.dataset.order), seller:f.dataset.seller, stars:Number(sel.value), text:txt.value.trim(), by:me||'A buyer'}); persist(); render(); toast('Review posted');
+  }
+  else if(f.id === 'settingsform'){
+    const s = seller(myShop);
+    s.name = $('#st-name').value.trim() || s.name; s.area = $('#st-area').value.trim(); s.delivery = $('#st-del').value.trim(); s.fee = Math.max(0, Math.round((Number($('#st-fee').value)||0)*100));
+    s.bio = $('#st-bio').value.trim(); s.paused = $('#st-pause').checked;
+    const file = $('#st-cover').files[0]; if(file){ try { s.cover = await shrink(file, 1400); } catch(err){} }
+    persist(); render(); toast('Shop settings saved');
+  }
+});
+render();
+</script>
+</body>
+</html>
