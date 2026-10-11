@@ -7,22 +7,25 @@ import { toast } from "sonner";
 
 import { problemText } from "@/components/BagLine";
 import { EmptyState } from "@/components/EmptyState";
+import { LoadError } from "@/components/LoadError";
 import { addAddress, listAddresses } from "@/lib/api/auth";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, errorMessage } from "@/lib/api/client";
 import { startCheckout } from "@/lib/api/orders";
 import type { Address, SoldOutItem } from "@/lib/api/types";
 import { useBag } from "@/lib/bag";
 import { deliveryText, formatINR } from "@/lib/format";
-import { payWithRazorpay, rememberPayment } from "@/lib/razorpay";
+import { payWithRazorpay, RazorpayLoadError, rememberPayment } from "@/lib/razorpay";
 import { useSession } from "@/lib/session";
 
 type Step = "address" | "review";
 
 export default function CheckoutPage() {
-  const { user, loading } = useSession();
+  const { user, signedOut } = useSession();
   const router = useRouter();
-  const { cart, removeProducts, reload } = useBag();
+  const { cart, failed: bagFailed, removeProducts, reload } = useBag();
   const [addresses, setAddresses] = useState<Address[] | null>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0); // bump to load again
   const [addressId, setAddressId] = useState<number | null>(null);
   const [step, setStep] = useState<Step>("address");
   const [paying, setPaying] = useState(false);
@@ -30,14 +33,24 @@ export default function CheckoutPage() {
   const [soldOut, setSoldOut] = useState<SoldOutItem[]>([]);
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/signin?next=/checkout");
+    if (signedOut) router.replace("/signin?next=/checkout");
     if (!user) return;
-    listAddresses().then((a) => {
-      setAddresses(a);
-      setAddressId(a[0]?.id ?? null);
-    });
-  }, [user, loading, router]);
+    listAddresses()
+      .then((a) => {
+        setLoadError(null);
+        setAddresses(a);
+        setAddressId(a[0]?.id ?? null);
+      })
+      .catch(setLoadError);
+  }, [user, signedOut, router, attempt]);
 
+  function retry() {
+    setLoadError(null);
+    setAttempt((n) => n + 1);
+    reload();
+  }
+
+  if (loadError || bagFailed) return <LoadError error={loadError} onRetry={retry} title="Couldn't load checkout" />;
   if (!cart || !addresses) return <p className="text-muted">Loading checkout…</p>;
   if (cart.groups.length === 0) {
     return (
@@ -79,7 +92,9 @@ export default function CheckoutPage() {
         setSoldOut(error.data.sold_out as SoldOutItem[]);
         await reload();
       } else {
-        setFailure(error instanceof Error ? error.message : "Something went wrong. You haven't been charged.");
+        // No money moves before Razorpay confirms, so any error here means nothing was charged.
+        const reason = error instanceof RazorpayLoadError ? error.message : errorMessage(error);
+        setFailure(`${reason} You haven't been charged.`);
       }
     }
     setPaying(false);
@@ -252,7 +267,7 @@ function AddressForm({ defaultName, onSaved }: { defaultName: string; onSaved: (
       if (error instanceof ApiError) {
         setErrors(Object.fromEntries(Object.keys(data).map((k) => [k, error.fieldError(k) ?? ""]).filter(([, v]) => v)));
       }
-      toast("Couldn't save the address.");
+      toast(`Couldn't save the address. ${errorMessage(error)}`);
     } finally {
       setBusy(false);
     }

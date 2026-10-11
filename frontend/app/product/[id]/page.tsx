@@ -1,20 +1,35 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EmptyState } from "@/components/EmptyState";
 import { stockTag } from "@/components/ProductCard";
 import { ProductImage } from "@/components/ProductImage";
 import { getProduct } from "@/lib/api/catalog";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, errorMessage } from "@/lib/api/client";
 import { deliveryText, formatINR } from "@/lib/format";
 
 import { AddToBag } from "./AddToBag";
 
 export default async function ProductPage({ params }: PageProps<"/product/[id]">) {
   const { id } = await params;
-  const product = await getProduct(id).catch((error) => {
+  let product;
+  try {
+    product = await getProduct(id);
+  } catch (error) {
     if (error instanceof ApiError && error.status === 404) notFound();
-    throw error;
-  });
+    // Server down or crashed: say so in plain words instead of showing a crash screen.
+    return (
+      <EmptyState
+        title="This product didn't load"
+        text={errorMessage(error)}
+        action={
+          <Link href={`/product/${id}`} className="btn btn-black">
+            Try again
+          </Link>
+        }
+      />
+    );
+  }
   const tag = stockTag(product.stock);
 
   return (

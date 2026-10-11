@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { listCategories } from "@/lib/api/catalog";
-import { ApiError } from "@/lib/api/client";
+import { LoadError } from "@/components/LoadError";
+import { ApiError, errorMessage } from "@/lib/api/client";
 import { addProduct, getMyStore } from "@/lib/api/seller";
 import type { Category } from "@/lib/api/types";
 import { rupeesToPaise } from "@/lib/format";
@@ -18,6 +19,8 @@ export default function NewProductPage() {
   const [defaultCategory, setDefaultCategory] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0); // bump to load again
 
   useEffect(() => {
     Promise.all([listCategories(), getMyStore()])
@@ -25,8 +28,12 @@ export default function NewProductPage() {
         setCategories(cats);
         setDefaultCategory(store.main_category ?? cats[0]?.slug ?? null);
       })
-      .catch(() => router.replace("/sell"));
-  }, [router]);
+      .catch((error) => {
+        // No shop yet → go and open one. Anything else → explain it and offer Try again.
+        if (error instanceof ApiError && error.status === 404) router.replace("/sell");
+        else setLoadError(error);
+      });
+  }, [router, attempt]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,12 +60,26 @@ export default function NewProductPage() {
       toast("Product added to your shop");
       router.push("/seller");
     } catch (error) {
-      toast(error instanceof ApiError ? error.message : "Couldn't save the product.");
+      if (error instanceof ApiError) {
+        setErrors({
+          name: error.fieldError("name") ?? "",
+          price: error.fieldError("price_paise") ?? "",
+          stock: error.fieldError("stock") ?? "",
+        });
+      }
+      toast(`Couldn't save the product. ${errorMessage(error)}`);
     } finally {
       setBusy(false);
     }
   }
 
+  if (loadError) {
+    const retry = () => {
+      setLoadError(null);
+      setAttempt((n) => n + 1);
+    };
+    return <LoadError error={loadError} onRetry={retry} />;
+  }
   if (!defaultCategory) return <p className="text-muted">Loading…</p>;
 
   return (

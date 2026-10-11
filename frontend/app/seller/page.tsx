@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { LoadError } from "@/components/LoadError";
 import { getMyStore, listIncomingOrders, listMyProducts } from "@/lib/api/seller";
 import type { IncomingOrder, SellerProduct, Store } from "@/lib/api/types";
 import { formatINR } from "@/lib/format";
@@ -14,23 +15,31 @@ import { STATUS_LABEL } from "@/lib/status";
 
 // Stage 1: a simple seller page listing PAID orders. The full SellerShell dashboard is Stage 3.
 export default function SellerPage() {
-  const { user, loading } = useSession();
+  const { user, signedOut } = useSession();
   const router = useRouter();
   const [store, setStore] = useState<Store | null>(null);
   const [orders, setOrders] = useState<IncomingOrder[] | null>(null);
   const [products, setProducts] = useState<SellerProduct[] | null>(null);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0); // bump to load again
 
   useEffect(() => {
-    if (loading) return;
-    if (!user) return router.replace("/signin?next=/seller");
+    if (signedOut) return router.replace("/signin?next=/seller");
+    if (!user) return; // still loading, or the server can't be reached (the banner says so)
     if (!user.store_slug) return router.replace("/sell");
-    Promise.all([getMyStore(), listIncomingOrders(), listMyProducts()]).then(([s, o, p]) => {
-      setStore(s);
-      setOrders(o);
-      setProducts(p);
-    });
-  }, [user, loading, router]);
+    Promise.all([getMyStore(), listIncomingOrders(), listMyProducts()])
+      .then(([s, o, p]) => {
+        setLoadError(null);
+        setStore(s);
+        setOrders(o);
+        setProducts(p);
+      })
+      .catch(setLoadError);
+  }, [user, signedOut, router, attempt]);
 
+  if (loadError) {
+    return <LoadError error={loadError} onRetry={() => { setLoadError(null); setAttempt((n) => n + 1); }} title="Couldn't load your shop" />;
+  }
   if (!store || !orders || !products) return <p className="text-muted">Loading your shop…</p>;
 
   return (

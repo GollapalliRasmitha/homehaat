@@ -12,6 +12,10 @@ interface Session {
   user: User | null;
   loading: boolean;
   bagCount: number;
+  /** The server couldn't be reached last time we asked (we don't know if you're signed in). */
+  serverError: unknown;
+  /** True only when the server confirmed nobody is signed in: safe to send people to Sign in. */
+  signedOut: boolean;
   /** Re-read the user and bag count (after add to bag, payment…). */
   refresh: () => Promise<void>;
   /** Call right after sign-in or sign-up: moves the guest bag into the account, then refreshes. */
@@ -24,6 +28,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [bagCount, setBagCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [serverError, setServerError] = useState<unknown>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -31,9 +36,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setUser(me);
       // Signed in: the bag is on the server. Guest: it's in this browser.
       setBagCount(me ? (await getCart()).count : countLines(readGuestBag()));
-    } catch {
-      setUser(null);
-      setBagCount(countLines(readGuestBag()));
+      setServerError(null);
+    } catch (error) {
+      // Couldn't reach the server. Don't pretend you're signed out: keep what we knew and say what happened.
+      setServerError(error);
     } finally {
       setLoading(false);
     }
@@ -61,7 +67,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   return (
-    <SessionContext.Provider value={{ user, loading, bagCount, refresh, signedIn }}>{children}</SessionContext.Provider>
+    <SessionContext.Provider
+      value={{ user, loading, bagCount, serverError, signedOut: !loading && !user && !serverError, refresh, signedIn }}
+    >
+      {children}
+    </SessionContext.Provider>
   );
 }
 

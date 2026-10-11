@@ -4,15 +4,16 @@ import Link from "next/link";
 
 import { BagLine } from "@/components/BagLine";
 import { EmptyState } from "@/components/EmptyState";
+import { LoadError } from "@/components/LoadError";
 import { useBag } from "@/lib/bag";
 import { deliveryText, formatINR } from "@/lib/format";
 import { useSession } from "@/lib/session";
 
 export default function CartPage() {
   const { user } = useSession();
-  const { cart, failed, loading, setQty, remove, removeProducts } = useBag();
+  const { cart, failed, loadError, loading, setQty, remove, removeProducts, reload } = useBag();
 
-  if (failed) return <EmptyState title="Couldn't load your bag" text="Please refresh the page in a moment." />;
+  if (failed) return <LoadError error={loadError} onRetry={reload} title="Couldn't load your bag" />;
   if (loading || !cart) return <p className="text-muted">Loading your bag…</p>;
   if (cart.groups.length === 0) {
     return (

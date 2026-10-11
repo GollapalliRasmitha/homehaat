@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { ServerStatus } from "@/components/ServerStatus";
 import { SessionProvider } from "@/lib/session";
 
 import "./globals.css";
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-screen flex-col">
         <SessionProvider>
           <Header />
+          <ServerStatus />
           <main className="wrap flex-1 pb-20 pt-12">{children}</main>
           <Footer />
           {/* UI-UX.md: toast is a black pill at the bottom centre */}

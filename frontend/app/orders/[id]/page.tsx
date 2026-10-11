@@ -5,7 +5,9 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { LoadError } from "@/components/LoadError";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { ApiError } from "@/lib/api/client";
 import { getOrder } from "@/lib/api/orders";
 import type { Order } from "@/lib/api/types";
 import { formatINR } from "@/lib/format";
@@ -25,15 +27,25 @@ function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const justPlaced = useSearchParams().get("placed") === "1"; // set by the "Confirming payment…" page
   const [order, setOrder] = useState<Order | null>(null);
-  const [missing, setMissing] = useState(false);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0); // bump to load again
 
   useEffect(() => {
     getOrder(id)
       .then(setOrder)
-      .catch(() => setMissing(true));
-  }, [id]);
+      .catch(setLoadError);
+  }, [id, attempt]);
 
-  if (missing) return <EmptyState title="Order not found" text="This order doesn't exist, or it isn't yours." />;
+  if (loadError instanceof ApiError && loadError.status === 404) {
+    return <EmptyState title="Order not found" text="This order doesn't exist, or it isn't yours." />;
+  }
+  if (loadError) {
+    const retry = () => {
+      setLoadError(null);
+      setAttempt((n) => n + 1);
+    };
+    return <LoadError error={loadError} onRetry={retry} title="Couldn't load your order" />;
+  }
   if (!order) return <p className="text-muted">Loading your order…</p>;
 
   const parts = order.seller_orders.length;

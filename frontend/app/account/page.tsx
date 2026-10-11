@@ -5,14 +5,16 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { signOut } from "@/lib/api/auth";
+import { errorMessage } from "@/lib/api/client";
 import { useSession } from "@/lib/session";
 
 // Stage 1: a minimal account page. Profile, saved addresses and "Delete my account" come later.
 export default function AccountPage() {
-  const { user, loading, refresh } = useSession();
+  const { user, loading, signedOut, refresh } = useSession();
   const router = useRouter();
 
   if (loading) return <p className="text-muted">Loading…</p>;
+  if (!user && !signedOut) return null; // server unreachable: the banner at the top explains it
   if (!user) {
     return (
       <div className="panel mx-auto flex max-w-[520px] flex-col gap-3">
@@ -25,7 +27,12 @@ export default function AccountPage() {
   }
 
   async function handleSignOut() {
-    await signOut();
+    try {
+      await signOut();
+    } catch (error) {
+      toast(`Couldn't sign out. ${errorMessage(error)}`);
+      return;
+    }
     await refresh();
     toast("Signed out");
     router.push("/");

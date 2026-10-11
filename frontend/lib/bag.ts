@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { getCart, previewCart, removeCartItem, updateCartItem } from "./api/cart";
-import { ApiError } from "./api/client";
+import { errorMessage } from "./api/client";
 import type { Cart, CartLine } from "./api/types";
 import { readGuestBag, removeLines, setLineQty, writeGuestBag } from "./guest-bag";
 import { useSession } from "./session";
@@ -18,15 +18,15 @@ const EMPTY: Cart = { groups: [], count: 0, items_total: 0, delivery_total: 0, g
 export function useBag() {
   const { user, loading: sessionLoading, refresh } = useSession();
   const [cart, setCart] = useState<Cart | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [loadError, setLoadError] = useState<unknown>(null);
 
   const load = useCallback(async () => {
     try {
       const guest = readGuestBag();
       setCart(user ? await getCart() : guest.length ? await previewCart(guest) : EMPTY);
-      setFailed(false);
-    } catch {
-      setFailed(true);
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error); // the page shows it with a Try again button
     }
   }, [user]);
 
@@ -44,7 +44,7 @@ export function useBag() {
       await refresh(); // header bag count
       if (message) toast(message);
     } catch (error) {
-      toast(error instanceof ApiError ? error.message : "Couldn't update your bag.");
+      toast(`Couldn't update your bag. ${errorMessage(error)}`);
     }
   }
 
@@ -71,5 +71,6 @@ export function useBag() {
       }
     }, "Removed from bag");
 
-  return { cart, failed, loading: sessionLoading || (!cart && !failed), setQty, remove, removeProducts, reload: load };
+  const failed = loadError !== null;
+  return { cart, failed, loadError, loading: sessionLoading || (!cart && !failed), setQty, remove, removeProducts, reload: load };
 }

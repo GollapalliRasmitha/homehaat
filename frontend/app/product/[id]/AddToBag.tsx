@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { addToCart } from "@/lib/api/cart";
-import { ApiError } from "@/lib/api/client";
+import { errorMessage } from "@/lib/api/client";
 import { addLine, readGuestBag, writeGuestBag } from "@/lib/guest-bag";
 import { useSession } from "@/lib/session";
 
@@ -33,7 +33,7 @@ export function AddToBag({ productId, stock, sellerSlug }: { productId: number; 
       await refresh();
       toast("Added to bag");
     } catch (error) {
-      toast(error instanceof ApiError ? error.message : "Couldn't add to bag. Please try again.");
+      toast(`Couldn't add to bag. ${errorMessage(error)}`);
     } finally {
       setBusy(false);
     }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { LoadError } from "@/components/LoadError";
 import { listOrders } from "@/lib/api/orders";
 import type { Order } from "@/lib/api/types";
 import { formatINR } from "@/lib/format";
@@ -13,20 +14,27 @@ import { useSession } from "@/lib/session";
 import { STATUS_LABEL } from "@/lib/status";
 
 export default function OrdersPage() {
-  const { user, loading } = useSession();
+  const { user, signedOut } = useSession();
   const router = useRouter();
   const [orders, setOrders] = useState<Order[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0); // bump to load again
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/signin?next=/orders");
+    if (signedOut) router.replace("/signin?next=/orders");
     if (!user) return;
     listOrders()
       .then(setOrders)
-      .catch(() => setFailed(true));
-  }, [user, loading, router]);
+      .catch(setLoadError);
+  }, [user, signedOut, router, attempt]);
 
-  if (failed) return <EmptyState title="Couldn't load your orders" text="Please refresh the page in a moment." />;
+  if (loadError) {
+    const retry = () => {
+      setLoadError(null);
+      setAttempt((n) => n + 1);
+    };
+    return <LoadError error={loadError} onRetry={retry} title="Couldn't load your orders" />;
+  }
   if (!orders) return <p className="text-muted">Loading your orders…</p>;
 
   return (

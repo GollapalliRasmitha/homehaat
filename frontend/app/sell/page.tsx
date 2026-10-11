@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { listCategories } from "@/lib/api/catalog";
-import { ApiError } from "@/lib/api/client";
+import { LoadError } from "@/components/LoadError";
+import { ApiError, errorMessage } from "@/lib/api/client";
 import { openStore } from "@/lib/api/seller";
 import type { Category } from "@/lib/api/types";
 import { rupeesToPaise } from "@/lib/format";
@@ -24,17 +25,27 @@ const KINDS = [
 
 // Stage 1: a plain "Open your shop" form. Stage 3 adds the slug editor, cover photo and more.
 export default function SellPage() {
-  const { user, loading, refresh } = useSession();
+  const { user, signedOut, refresh } = useSession();
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0); // bump to load again
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/signin?next=/sell");
+    if (signedOut) router.replace("/signin?next=/sell");
     if (user?.store_slug) router.replace("/seller");
-    listCategories().then(setCategories);
-  }, [user, loading, router]);
+  }, [user, signedOut, router]);
+
+  useEffect(() => {
+    listCategories()
+      .then((cats) => {
+        setLoadError(null);
+        setCategories(cats);
+      })
+      .catch(setLoadError);
+  }, [attempt]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,11 +75,21 @@ export default function SellPage() {
       toast("Your shop is open");
       router.push("/seller");
     } catch (error) {
-      toast(error instanceof ApiError ? error.message : "Couldn't open your shop.");
+      // Show the server's form errors next to their fields, and a toast saying what happened.
+      if (error instanceof ApiError) {
+        setErrors({
+          name: error.fieldError("name") ?? "",
+          fee: error.fieldError("delivery_fee_paise") ?? "",
+          days: error.fieldError("delivery_days") ?? "",
+        });
+      }
+      toast(`Couldn't open your shop. ${errorMessage(error)}`);
     } finally {
       setBusy(false);
     }
   }
+
+  if (loadError) return <LoadError error={loadError} onRetry={() => { setLoadError(null); setAttempt((n) => n + 1); }} />;
 
   return (
     <div className="mx-auto max-w-[720px]">

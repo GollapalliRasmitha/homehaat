@@ -13,13 +13,17 @@ declare global {
   }
 }
 
+/** Razorpay's own script didn't load (offline, or blocked by an ad blocker). Its message is safe to show. */
+export class RazorpayLoadError extends Error {}
+
 function loadScript(): Promise<void> {
   if (window.Razorpay) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = SCRIPT_URL;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Couldn't load Razorpay. Check your internet connection."));
+    script.onerror = () =>
+      reject(new RazorpayLoadError("Couldn't load the payment window. Check your connection or turn off ad blockers."));
     document.body.appendChild(script);
   });
 }

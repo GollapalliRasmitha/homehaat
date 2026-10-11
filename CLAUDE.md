@@ -49,7 +49,7 @@ homehaat/
   frontend/               Next.js 16 (App Router) + TypeScript + Tailwind v4 + lucide-react + sonner
     app/                  pages (see "Pages" below)
     components/           Header, Footer, ProductCard, ProductImage, CategoryArt, EmptyState, AuthForm,
-                          PasswordInput, BagLine, OrderTimeline
+                          PasswordInput, BagLine, OrderTimeline, LoadError, ServerStatus
     lib/api/*.ts          the ONLY way components get data (client.ts is the only fetch call)
     lib/format.ts         formatINR, rupeesToPaise, deliveryText (+ format.test.ts)
     lib/guest-bag.ts      signed-out bag in localStorage: ids + qty only, never prices (+ guest-bag.test.ts)
@@ -146,6 +146,18 @@ no sign-in) · `cart/merge` · `checkout` ·
 - `CustomRequest.images` is a separate `CustomRequestImage` table (up to 3), like `ProductImage`.
 - `mark_order_paid(order, payment_id, amount_paise)` takes the amount too, so the webhook and verify paths share one
   amount check.
+- **Errors never crash a page.** Rules for every page:
+  - every API call has a `.catch`/`try`; loading failures render `<LoadError error onRetry>` (reason + Try again);
+  - action failures show a toast built from `errorMessage(error)`;
+  - forms put `error.fieldError("field")` next to the field.
+
+  `apiFetch` turns every failure into an `ApiError` with a plain-words message (`friendlyMessage`: Django's
+  `detail`, else first form error, else per status: 0 = can't reach, 5xx = server problem, 404, 429). A dropped
+  connection becomes `status 0`, not a raw `TypeError`. In development, failures are also logged with
+  `console.warn` (method, path, status).
+- **The session never pretends you're signed out** when the server can't be reached: `serverError` is set,
+  `<ServerStatus>` under the header shows the reason + Try again, and pages redirect to Sign in only when
+  `signedOut` (the server confirmed no user). `app/error.tsx` and `app/not-found.tsx` are the last safety net.
 - Known limit: while an item is held, its product page shows the reduced stock ("Sold out" for the last one) until
   the hold is paid or released. That's the honest answer, since another buyer is paying for it right now.
 - Products without a photo show the **fine black line drawing** of their category (UI-UX.md §7), not a "3D-style"

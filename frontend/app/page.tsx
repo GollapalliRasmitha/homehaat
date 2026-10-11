@@ -34,7 +34,15 @@ export default async function HomePage() {
           Fresh <span className="serif">this week</span>
         </h2>
         {products === null ? (
-          <EmptyState title="Couldn't load products" text="Please refresh the page in a moment." />
+          <EmptyState
+            title="Couldn't load products"
+            text="Our server had a problem. Please try again in a moment."
+            action={
+              <Link href="/" className="btn btn-black">
+                Try again
+              </Link>
+            }
+          />
         ) : products.length === 0 ? (
           <EmptyState
             photoId={PHOTOS.cakes}
