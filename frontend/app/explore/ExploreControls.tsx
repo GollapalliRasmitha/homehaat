@@ -108,7 +108,7 @@ export function ExploreControls({ filters, categories }: { filters: ExploreFilte
       </form>
 
       {/* Category chips scroll sideways on a phone instead of making the page wider. */}
-      <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Category">
+      <div className="-mx-4 flex gap-2.5 overflow-x-auto no-scrollbar px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Category">
         <button className={chip(!filters.category)} aria-pressed={!filters.category} onClick={() => go({ category: "" })}>
           All
         </button>

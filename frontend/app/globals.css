@@ -65,6 +65,14 @@
   body {
     background: var(--page);
     color: var(--ink);
+    /* Safety net: the page can never scroll sideways on a phone, even if one element is too wide.
+       (clip, not hidden, so sticky elements keep working.) Layouts are still built to fit. */
+    overflow-x: clip;
+  }
+  img,
+  svg,
+  video {
+    max-width: 100%;
   }
   body {
     font-family: var(--font-sans);
@@ -87,6 +95,14 @@
 
 /* Shared building blocks. Stage 4 turns these into full components. */
 @layer components {
+  /* Sideways-scrolling rows (phone nav, chips, tabs): still scroll by swipe, trackpad or
+     Shift+wheel, but without the grey scrollbar that makes the row ~17px taller on Windows. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
   .wrap {
     max-width: 1600px;
     margin-inline: auto;

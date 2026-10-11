@@ -1,6 +1,7 @@
 import type { Product } from "@/lib/api/types";
 
 import { CategoryArt, tintVar } from "./CategoryArt";
+import { SafeImg } from "./SafeImage";
 
 /** The seller's photo, or the category line drawing on its tint until they add one. Never a stock photo. */
 export function ProductImage({
@@ -23,8 +24,15 @@ export function ProductImage({
     >
       {url ? (
         // Seller uploads are served by Django (/media); resized copies + next/image come in Stage 7.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={product.name} loading="lazy" className={`size-full object-cover ${zoom}`} />
+        // If the photo fails to load, the category drawing shows instead.
+        <SafeImg
+          key={url} // a new photo (gallery) starts fresh, even if the previous one failed
+          src={url}
+          alt={product.name}
+          loading="lazy"
+          className={`size-full object-cover ${zoom}`}
+          fallback={<CategoryArt art={product.category.art} className={`w-[52%] ${zoom}`} />}
+        />
       ) : (
         <CategoryArt art={product.category.art} className={`w-[52%] ${zoom}`} />
       )}

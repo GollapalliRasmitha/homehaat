@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { CategoryArt, tintVar } from "@/components/CategoryArt";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadError } from "@/components/LoadError";
+import { SafeImg } from "@/components/SafeImage";
 import { listCategories } from "@/lib/api/catalog";
 import { errorMessage } from "@/lib/api/client";
 import { listMyProducts, updateProduct } from "@/lib/api/seller";
@@ -80,8 +81,12 @@ export default function SellerProductsPage() {
                 style={{ background: tintVar(cat?.tint ?? "soft") }}
               >
                 {p.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.image} alt="" className="size-full object-cover" />
+                  <SafeImg
+                    src={p.image}
+                    alt=""
+                    className="size-full object-cover"
+                    fallback={<CategoryArt art={cat?.art ?? "gift"} className="w-[60%]" />}
+                  />
                 ) : (
                   <CategoryArt art={cat?.art ?? "gift"} className="w-[60%]" />
                 )}

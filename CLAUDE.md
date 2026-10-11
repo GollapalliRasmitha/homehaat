@@ -227,6 +227,15 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - `<main>` has `min-w-0`: without it, a sideways-scrolling row (the category chips) made the whole page wider on phones.
 - Unsplash photos go through `next/image`; seller uploads use `<img>` until Stage 7 adds resized copies.
 - Every page has one `<h1>` (EmptyState takes `asPageTitle` when it is the whole page).
+- **Phone header** (under 900px): row 1 = logo, wishlist, bag and a small account button (long names shortened
+  with "…"; the search icon only from 400px, since "Explore" is the search); row 2 = the links plus Sell/My shop in
+  one sideways-scrolling row. 92px tall at 320px. Desktop keeps the 88px single row from UI-UX.md.
+- **Nothing wider than the screen:** layouts are built to fit (checked at 320, 375, 768), and `html, body
+  { overflow-x: clip }` is a safety net so a page can never scroll sideways. Scrolling rows use `.no-scrollbar`
+  (Windows scrollbars added ~17px of height).
+- **Images never show a broken icon:** use `SafeImage` (next/image, Unsplash) or `SafeImg` (seller uploads) from
+  `components/SafeImage.tsx`, never `<Image>`/`<img>` directly. On failure they disappear, showing the tint behind
+  (or a `fallback`, e.g. the category drawing). A ref check also catches images that failed before React started.
 - Known limit: while an item is held, its product page shows the reduced stock ("Sold out" for the last one) until
   the hold is paid or released. That's the honest answer, since another buyer is paying for it right now.
 - Products without a photo show the **fine black line drawing** of their category (UI-UX.md §7), not a "3D-style"

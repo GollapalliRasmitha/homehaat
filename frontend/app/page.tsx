@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import { CategoryGrid } from "@/components/CategoryTile";
@@ -6,6 +5,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { HeroSearch } from "@/components/HeroSearch";
 import { MakerGrid } from "@/components/MakerCard";
 import { ProductGrid } from "@/components/ProductCard";
+import { SafeImage } from "@/components/SafeImage";
 import { SectionHead } from "@/components/SectionHead";
 import { ShowcaseCard } from "@/components/ShowcaseCard";
 import { listCategories, listProducts, listStores } from "@/lib/api/catalog";
@@ -109,8 +109,8 @@ export default async function HomePage() {
             Request a custom order
           </Link>
         </div>
-        <div className="relative aspect-[4/3] min-w-[220px] flex-[0_1_360px] overflow-hidden rounded-[22px]">
-          <Image src={unsplash(PHOTOS.crafts, 900)} alt="" fill sizes="360px" className="object-cover" />
+        <div className="relative aspect-[4/3] min-w-0 flex-[1_1_220px] overflow-hidden rounded-[22px] bg-black-2 sm:max-w-[360px]">
+          <SafeImage src={unsplash(PHOTOS.crafts, 900)} alt="" fill sizes="360px" className="object-cover" />
         </div>
       </section>
 

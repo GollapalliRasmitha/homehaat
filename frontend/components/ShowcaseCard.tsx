@@ -1,6 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
+
+import { SafeImage } from "./SafeImage";
 
 import { unsplash } from "@/lib/photos";
 
@@ -26,7 +27,7 @@ export function ShowcaseCard({
       className="group relative block aspect-[1.18] overflow-hidden rounded-[28px] no-underline"
       style={{ background: tint }}
     >
-      <Image
+      <SafeImage
         src={unsplash(photoId, 1000)}
         alt=""
         fill

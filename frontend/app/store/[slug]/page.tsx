@@ -1,11 +1,11 @@
 import { MapPin } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { tintVar } from "@/components/CategoryArt";
 import { EmptyState } from "@/components/EmptyState";
 import { Monogram } from "@/components/Monogram";
+import { SafeImage, SafeImg } from "@/components/SafeImage";
 import { ShareButton } from "@/components/ShareButton";
 import { getStore, getStoreReviews, listProducts } from "@/lib/api/catalog";
 import { ApiError, errorMessage } from "@/lib/api/client";
@@ -57,11 +57,16 @@ export default async function StorePage({ params }: PageProps<"/store/[slug]">) 
         className="relative h-[180px] overflow-hidden rounded-[28px] sm:h-[260px]"
         style={{ background: tintVar(store.main_category?.tint ?? "soft") }}
       >
+        {/* If a photo fails to load, the tint behind it shows: never a broken-image icon. */}
         {store.cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={store.cover} alt="" className="size-full object-cover" />
+          <SafeImg
+            src={store.cover}
+            alt=""
+            className="size-full object-cover"
+            fallback={<SafeImage src={unsplash(fallbackPhoto, 1600)} alt="" fill sizes="100vw" className="object-cover" />}
+          />
         ) : (
-          <Image src={unsplash(fallbackPhoto, 1600)} alt="" fill priority sizes="100vw" className="object-cover" />
+          <SafeImage src={unsplash(fallbackPhoto, 1600)} alt="" fill priority sizes="100vw" className="object-cover" />
         )}
       </div>
 

@@ -38,7 +38,7 @@ export function StoreTabs({ products, reviews, storeSlug }: { products: Product[
   const shown = active === "all" ? products : products.filter((p) => p.category.slug === active);
   return (
     <section className="pt-10">
-      <div role="tablist" aria-label="Shop sections" className="mb-7 flex gap-x-7 overflow-x-auto border-b border-line">
+      <div role="tablist" aria-label="Shop sections" className="mb-7 flex gap-x-7 overflow-x-auto no-scrollbar border-b border-line">
         {tabs.map((tab, i) => (
           <button
             key={tab.key}

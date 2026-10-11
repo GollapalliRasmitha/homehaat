@@ -18,51 +18,50 @@ const LINKS = [
 function CountBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <span className="absolute right-0.5 top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-ink px-1 text-[10.5px] font-bold text-white">
+    <span className="absolute right-0 top-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-ink px-1 text-[10.5px] font-bold text-white sm:right-0.5 sm:top-1">
       {count}
     </span>
   );
 }
 
-const iconLink = "relative flex size-11 items-center justify-center rounded-full hover:bg-soft";
+const iconLink = "relative flex size-10 flex-none items-center justify-center rounded-full hover:bg-soft sm:size-11";
 
+/**
+ * Desktop (900px+): one 88px row: logo · links · Sell · icons · account pill (UI-UX.md).
+ * Phones: a compact first row (logo, icons, small account button) and the links in one thin row
+ * below that scrolls sideways, so the page content starts high and nothing is wider than the screen.
+ */
 export function Header() {
   const { user, bagCount } = useSession();
   const saved = useWishlist().length;
   const pathname = usePathname();
+  const sell = user?.store_slug ? { href: "/seller", label: "My shop" } : { href: "/sell", label: "Sell on HomeHaat" };
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const linkClass = (href: string) =>
+    `whitespace-nowrap border-b-[1.5px] font-medium no-underline hover:border-ink ${
+      isActive(href) ? "border-ink" : "border-transparent"
+    }`;
 
   return (
     <div className="border-b border-line bg-white">
-      {/* Under 900px the links move to their own row below the logo (UI-UX.md §8). */}
-      <header className="wrap flex flex-wrap items-center gap-x-8 gap-y-1 py-3.5 min-[900px]:h-[88px] min-[900px]:flex-nowrap min-[900px]:py-0">
-        <Link href="/" className="text-[25px] font-extrabold tracking-[-0.04em] no-underline">
+      <header className="wrap flex h-[52px] items-center gap-x-3 sm:h-16 min-[900px]:h-[88px] min-[900px]:gap-x-8">
+        <Link href="/" className="flex-none text-[22px] font-extrabold tracking-[-0.04em] no-underline sm:text-[25px]">
           homehaat
         </Link>
-        <nav aria-label="Main" className="order-3 flex basis-full flex-wrap gap-x-5 gap-y-0.5 min-[900px]:order-none min-[900px]:basis-auto min-[900px]:flex-1 min-[900px]:gap-x-[30px]">
-          {LINKS.map((link) => {
-            const active = pathname === link.href || pathname.startsWith(link.href + "/");
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                aria-current={active ? "page" : undefined}
-                className={`border-b-[1.5px] py-1.5 text-base font-medium no-underline hover:border-ink min-[900px]:text-[17px] ${
-                  active ? "border-ink" : "border-transparent"
-                }`}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
+
+        <nav aria-label="Main" className="hidden flex-1 gap-x-[30px] min-[900px]:flex">
+          {LINKS.map((link) => (
+            <Link key={link.href} href={link.href} aria-current={isActive(link.href) ? "page" : undefined} className={`py-1.5 text-[17px] ${linkClass(link.href)}`}>
+              {link.label}
+            </Link>
+          ))}
         </nav>
-        <div className="ml-auto flex items-center gap-1">
-          <Link
-            href={user?.store_slug ? "/seller" : "/sell"}
-            className="mr-3 hidden text-[17px] font-medium no-underline hover:underline hover:underline-offset-4 sm:inline"
-          >
-            {user?.store_slug ? "My shop" : "Sell on HomeHaat"}
+
+        <div className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-1">
+          <Link href={sell.href} className="mr-3 hidden whitespace-nowrap text-[17px] font-medium no-underline hover:underline hover:underline-offset-4 min-[900px]:inline">
+            {sell.label}
           </Link>
-          <Link href="/explore" aria-label="Search" className={iconLink}>
+          <Link href="/explore" aria-label="Search" className={`${iconLink} hidden min-[400px]:flex`}>
             <Search size={19} aria-hidden="true" />
           </Link>
           <Link href="/wishlist" aria-label={`Wishlist, ${saved} saved`} className={iconLink}>
@@ -73,11 +72,25 @@ export function Header() {
             <ShoppingBag size={19} aria-hidden="true" />
             <CountBadge count={bagCount} />
           </Link>
-          <Link href={user ? "/account" : "/signin"} className="btn btn-white ml-2 h-12 px-5 sm:ml-3">
-            {user ? user.name.split(" ")[0] || "Account" : "Sign in"}
+          <Link
+            href={user ? "/account" : "/signin"}
+            aria-label={user ? `Account: ${user.name || user.email}` : undefined}
+            className="btn btn-white ml-1 h-9 min-w-0 max-w-[96px] px-3 text-sm sm:ml-2 sm:h-12 sm:max-w-[160px] sm:px-5 sm:text-base"
+          >
+            {/* A long name is shortened with "…" so it can never push the page wider than the screen. */}
+            <span className="truncate">{user ? user.name.split(" ")[0] || "Account" : "Sign in"}</span>
           </Link>
         </div>
       </header>
+
+      {/* Phones and tablets: the links in one row that scrolls sideways if it doesn't fit. */}
+      <nav aria-label="Main" className="wrap flex gap-x-5 overflow-x-auto no-scrollbar pb-1.5 text-[15px] leading-6 min-[900px]:hidden">
+        {[...LINKS, sell].map((link) => (
+          <Link key={link.href} href={link.href} aria-current={isActive(link.href) ? "page" : undefined} className={`py-1 ${linkClass(link.href)}`}>
+            {link.label}
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }

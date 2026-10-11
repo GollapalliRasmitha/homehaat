@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { SafeImage } from "./SafeImage";
 
 import { PHOTOS, unsplash } from "@/lib/photos";
 
@@ -19,7 +19,7 @@ export function EmptyState({
   const Heading = asPageTitle ? "h1" : "h2";
   return (
     <div className="flex flex-col items-center gap-3 rounded-[24px] bg-soft px-5 py-16 text-center">
-      <Image
+      <SafeImage
         src={unsplash(photoId, 300)}
         alt=""
         width={120}

@@ -56,13 +56,13 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
         {!store.is_active && <span className="status st-cancelled">Paused: buyers can&apos;t order</span>}
       </div>
       <h1 className="title mt-1">{store.name}</h1>
-      <nav aria-label="Shop dashboard" className="mb-7 mt-5 flex flex-wrap gap-x-7 gap-y-1 border-b border-line">
+      <nav aria-label="Shop dashboard" className="mb-7 mt-5 flex gap-x-6 overflow-x-auto no-scrollbar border-b border-line sm:gap-x-7">
         {TABS.map((tab) => (
           <Link
             key={tab.href}
             href={tab.href}
             aria-current={active(tab.href) ? "page" : undefined}
-            className={`-mb-px border-b-2 py-3 text-base no-underline ${
+            className={`-mb-px whitespace-nowrap border-b-2 py-3 text-base no-underline ${
               active(tab.href) ? "border-ink font-semibold text-ink" : "border-transparent font-medium text-muted hover:text-ink"
             }`}
           >

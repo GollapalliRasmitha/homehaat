@@ -1,5 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
+
+import { SafeImage } from "./SafeImage";
 
 import type { Category } from "@/lib/api/types";
 import { unsplash } from "@/lib/photos";
@@ -12,7 +13,7 @@ export function CategoryTile({ category, showCount = false }: { category: Catego
   return (
     <Link href={`/explore?category=${category.slug}`} className="group flex flex-col gap-3 no-underline">
       <span className="relative block aspect-square overflow-hidden rounded-[20px]" style={{ background: tintVar(category.tint) }}>
-        <Image
+        <SafeImage
           src={unsplash(category.photo_id, 500)}
           alt=""
           fill
