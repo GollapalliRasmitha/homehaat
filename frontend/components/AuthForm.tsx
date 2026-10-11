@@ -9,6 +9,8 @@ import { signIn, signUp } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { useSession } from "@/lib/session";
 
+import { PasswordInput } from "./PasswordInput";
+
 /** Only allow going back to a page on our own site (stops "?next=https://evil.example"). */
 function safeNext(value: string | null): string {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
@@ -64,11 +66,9 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         <label className="field-label" htmlFor="password">
           Password
         </label>
-        <input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
-          className="input"
           autoComplete={mode === "signup" ? "new-password" : "current-password"}
           minLength={8}
           required

@@ -79,7 +79,8 @@ Shared classes (in `globals.css` `@layer components`, become full components in 
 
 Components so far: `Header`, `Footer`, `ProductCard` (+ `stockTag`), `ProductImage` (seller photo or category line
 drawing on its tint), `CategoryArt` (8 fine-line drawings), `EmptyState` (soft panel, round 120px photo, heading,
-one line, one action), `AuthForm`. Toast = sonner, black pill, bottom centre.
+one line, one action), `AuthForm`, `PasswordInput` (show/hide eye toggle, hidden by default — use it for
+**every** password field). Toast = sonner, black pill, bottom centre.
 
 ## Pages (Stage 1, plain styling)
 
