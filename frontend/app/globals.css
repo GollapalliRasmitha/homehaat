@@ -42,6 +42,12 @@
 }
 
 /* Let Tailwind classes use the tokens: text-ink, bg-soft, border-line, font-serif… */
+/* Named breakpoint for the one-row desktop header. Named breakpoints are ordered correctly with
+   sm/md/lg; arbitrary ones like min-[1200px]: are not (sm:h-16 would win over min-[1200px]:h-[88px]). */
+@theme {
+  --breakpoint-wide: 75rem; /* 1200px */
+}
+
 @theme inline {
   --color-ink: var(--ink);
   --color-muted: var(--muted);

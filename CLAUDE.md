@@ -227,9 +227,14 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - `<main>` has `min-w-0`: without it, a sideways-scrolling row (the category chips) made the whole page wider on phones.
 - Unsplash photos go through `next/image`; seller uploads use `<img>` until Stage 7 adds resized copies.
 - Every page has one `<h1>` (EmptyState takes `asPageTitle` when it is the whole page).
-- **Phone header** (under 900px): row 1 = logo, wishlist, bag and a small account button (long names shortened
-  with "…"; the search icon only from 400px, since "Explore" is the search); row 2 = the links plus Sell/My shop in
-  one sideways-scrolling row. 92px tall at 320px. Desktop keeps the 88px single row from UI-UX.md.
+- **Header:** the 88px single row from UI-UX.md only from **1200px** (`wide:` breakpoint, `--breakpoint-wide`
+  in globals.css): it needs ~1,000px of room, so at 900–1199px it pushed the account button off the screen. Below
+  1200px: compact two rows: row 1 = logo, (search from 400px), wishlist, bag, account button; row 2 = the links plus
+  Sell/My shop in one sideways-scrolling row (92px tall at 320px). Long names are always shortened with "…".
+  Tested signed out and as a seller with a long name at 320, 375, 768, 900, 1024, 1100, 1150, 1199, 1200, 1280, 1440.
+- **Use named breakpoints** (`sm`, `md`, `wide`…) when a rule must beat another breakpoint: Tailwind puts arbitrary
+  ones like `min-[1200px]:` before `sm:`, so `sm:h-16` silently won over `min-[1200px]:h-[88px]`.
+- **Store cover** uses `object-position: center 35%` (wide, short strip: keeps more of the subject than centre).
 - **Nothing wider than the screen:** layouts are built to fit (checked at 320, 375, 768), and `html, body
   { overflow-x: clip }` is a safety net so a page can never scroll sideways. Scrolling rows use `.no-scrollbar`
   (Windows scrollbars added ~17px of height).

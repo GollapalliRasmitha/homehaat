@@ -27,9 +27,10 @@ function CountBadge({ count }: { count: number }) {
 const iconLink = "relative flex size-10 flex-none items-center justify-center rounded-full hover:bg-soft sm:size-11";
 
 /**
- * Desktop (900px+): one 88px row: logo · links · Sell · icons · account pill (UI-UX.md).
- * Phones: a compact first row (logo, icons, small account button) and the links in one thin row
- * below that scrolls sideways, so the page content starts high and nothing is wider than the screen.
+ * Wide screens (1200px+): one 88px row: logo · links · Sell/My shop · icons · account pill (UI-UX.md).
+ * Below 1200px: a compact first row (logo, icons, account button) and the links in one thin row below
+ * that scrolls sideways. The single row needs ~1,000px of room, which only fits from 1200px; at e.g.
+ * 1100px it pushed the account button off the screen. Long names are always shortened with "…".
  */
 export function Header() {
   const { user, bagCount } = useSession();
@@ -44,12 +45,12 @@ export function Header() {
 
   return (
     <div className="border-b border-line bg-white">
-      <header className="wrap flex h-[52px] items-center gap-x-3 sm:h-16 min-[900px]:h-[88px] min-[900px]:gap-x-8">
+      <header className="wrap flex h-[52px] items-center gap-x-3 sm:h-16 wide:h-[88px] wide:gap-x-6">
         <Link href="/" className="flex-none text-[22px] font-extrabold tracking-[-0.04em] no-underline sm:text-[25px]">
           homehaat
         </Link>
 
-        <nav aria-label="Main" className="hidden flex-1 gap-x-[30px] min-[900px]:flex">
+        <nav aria-label="Main" className="hidden min-w-0 flex-1 gap-x-6 wide:flex">
           {LINKS.map((link) => (
             <Link key={link.href} href={link.href} aria-current={isActive(link.href) ? "page" : undefined} className={`py-1.5 text-[17px] ${linkClass(link.href)}`}>
               {link.label}
@@ -58,7 +59,7 @@ export function Header() {
         </nav>
 
         <div className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-1">
-          <Link href={sell.href} className="mr-3 hidden whitespace-nowrap text-[17px] font-medium no-underline hover:underline hover:underline-offset-4 min-[900px]:inline">
+          <Link href={sell.href} className="mr-2 hidden whitespace-nowrap text-[17px] font-medium no-underline hover:underline hover:underline-offset-4 wide:inline">
             {sell.label}
           </Link>
           <Link href="/explore" aria-label="Search" className={`${iconLink} hidden min-[400px]:flex`}>
@@ -75,7 +76,7 @@ export function Header() {
           <Link
             href={user ? "/account" : "/signin"}
             aria-label={user ? `Account: ${user.name || user.email}` : undefined}
-            className="btn btn-white ml-1 h-9 min-w-0 max-w-[96px] px-3 text-sm sm:ml-2 sm:h-12 sm:max-w-[160px] sm:px-5 sm:text-base"
+            className="btn btn-white ml-1 h-9 min-w-0 max-w-[96px] px-3 text-sm sm:ml-2 sm:h-12 sm:max-w-[140px] sm:px-5 sm:text-base"
           >
             {/* A long name is shortened with "…" so it can never push the page wider than the screen. */}
             <span className="truncate">{user ? user.name.split(" ")[0] || "Account" : "Sign in"}</span>
@@ -84,7 +85,7 @@ export function Header() {
       </header>
 
       {/* Phones and tablets: the links in one row that scrolls sideways if it doesn't fit. */}
-      <nav aria-label="Main" className="wrap flex gap-x-5 overflow-x-auto no-scrollbar pb-1.5 text-[15px] leading-6 min-[900px]:hidden">
+      <nav aria-label="Main" className="wrap flex gap-x-5 overflow-x-auto no-scrollbar pb-1.5 text-[15px] leading-6 wide:hidden">
         {[...LINKS, sell].map((link) => (
           <Link key={link.href} href={link.href} aria-current={isActive(link.href) ? "page" : undefined} className={`py-1 ${linkClass(link.href)}`}>
             {link.label}

@@ -57,16 +57,17 @@ export default async function StorePage({ params }: PageProps<"/store/[slug]">) 
         className="relative h-[180px] overflow-hidden rounded-[28px] sm:h-[260px]"
         style={{ background: tintVar(store.main_category?.tint ?? "soft") }}
       >
-        {/* If a photo fails to load, the tint behind it shows: never a broken-image icon. */}
+        {/* If a photo fails to load, the tint behind it shows: never a broken-image icon.
+            The cover is a wide, short strip, so "center 35%" keeps more of the subject than plain center. */}
         {store.cover ? (
           <SafeImg
             src={store.cover}
             alt=""
-            className="size-full object-cover"
-            fallback={<SafeImage src={unsplash(fallbackPhoto, 1600)} alt="" fill sizes="100vw" className="object-cover" />}
+            className="size-full object-cover object-[center_35%]"
+            fallback={<SafeImage src={unsplash(fallbackPhoto, 1600)} alt="" fill sizes="100vw" className="object-cover object-[center_35%]" />}
           />
         ) : (
-          <SafeImage src={unsplash(fallbackPhoto, 1600)} alt="" fill priority sizes="100vw" className="object-cover" />
+          <SafeImage src={unsplash(fallbackPhoto, 1600)} alt="" fill priority sizes="100vw" className="object-cover object-[center_35%]" />
         )}
       </div>
 
