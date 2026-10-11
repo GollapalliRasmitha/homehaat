@@ -77,7 +77,11 @@ async function ensureCsrf() {
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
 
-export async function apiFetch<T>(path: string, options: { method?: Method; body?: unknown } = {}): Promise<T> {
+/** body = JSON data; form = a file upload (FormData). Send one or the other. */
+export async function apiFetch<T>(
+  path: string,
+  options: { method?: Method; body?: unknown; form?: FormData } = {},
+): Promise<T> {
   const method = options.method ?? "GET";
   const headers: Record<string, string> = { Accept: "application/json" };
 
@@ -85,6 +89,7 @@ export async function apiFetch<T>(path: string, options: { method?: Method; body
     await ensureCsrf();
     headers["X-CSRFToken"] = readCookie(CSRF_COOKIE) ?? "";
   }
+  // For FormData the browser sets the multipart Content-Type (with its boundary) itself.
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
 
   let response: Response;
@@ -92,7 +97,7 @@ export async function apiFetch<T>(path: string, options: { method?: Method; body
     response = await fetch(`${BASE}/api${path}`, {
       method,
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.form ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
       credentials: "same-origin",
       cache: "no-store", // always fresh: stock and prices change
     });

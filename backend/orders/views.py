@@ -1,9 +1,13 @@
 import logging
+from datetime import timedelta
 
 from django.conf import settings
+from django.db.models import Avg, Count, F, Sum
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, serializers, status
-from rest_framework.decorators import api_view, throttle_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
@@ -19,6 +23,7 @@ from orders.services import (
     hold_expires_at,
     release_hold,
 )
+from orders.status import NotYourOrderError, StatusError, advance_status
 from payments import razorpay_client
 
 log = logging.getLogger("homehaat.orders")
@@ -106,9 +111,65 @@ class IncomingOrderList(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        return (
-            SellerOrder.objects.filter(seller=self.request.user.seller, order__payment_status=Order.PaymentStatus.PAID)
-            .select_related("order")
-            .prefetch_related("items")
-            .order_by("-order__paid_at")
-        )
+        mine = paid_parts(self.request.user.seller).order_by("-order__paid_at")
+        wanted = self.request.query_params.get("status")
+        return mine.filter(status=wanted) if wanted in SellerOrder.Status.values else mine
+
+
+def paid_parts(seller):
+    """This seller's parts of PAID orders, with what's needed to show them."""
+    return (
+        SellerOrder.objects.filter(seller=seller, order__payment_status=Order.PaymentStatus.PAID)
+        .select_related("order")
+        .prefetch_related("items")
+    )
+
+
+class StatusSerializer(serializers.Serializer):
+    status = serializers.CharField(max_length=20)  # the ONLY field read; amounts in the body are ignored
+
+
+@api_view(["POST"])
+@permission_classes([IsSeller])
+def change_status(request, pk):
+    data = StatusSerializer(data=request.data)
+    data.is_valid(raise_exception=True)
+    part = get_object_or_404(SellerOrder, pk=pk)
+    try:
+        part = advance_status(part, data.validated_data["status"], request.user)
+    except NotYourOrderError:
+        return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+    except StatusError as exc:
+        return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(IncomingOrderSerializer(paid_parts(request.user.seller).get(pk=part.pk)).data)
+
+
+OPEN = [SellerOrder.Status.NEW, SellerOrder.Status.PREPARING, SellerOrder.Status.OUT_FOR_DELIVERY]
+
+
+@api_view(["GET"])
+@permission_classes([IsSeller])
+def overview(request):
+    """Dashboard numbers, all computed from the database. No data -> 0 or None, never a made-up number."""
+    seller = request.user.seller
+    parts = paid_parts(seller)
+    week_ago = timezone.now() - timedelta(days=7)
+
+    earnings = (
+        parts.filter(order__paid_at__gte=week_ago)
+        .exclude(status=SellerOrder.Status.CANCELLED)
+        .aggregate(total=Coalesce(Sum(F("subtotal") + F("delivery_fee")), 0))["total"]
+    )
+    reviews = seller.reviews.aggregate(average=Avg("rating"), count=Count("id"))
+    open_parts = parts.filter(status__in=OPEN)
+
+    return Response(
+        {
+            "earnings_week": earnings,  # paise: items + delivery, paid in the last 7 days, not cancelled
+            "open_orders": open_parts.count(),
+            "products_listed": seller.products.filter(is_active=True).count(),
+            "rating": round(reviews["average"], 1) if reviews["average"] is not None else None,
+            "review_count": reviews["count"],
+            "incoming": IncomingOrderSerializer(open_parts.order_by("order__paid_at")[:5], many=True).data,
+        }
+    )

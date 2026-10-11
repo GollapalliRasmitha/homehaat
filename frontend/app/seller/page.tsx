@@ -1,142 +1,93 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { IncomingOrderCard } from "@/components/IncomingOrderCard";
 import { LoadError } from "@/components/LoadError";
-import { getMyStore, listIncomingOrders, listMyProducts } from "@/lib/api/seller";
-import type { IncomingOrder, SellerProduct, Store } from "@/lib/api/types";
+import { StatCard } from "@/components/StatCard";
+import { getOverview } from "@/lib/api/seller";
+import type { SellerOverview } from "@/lib/api/types";
 import { formatINR } from "@/lib/format";
 import { PHOTOS } from "@/lib/photos";
 import { useSession } from "@/lib/session";
-import { STATUS_LABEL } from "@/lib/status";
 
-// Stage 1: a simple seller page listing PAID orders. The full SellerShell dashboard is Stage 3.
-export default function SellerPage() {
-  const { user, signedOut } = useSession();
-  const router = useRouter();
-  const [store, setStore] = useState<Store | null>(null);
-  const [orders, setOrders] = useState<IncomingOrder[] | null>(null);
-  const [products, setProducts] = useState<SellerProduct[] | null>(null);
+export default function OverviewPage() {
+  const { user } = useSession();
+  const [data, setData] = useState<SellerOverview | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
-  const [attempt, setAttempt] = useState(0); // bump to load again
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (signedOut) return router.replace("/signin?next=/seller");
-    if (!user) return; // still loading, or the server can't be reached (the banner says so)
-    if (!user.store_slug) return router.replace("/sell");
-    Promise.all([getMyStore(), listIncomingOrders(), listMyProducts()])
-      .then(([s, o, p]) => {
-        setLoadError(null);
-        setStore(s);
-        setOrders(o);
-        setProducts(p);
-      })
+    getOverview()
+      .then(setData)
       .catch(setLoadError);
-  }, [user, signedOut, router, attempt]);
+  }, [attempt]);
 
   if (loadError) {
-    return <LoadError error={loadError} onRetry={() => { setLoadError(null); setAttempt((n) => n + 1); }} title="Couldn't load your shop" />;
+    const retry = () => {
+      setLoadError(null);
+      setAttempt((n) => n + 1);
+    };
+    return <LoadError error={loadError} onRetry={retry} />;
   }
-  if (!store || !orders || !products) return <p className="text-muted">Loading your shop…</p>;
+  if (!data) return <p className="text-muted">Loading…</p>;
 
+  const firstName = user?.name.split(" ")[0];
   return (
     <>
-      <h1 className="title">{store.name}</h1>
-      <p className="mb-8 mt-1.5 text-muted">Your shop dashboard</p>
+      <h2 className="text-[clamp(26px,3vw,36px)]">
+        Hi{firstName ? `, ${firstName}` : ""}. <span className="serif">Here&apos;s your shop today.</span>
+      </h2>
 
-      <section aria-labelledby="orders-h" className="mb-12">
-        <h2 id="orders-h" className="mb-4 text-[28px]">
-          Paid orders
-        </h2>
-        {orders.length === 0 ? (
-          <EmptyState
-            photoId={PHOTOS.pickles}
-            title="No orders yet"
-            text="When someone buys from your shop and pays, the order appears here with their address."
-          />
-        ) : (
-          <div className="flex flex-col gap-3.5">
-            {orders.map((o) => (
-              <div key={o.id} className="panel">
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-3.5">
-                  <div>
-                    <b className="text-lg">Order #{o.order_id}</b>
-                    <div className="text-sm text-muted">
-                      Paid {new Date(o.paid_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-                    </div>
-                    <div className="text-sm text-muted">
-                      {o.ship_to.name}, {o.ship_to.phone} · {o.ship_to.line1}
-                      {o.ship_to.line2 && `, ${o.ship_to.line2}`}, {o.ship_to.city} {o.ship_to.pincode}
-                    </div>
-                  </div>
-                  <span className={`status st-${o.status}`}>{STATUS_LABEL[o.status]}</span>
-                </div>
-                {o.items.map((item) => (
-                  <div key={item.id} className="mt-2 flex justify-between text-[15px]">
-                    <span>
-                      {item.qty} × {item.name}
-                      {item.note && <span className="block text-sm text-muted">Note: {item.note}</span>}
-                    </span>
-                    <span>{formatINR(item.line_total)}</span>
-                  </div>
-                ))}
-                <div className="mt-2 flex justify-between text-[15px] text-muted">
-                  <span>Delivery fee</span>
-                  <span>{formatINR(o.delivery_fee)}</span>
-                </div>
-                <div className="mt-1 flex justify-between font-semibold">
-                  <span>You receive</span>
-                  <span>{formatINR(o.subtotal + o.delivery_fee)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      {/* Every number comes from the database. "—" means there's nothing to count yet. */}
+      <div className="mb-10 mt-6 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3.5">
+        <StatCard value={formatINR(data.earnings_week)} label="Earned in the last 7 days" />
+        <StatCard value={String(data.open_orders)} label="Open orders" />
+        <StatCard value={String(data.products_listed)} label="Products listed" />
+        <StatCard
+          value={data.rating === null ? "—" : `${data.rating} ★`}
+          label={
+            data.review_count
+              ? `Rating (${data.review_count} ${data.review_count === 1 ? "review" : "reviews"})`
+              : "Rating (no reviews yet)"
+          }
+        />
+      </div>
 
-      <section aria-labelledby="products-h">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <h2 id="products-h" className="text-[28px]">
-            Your products
-          </h2>
-          {products.length > 0 && (
-            <Link href="/seller/products/new" className="btn btn-black">
-              Add a product
-            </Link>
-          )}
-        </div>
-        {products.length === 0 ? (
-          <EmptyState
-            photoId={PHOTOS.cakes}
-            title="Add your first product"
-            text="Name it, set a price and stock. Buyers can then find it."
-            action={
-              <Link href="/seller/products/new" className="btn btn-black btn-lg">
-                Add a product
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <h3 className="text-[24px]">Incoming orders</h3>
+        {data.incoming.length > 0 && <Link href="/seller/orders">See all orders</Link>}
+      </div>
+      {data.incoming.length === 0 ? (
+        <EmptyState
+          photoId={PHOTOS.pickles}
+          title="No orders yet"
+          text={
+            data.products_listed
+              ? "When someone buys from your shop and pays, the order appears here with their address."
+              : "Add your first product so buyers can find you."
+          }
+          action={
+            data.products_listed ? undefined : (
+              <Link href="/seller/products/new" className="btn btn-black">
+                Add your first product
               </Link>
-            }
-          />
-        ) : (
-          <div className="panel">
-            {products.map((p) => (
-              <div key={p.id} className="flex flex-wrap items-center gap-3.5 border-b border-line py-3.5 last:border-0">
-                <div className="min-w-0 flex-[1_1_200px]">
-                  <Link href={`/product/${p.id}`} className="font-bold">
-                    {p.name}
-                  </Link>
-                  <div className="text-sm text-muted">
-                    {formatINR(p.price_paise)} · {p.stock} in stock
-                  </div>
-                </div>
-                <span className={`status ${p.is_active ? "st-delivered" : "st-cancelled"}`}>{p.is_active ? "Live" : "Hidden"}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+            )
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-3.5">
+          {data.incoming.map((order) => (
+            <IncomingOrderCard
+              key={order.id}
+              order={order}
+              onChange={() => setAttempt((n) => n + 1)} // reload: the numbers above change too
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 }

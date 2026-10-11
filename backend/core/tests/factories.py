@@ -26,9 +26,9 @@ def make_category(slug="cakes") -> Category:
 def make_seller(owner=None, delivery_fee_paise=4000, **extra) -> Seller:
     owner = owner or make_user(role=User.Role.SELLER)
     i = next(_n)
-    return Seller.objects.create(
-        owner=owner, slug=f"shop-{i}", name=f"Shop {i}", delivery_fee_paise=delivery_fee_paise, **extra
-    )
+    extra.setdefault("slug", f"shop-{i}")
+    extra.setdefault("name", f"Shop {i}")
+    return Seller.objects.create(owner=owner, delivery_fee_paise=delivery_fee_paise, **extra)
 
 
 def make_product(seller=None, price_paise=45000, stock=5, **extra) -> Product:
@@ -50,3 +50,15 @@ def make_address(user, **extra) -> Address:
 
 def add_to_cart(user, product, qty=1, note="") -> CartItem:
     return CartItem.objects.create(user=user, product=product, qty=qty, note=note)
+
+
+def make_paid_order(product, qty=1, buyer=None):
+    """A real checkout + confirmed payment for one product. Returns the seller's part (SellerOrder)."""
+    from orders.services import create_order_from_cart
+    from payments.webhook import mark_order_paid
+
+    buyer = buyer or make_user()
+    add_to_cart(buyer, product, qty=qty)
+    order = create_order_from_cart(buyer, make_address(buyer))
+    mark_order_paid(order, f"pay_{order.pk}", order.grand_total)
+    return order.seller_orders.get()

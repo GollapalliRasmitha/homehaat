@@ -38,6 +38,7 @@ export interface Product {
   category: Category;
   seller: SellerSummary;
   image: string | null;
+  images: string[];
   created_at: string;
 }
 
@@ -151,7 +152,14 @@ export interface Store {
   area: string;
   delivery_days: number;
   delivery_fee_paise: number;
-  is_active: boolean;
+  is_active: boolean; // false = paused
+  cover: string | null;
+}
+
+export interface ProductPhoto {
+  id: number;
+  url: string;
+  position: number;
 }
 
 export interface SellerProduct {
@@ -162,6 +170,9 @@ export interface SellerProduct {
   price_paise: number;
   stock: number;
   is_active: boolean;
+  images: ProductPhoto[];
+  image: string | null;
+  sold: number;
   created_at: string;
 }
 
@@ -172,6 +183,26 @@ export interface IncomingOrder {
   status: SellerOrderStatus;
   subtotal: number;
   delivery_fee: number;
+  refund_needed: boolean;
+  preparing_at: string | null;
+  out_for_delivery_at: string | null;
+  delivered_at: string | null;
+  cancelled_at: string | null;
   ship_to: ShipTo;
   items: OrderItem[];
+}
+
+export interface SellerOverview {
+  earnings_week: number; // paise
+  open_orders: number;
+  products_listed: number;
+  rating: number | null; // null = no reviews yet
+  review_count: number;
+  incoming: IncomingOrder[];
+}
+
+export interface SellerReviews {
+  average: number | null;
+  count: number;
+  reviews: { id: number; rating: number; comment: string; buyer_name: string; created_at: string }[];
 }

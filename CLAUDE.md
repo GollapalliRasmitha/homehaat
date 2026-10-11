@@ -4,7 +4,7 @@ A multi-seller marketplace for home businesses (bakers, pickle makers, artists, 
 Buyers fill one bag, pay once, and the order is split per seller. Full brief: `PROMPT.md`. Design brief: `UI-UX.md`.
 Visual reference: `design/HomeHaat-demo-empty.html` (copy its look, never its data). `design/_old-styles/` is NOT used.
 
-**Current stage: 2 of 8 — multi-seller bag and order split (done, waiting for "continue").**
+**Current stage: 3 of 8 — seller side (done, waiting for "continue").**
 
 ---
 
@@ -40,23 +40,28 @@ homehaat/
   backend/                Django + DRF (Python 3.14, Django 5.2 LTS)
     config/               settings.py (reads ../.env), urls.py (all /api/ routes in one list)
     accounts/             User (email login, role), Address, sign-up/in/out, /auth/me
-    catalog/              Category, Seller, Product, ProductImage; public products; seller store/products
-                          management/commands/seed_categories.py
+    catalog/              Category, Seller, Product, ProductImage; public products; seller store/products/photos
+                          images.py (check + clean uploads); management/commands/seed_categories.py
     cart/                 CartItem; /api/cart/ grouped by seller, guest preview + merge (totals from DB prices)
-    orders/               Order, SellerOrder, OrderItem; services.py [KEY LOGIC]; checkout + order views
+    orders/               Order, SellerOrder, OrderItem; services.py + status.py [KEY LOGIC]; checkout, order,
+                          seller-order and overview views
                           management/commands/expire_orders.py
     payments/             webhook.py [KEY LOGIC]; razorpay_client.py (only file that calls Razorpay); views.py
-    reviews/, custom_requests/   models only for now (Stages 5–6)
+    reviews/              Review model; seller's read-only reviews list (writing reviews: Stage 6)
+    custom_requests/      models only for now (Stage 5)
     ai/                   empty until Stage 6
     core/tests/factories.py   test-only helpers (never used by the running site)
   frontend/               Next.js 16 (App Router) + TypeScript + Tailwind v4 + lucide-react + sonner
     app/                  pages (see "Pages" below)
     components/           Header, Footer, ProductCard, ProductImage, CategoryArt, EmptyState, AuthForm,
-                          PasswordInput, BagLine, OrderTimeline, LoadError, ServerStatus
+                          PasswordInput, BagLine, OrderTimeline, LoadError, ServerStatus, StatCard,
+                          ConfirmDialog (Radix), PhotoPicker, StoreForm, ProductForm, IncomingOrderCard
     lib/api/*.ts          the ONLY way components get data (client.ts is the only fetch call)
     lib/format.ts         formatINR, rupeesToPaise, deliveryText (+ format.test.ts)
     lib/guest-bag.ts      signed-out bag in localStorage: ids + qty only, never prices (+ guest-bag.test.ts)
     lib/bag.ts            useBag(): one bag API for pages, signed in or guest
+    lib/compress-image.ts shrinks photos in the browser before upload (+ test)
+    lib/seller-context.tsx useSeller(): the seller's shop, shared by the dashboard pages
     lib/razorpay.ts       loads Checkout.js, opens the payment window (closes when the hold ends)
     lib/session.tsx       who is signed in + bag count; signedIn() merges the guest bag
   design/  docs/  docker-compose.yml  start-homehaat.ps1  .env.example
@@ -88,7 +93,10 @@ Components so far: `Header`, `Footer`, `ProductCard` (+ `stockTag`), `ProductIma
 drawing on its tint), `CategoryArt` (8 fine-line drawings), `EmptyState` (soft panel, round 120px photo, heading,
 one line, one action), `AuthForm`, `PasswordInput` (show/hide eye toggle, hidden by default — use it for
 **every** password field), `BagLine` (+ `problemText`), `OrderTimeline` (4 bars: New → Preparing → Out for
-delivery → Delivered). Toast = sonner, black pill, bottom centre.
+delivery → Delivered), `StatCard` (soft panel, big number, muted label), `ConfirmDialog` (Radix AlertDialog for
+"can't be undone"), `PhotoPicker` (drag-and-drop, reorder by drag or ← → buttons, max N, compresses in the
+browser), `StoreForm` (Open your shop + Store settings), `ProductForm` (add/edit), `IncomingOrderCard` (one seller
+order: buyer contact, items, next-step button, Cancel with confirm). Toast = sonner, black pill, bottom centre.
 
 ## Pages (plain styling until Stage 4)
 
@@ -102,17 +110,24 @@ delivery → Delivered). Toast = sonner, black pill, bottom centre.
 | `/orders` | my orders (failed attempts hidden), each maker's status |
 | `/orders/[id]` | one block per seller order with OrderTimeline; `?placed=1` shows "Order placed" |
 | `/signin`, `/signup`, `/account` | email + password |
-| `/sell` | plain "Open your shop" form |
-| `/seller` | plain seller page: paid orders + product list |
-| `/seller/products/new` | plain "Add a product" form (no photos yet) |
+| `/sell` | Open your shop (StoreForm: link auto from name and editable, cover photo) → then Add a product |
+| `/seller` | SellerShell (`app/seller/layout.tsx`: shop name, Paused badge, tabs) → **Overview**: greeting, 4 StatCards, open orders |
+| `/seller/orders` | status filter chips with counts; next-step button; Cancel with confirmation |
+| `/seller/products` | list with photo, price, stock, sold, Live/Hidden switch, Edit |
+| `/seller/products/new`, `/seller/products/[id]` | ProductForm with up to 5 photos |
+| `/seller/requests` | empty state (custom requests: Stage 5) |
+| `/seller/reviews` | read-only reviews + average (empty until Stage 6 lets buyers review) |
+| `/seller/settings` | StoreForm + Pause my shop |
 
 ## API (all under `/api/`, proxied by Next.js)
 
 `auth/csrf` · `auth/signup` · `auth/signin` · `auth/signout` · `auth/me` (GET/PATCH) · `addresses` ·
 `categories` · `products` · `products/<id>` · `cart` · `cart/items` · `cart/items/<id>` · `cart/preview` (guest,
 no sign-in) · `cart/merge` · `checkout` ·
-`orders` · `orders/<id>` · `payments/verify` · `payments/webhook` · `seller/store` · `seller/products` ·
-`seller/products/<id>` · `seller/orders`
+`orders` · `orders/<id>` · `payments/verify` · `payments/webhook` · `seller/overview` · `seller/store` (GET/POST/
+PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/products/<id>` ·
+`seller/products/<id>/images` (POST) · `seller/products/<id>/images/order` · `seller/products/<id>/images/<img>`
+(DELETE) · `seller/orders` (`?status=`) · `seller/orders/<id>/status` (POST `{status}`) · `seller/reviews`
 
 ## Decisions and assumptions
 
@@ -161,6 +176,19 @@ no sign-in) · `cart/merge` · `checkout` ·
 - **The session never pretends you're signed out** when the server can't be reached: `serverError` is set,
   `<ServerStatus>` under the header shows the reason + Try again, and pages redirect to Sign in only when
   `signedOut` (the server confirmed no user). `app/error.tsx` and `app/not-found.tsx` are the last safety net.
+- **Photos** (`catalog/images.py`): the browser shrinks them to 1600 px JPEG first (`compress-image.ts`); the server
+  still opens and decodes every file, accepts only JPEG/PNG/WebP up to 5 MB, turns it upright, shrinks it to
+  1600 px and **re-saves it without EXIF** (no GPS location of the seller's home). Max 5 per product; order is
+  `ProductImage.position`. The "resized copy for cards" and Cloudinary are Stage 7.
+- **Cancelling a paid seller order** sets `refund_needed` and puts that order's items back into stock.
+- **Shop link (slug)**: made from the name, editable at Open your shop and in Store settings; lowercase letters,
+  numbers and dashes; unique (keeping your own is fine).
+- **Pause store** = `Seller.is_active=False`: products disappear for buyers and checkout refuses that seller.
+- **Reviews**: the seller's read-only list exists now; *writing* reviews (and the Section 8 test "a buyer can't
+  review without a delivered order") is Stage 6, where the review endpoint is built.
+- **Overview "earnings this week"** = paid in the last 7 days, items + delivery, cancelled parts excluded.
+- **Test copy media**: `MEDIA_ROOT` can be set by env; the throwaway e2e copy uses its own folder, so it never
+  touches real uploads.
 - Known limit: while an item is held, its product page shows the reduced stock ("Sold out" for the last one) until
   the hold is paid or released. That's the honest answer, since another buyer is paying for it right now.
 - Products without a photo show the **fine black line drawing** of their category (UI-UX.md §7), not a "3D-style"
@@ -347,6 +375,34 @@ it exactly like a real cart. When they sign in or sign up, `session.signedIn()` 
 `POST /api/cart/merge/`, which adds it to their account bag (quantities added together, capped at stock and 50, own
 products skipped), then clears the browser copy. Checkout still needs sign-in.
 
+### 10. `advance_status(seller_order, new_status, user)` — `backend/orders/status.py` [KEY LOGIC]
+
+**What it does:** moves a seller's part of an order one step:
+`new → preparing → out_for_delivery → delivered`, or `new / preparing → cancelled`.
+
+**Step by step:**
+1. Lock the SellerOrder row with `select_for_update()` (two taps, or a phone and a laptop, are handled one after
+   the other).
+2. **Ownership:** if `part.seller.owner` isn't this user → `NotYourOrderError`. Buyers and other sellers get the
+   same answer as for a missing order (404), so we don't even reveal it exists.
+3. **Only paid orders** can be moved.
+4. **Only along the arrows:** `ALLOWED_MOVES` is a small dictionary, current status → set of allowed next statuses.
+   Anything else (skipping, going back, changing a delivered or cancelled order, a made-up status) →
+   `StatusError` with a sentence the seller can read.
+5. Set the status and its timestamp (`preparing_at`, `delivered_at`…).
+6. **Cancel:** set `refund_needed=True` and give the items back to stock with `F("stock") + qty`.
+7. `save(update_fields=[…])` writes *only* those columns, so the money can never change here. The API reads only
+   `status` from the request, and a test sends `subtotal: 1` and proves it's ignored.
+
+**Why it's safe:** the rules live in one table (`ALLOWED_MOVES`), not scattered `if`s; the check happens on the
+server inside a locked transaction; ownership is checked before anything else.
+
+**Django features:** `transaction.atomic`, `select_for_update`, `TextChoices`, `F()`, `save(update_fields=…)`.
+
+> *Say it:* "Status changes go through one function with an allowed-moves table. It locks the row, checks the
+> seller owns this part and the order is paid, rejects any move that isn't in the table, and saves only the status
+> fields, so a seller can never change amounts or skip steps."
+
 ---
 
 ## Interview notes
@@ -373,6 +429,17 @@ products skipped), then clears the browser copy. Checkout still needs sign-in.
    the stock back for unpaid orders. It runs on a schedule and at every checkout, and a `stock_held` flag stops it
    giving back stock that was never taken.
 
+### Stage 3
+1. **How do you stop a seller changing an order in a way they shouldn't?** All status changes go through
+   `advance_status`, which checks ownership, that the order is paid, and an allowed-moves table, then saves only
+   the status fields. Sellers can't skip steps, go back, or touch amounts; tests cover each case.
+2. **How do you handle uploaded photos safely?** The server never trusts the file name: it decodes the image with
+   Pillow, accepts only JPEG/PNG/WebP under 5 MB, resizes it, and re-saves it without EXIF, so the GPS location in
+   phone photos is removed. The browser shrinks photos first so uploads are fast on mobile data.
+3. **How do you make sure seller A can't see seller B's data?** Every seller query starts from
+   `request.user.seller` (e.g. `user.seller.products`), so another seller's id simply isn't found (404). Tests try
+   reading, editing and uploading to another seller's orders and products.
+
 ## Stage log
 
 - **Stage 1** — monorepo, Docker Postgres (5433), `start-homehaat.ps1`, Django + Next.js via `/api` proxy, email
@@ -381,3 +448,7 @@ products skipped), then clears the browser copy. Checkout still needs sign-in.
 - **Stage 2**: bag grouped by seller, guest bag + merge on sign-in, grouped checkout review, one SellerOrder per
   seller, stock held 15 min (`release_hold`, `expire_orders`, lazy expiry at checkout, Razorpay timeout), late-payment
   handling, sold-out list with one-click remove, My orders + order detail with OrderTimeline, race-condition test.
+- **Stage 3**: SellerShell with 6 tabs; Overview stats from data; Orders with filter, next-step and confirmed Cancel
+  (`advance_status`); Products with Live/Hidden switch and add/edit with up to 5 photos (browser compression,
+  server checks + EXIF stripped); Store settings with editable shop link, cover photo and Pause; seller reviews
+  list; permission tests; `docs/seller-guide.md` with screenshots.

@@ -58,4 +58,19 @@ class IncomingOrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SellerOrder
-        fields = ["id", "order_id", "paid_at", "status", "subtotal", "delivery_fee", "ship_to", "items"]
+        fields = [
+            "id",
+            "order_id",
+            "paid_at",
+            "status",
+            "subtotal",
+            "delivery_fee",
+            "refund_needed",
+            "preparing_at",
+            "out_for_delivery_at",
+            "delivered_at",
+            "cancelled_at",
+            "ship_to",
+            "items",
+        ]
+        read_only_fields = fields  # sellers change the status only through advance_status

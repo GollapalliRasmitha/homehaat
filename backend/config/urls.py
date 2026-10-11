@@ -8,6 +8,7 @@ from cart import views as cart
 from catalog import views as catalog
 from orders import views as orders
 from payments import views as payments
+from reviews import views as reviews
 
 api = [
     # accounts
@@ -34,10 +35,17 @@ api = [
     path("payments/verify/", payments.verify),
     path("payments/webhook/", payments.webhook),
     # seller
+    path("seller/overview/", orders.overview),
     path("seller/store/", catalog.my_store),
+    path("seller/store/cover/", catalog.my_store_cover),
     path("seller/products/", catalog.MyProductList.as_view()),
     path("seller/products/<int:pk>/", catalog.MyProductDetail.as_view()),
+    path("seller/products/<int:pk>/images/", catalog.product_images),
+    path("seller/products/<int:pk>/images/order/", catalog.product_images_order),
+    path("seller/products/<int:pk>/images/<int:image_id>/", catalog.product_image_delete),
     path("seller/orders/", orders.IncomingOrderList.as_view()),
+    path("seller/orders/<int:pk>/status/", orders.change_status),
+    path("seller/reviews/", reviews.my_reviews),
 ]
 
 urlpatterns = [
