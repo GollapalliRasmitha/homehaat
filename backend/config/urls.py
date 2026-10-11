@@ -22,6 +22,9 @@ api = [
     path("categories/", catalog.CategoryList.as_view()),
     path("products/", catalog.ProductList.as_view()),
     path("products/<int:pk>/", catalog.ProductDetail.as_view()),
+    path("stores/", catalog.StoreList.as_view()),
+    path("stores/<slug:slug>/", catalog.StoreDetail.as_view()),
+    path("stores/<slug:slug>/reviews/", catalog.store_reviews),
     # cart
     path("cart/", cart.cart),
     path("cart/items/", cart.add_item),

@@ -55,6 +55,7 @@ export default function CheckoutPage() {
   if (cart.groups.length === 0) {
     return (
       <EmptyState
+        asPageTitle
         title="Your bag is empty"
         text="Add something to your bag before checking out."
         action={

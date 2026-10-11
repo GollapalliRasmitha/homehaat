@@ -21,6 +21,13 @@
   --blush: #f5edec;
   --stone: #efedea;
 
+  /* maker monograms: dark tones behind the white initial (from the reference design) */
+  --mono-1: #111111;
+  --mono-2: #7a5c3e;
+  --mono-3: #3f5b4a;
+  --mono-4: #5b4a6b;
+  --mono-5: #2d4a73;
+
   /* status pills: background / text */
   --st-new-bg: #fbf0e4;
   --st-new: #8a4b12;

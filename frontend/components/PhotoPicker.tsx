@@ -166,6 +166,7 @@ export function PhotoPicker({
               ref={input}
               id={inputId}
               type="file"
+              aria-label={max > 1 ? "Choose photos" : "Choose a photo"}
               accept="image/jpeg,image/png,image/webp"
               multiple={max > 1}
               className="sr-only"

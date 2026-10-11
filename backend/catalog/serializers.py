@@ -11,6 +11,48 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ["slug", "name", "tint", "art", "photo_id"]
 
 
+class CategoryWithCountSerializer(CategorySerializer):
+    product_count = serializers.IntegerField(read_only=True)  # live products, annotated in the view
+
+    class Meta(CategorySerializer.Meta):
+        fields = [*CategorySerializer.Meta.fields, "product_count"]
+
+
+class PublicStoreSerializer(serializers.ModelSerializer):
+    """What buyers see about a shop. Counts and rating are annotated from the database (browse.public_stores)."""
+
+    kind_label = serializers.CharField(source="get_kind_display", read_only=True)
+    main_category = CategorySerializer(read_only=True)  # its photo is the cover when there's no upload
+    cover = serializers.SerializerMethodField()
+    product_count = serializers.IntegerField(read_only=True)
+    rating = serializers.SerializerMethodField()
+    review_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Seller
+        fields = [
+            "slug",
+            "name",
+            "kind",
+            "kind_label",
+            "area",
+            "bio",
+            "cover",
+            "main_category",
+            "delivery_days",
+            "delivery_fee_paise",
+            "product_count",
+            "rating",
+            "review_count",
+        ]
+
+    def get_cover(self, store):
+        return store.cover.url if store.cover else None
+
+    def get_rating(self, store):
+        return round(store.rating, 1) if store.rating is not None else None  # None = no reviews yet
+
+
 class SellerSummarySerializer(serializers.ModelSerializer):
     kind_label = serializers.CharField(source="get_kind_display", read_only=True)
 

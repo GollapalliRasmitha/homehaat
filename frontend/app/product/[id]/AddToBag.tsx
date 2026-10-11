@@ -1,14 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
 
-import { addToCart } from "@/lib/api/cart";
-import { errorMessage } from "@/lib/api/client";
-import { addLine, readGuestBag, writeGuestBag } from "@/lib/guest-bag";
+import { WishlistButton } from "@/components/WishlistButton";
+import { addProductToBag } from "@/lib/add-to-bag";
 import { useSession } from "@/lib/session";
 
-export function AddToBag({ productId, stock, sellerSlug }: { productId: number; stock: number; sellerSlug: string }) {
+export function AddToBag({
+  productId,
+  productName,
+  stock,
+  sellerSlug,
+}: {
+  productId: number;
+  productName: string;
+  stock: number;
+  sellerSlug: string;
+}) {
   const { user, refresh } = useSession();
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState("");
@@ -17,37 +25,23 @@ export function AddToBag({ productId, stock, sellerSlug }: { productId: number; 
   const max = Math.min(stock, 50);
 
   async function add() {
-    if (!user) {
-      // Guest: keep it in this browser. It moves into the account at sign-in.
-      const { lines, added } = addLine(readGuestBag(), productId, qty, note, max);
-      if (added === 0) {
-        return toast(`Only ${stock} available, and ${stock === 1 ? "it's" : "they're"} already in your bag.`);
-      }
-      writeGuestBag(lines);
-      await refresh();
-      return toast(added < qty ? `Added ${added}: only ${stock} available` : "Added to bag");
-    }
     setBusy(true);
-    try {
-      await addToCart(productId, qty, note);
-      await refresh();
-      toast("Added to bag");
-    } catch (error) {
-      toast(`Couldn't add to bag. ${errorMessage(error)}`);
-    } finally {
-      setBusy(false);
-    }
+    await addProductToBag({ id: productId, stock }, qty, note, user, refresh);
+    setBusy(false);
   }
 
   return (
     <>
       <div>
-        <span className="field-label">Quantity</span>
-        <div className="inline-flex h-[46px] items-center rounded-full border border-line bg-white">
+        <span className="field-label" id="qty-label">
+          Quantity
+        </span>
+        <div className="inline-flex h-[46px] items-center rounded-full border border-line bg-white" role="group" aria-labelledby="qty-label">
           <button
             type="button"
-            className="h-11 w-[46px] rounded-full text-xl hover:bg-soft"
+            className="h-11 w-[46px] rounded-full text-xl hover:bg-soft disabled:opacity-30"
             onClick={() => setQty((q) => Math.max(1, q - 1))}
+            disabled={qty <= 1}
             aria-label="Decrease quantity"
           >
             −
@@ -57,8 +51,9 @@ export function AddToBag({ productId, stock, sellerSlug }: { productId: number; 
           </span>
           <button
             type="button"
-            className="h-11 w-[46px] rounded-full text-xl hover:bg-soft"
+            className="h-11 w-[46px] rounded-full text-xl hover:bg-soft disabled:opacity-30"
             onClick={() => setQty((q) => Math.min(Math.max(max, 1), q + 1))}
+            disabled={qty >= max}
             aria-label="Increase quantity"
           >
             +
@@ -69,11 +64,22 @@ export function AddToBag({ productId, stock, sellerSlug }: { productId: number; 
         <label className="field-label" htmlFor="note">
           Note to the maker (optional)
         </label>
-        <textarea id="note" className="textarea" rows={2} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
+        <textarea
+          id="note"
+          className="textarea"
+          rows={2}
+          maxLength={300}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. Write “Happy birthday Meera”, less spicy, size M"
+        />
       </div>
-      <button className="btn btn-black btn-lg" onClick={add} disabled={busy || stock === 0 || isMine}>
-        {isMine ? "This is your product" : stock === 0 ? "Sold out" : busy ? "Adding…" : "Add to bag"}
-      </button>
+      <div className="flex flex-wrap gap-2.5">
+        <button className="btn btn-black btn-lg flex-[1_1_220px]" onClick={add} disabled={busy || stock === 0 || isMine}>
+          {isMine ? "This is your product" : stock === 0 ? "Sold out" : busy ? "Adding…" : "Add to bag"}
+        </button>
+        <WishlistButton productId={productId} productName={productName} variant="large" />
+      </div>
     </>
   );
 }

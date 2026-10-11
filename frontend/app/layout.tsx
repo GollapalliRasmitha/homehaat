@@ -30,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SessionProvider>
           <Header />
           <ServerStatus />
-          <main className="wrap flex-1 pb-20 pt-12">{children}</main>
+          <main className="wrap w-full min-w-0 flex-1 pb-20 pt-12">{children}</main>
           <Footer />
           {/* UI-UX.md: toast is a black pill at the bottom centre */}
           <Toaster

@@ -18,6 +18,7 @@ export default function CartPage() {
   if (cart.groups.length === 0) {
     return (
       <EmptyState
+        asPageTitle
         title="Your bag is empty"
         text="Find something handmade by a maker near you."
         action={

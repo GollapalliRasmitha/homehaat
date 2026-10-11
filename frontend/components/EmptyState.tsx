@@ -8,12 +8,15 @@ export function EmptyState({
   text,
   photoId = PHOTOS.crafts,
   action,
+  asPageTitle = false,
 }: {
   title: string;
   text: string;
   photoId?: string;
   action?: React.ReactNode;
+  asPageTitle?: boolean; // when the empty state is the whole page, its title is the page's <h1>
 }) {
+  const Heading = asPageTitle ? "h1" : "h2";
   return (
     <div className="flex flex-col items-center gap-3 rounded-[24px] bg-soft px-5 py-16 text-center">
       <Image
@@ -23,7 +26,7 @@ export function EmptyState({
         height={120}
         className="mb-1.5 size-[120px] rounded-full object-cover"
       />
-      <h2 className="text-[24px]">{title}</h2>
+      <Heading className="text-[24px] font-bold tracking-[-0.03em]">{title}</Heading>
       <p className="mb-1.5 max-w-[440px] text-muted">{text}</p>
       {action}
     </div>

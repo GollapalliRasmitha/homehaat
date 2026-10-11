@@ -4,7 +4,7 @@ A multi-seller marketplace for home businesses (bakers, pickle makers, artists, 
 Buyers fill one bag, pay once, and the order is split per seller. Full brief: `PROMPT.md`. Design brief: `UI-UX.md`.
 Visual reference: `design/HomeHaat-demo-empty.html` (copy its look, never its data). `design/_old-styles/` is NOT used.
 
-**Current stage: 3 of 8 — seller side (done, waiting for "continue").**
+**Current stage: 4 of 8 — design system and polish (done, waiting for "continue").**
 
 ---
 
@@ -41,7 +41,8 @@ homehaat/
     config/               settings.py (reads ../.env), urls.py (all /api/ routes in one list)
     accounts/             User (email login, role), Address, sign-up/in/out, /auth/me
     catalog/              Category, Seller, Product, ProductImage; public products; seller store/products/photos
-                          images.py (check + clean uploads); management/commands/seed_categories.py
+                          images.py (check + clean uploads); browse.py (search, filters, sort, trending,
+                          public stores); management/commands/seed_categories.py
     cart/                 CartItem; /api/cart/ grouped by seller, guest preview + merge (totals from DB prices)
     orders/               Order, SellerOrder, OrderItem; services.py + status.py [KEY LOGIC]; checkout, order,
                           seller-order and overview views
@@ -55,12 +56,18 @@ homehaat/
     app/                  pages (see "Pages" below)
     components/           Header, Footer, ProductCard, ProductImage, CategoryArt, EmptyState, AuthForm,
                           PasswordInput, BagLine, OrderTimeline, LoadError, ServerStatus, StatCard,
-                          ConfirmDialog (Radix), PhotoPicker, StoreForm, ProductForm, IncomingOrderCard
+                          ConfirmDialog (Radix), PhotoPicker, StoreForm, ProductForm, IncomingOrderCard,
+                          HeroSearch, ShowcaseCard, CategoryTile(+Grid), ProductGrid, QuickAdd, WishlistButton,
+                          MakerCard(+Grid), Monogram, SectionHead, ShareButton
     lib/api/*.ts          the ONLY way components get data (client.ts is the only fetch call)
     lib/format.ts         formatINR, rupeesToPaise, deliveryText (+ format.test.ts)
     lib/guest-bag.ts      signed-out bag in localStorage: ids + qty only, never prices (+ guest-bag.test.ts)
     lib/bag.ts            useBag(): one bag API for pages, signed in or guest
     lib/compress-image.ts shrinks photos in the browser before upload (+ test)
+    lib/explore.ts        Explore filters <-> URL <-> API query (+ test)
+    lib/wishlist.ts       hearts: product ids in localStorage, synced everywhere (+ test)
+    lib/bag-math.ts       withQty(): the bag after a quantity change, for optimistic updates (+ test)
+    lib/add-to-bag.ts     addProductToBag(): one "add to bag" for the product page and the card's + button
     lib/seller-context.tsx useSeller(): the seller's shop, shared by the dashboard pages
     lib/razorpay.ts       loads Checkout.js, opens the payment window (closes when the hold ends)
     lib/session.tsx       who is signed in + bag count; signedIn() merges the guest bag
@@ -96,14 +103,27 @@ one line, one action), `AuthForm`, `PasswordInput` (show/hide eye toggle, hidden
 delivery → Delivered), `StatCard` (soft panel, big number, muted label), `ConfirmDialog` (Radix AlertDialog for
 "can't be undone"), `PhotoPicker` (drag-and-drop, reorder by drag or ← → buttons, max N, compresses in the
 browser), `StoreForm` (Open your shop + Store settings), `ProductForm` (add/edit), `IncomingOrderCard` (one seller
-order: buyer contact, items, next-step button, Cancel with confirm). Toast = sonner, black pill, bottom centre.
+order: buyer contact, items, next-step button, Cancel with confirm), `HeroSearch` (82px pill, a plain GET form to
+/explore), `ShowcaseCard` (radius 28 photo, white label card, round arrow), `CategoryTile` (square photo radius 20,
+zooms on hover, optional live count), `ProductCard` (no box; square photo radius 22, heart top-right, stock tag
+top-left, maker link, name, delivery, price, round black +) + `ProductGrid` (2 columns on phones), `MakerCard`
+(soft panel, `Monogram` in a dark tone with the italic serif initial), `SectionHead` (title + one serif accent +
+link), `ShareButton` (share sheet or copy link). Toast = sonner, black pill, bottom centre.
+
+Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference file). No existing token changed.
 
 ## Pages (plain styling until Stage 4)
 
 | URL | What |
 |---|---|
-| `/` | hero heading + "Fresh this week" product list (empty state when none) |
-| `/product/[id]` | product page, quantity, note, Add to bag |
+| `/` | hero + pill search · 3 showcase cards · Browse by *category* · Trending *nearby* (hidden until real orders) · Fresh *this week* (or "Newest *finds*" if nothing is from this week) · black custom-order banner · Makers *near you* |
+| `/explore` | search & category: title, search box, sort, In stock only, price range, category chips (all in the URL); matching makers above the grid |
+| `/categories` | 8 tiles with live product counts |
+| `/makers` | all open shops |
+| `/store/[slug]` | cover (upload, else the main category photo), monogram, name, kind · area, bio, facts, Request a custom order / Manage my shop, Share, ARIA tabs per category + Reviews |
+| `/wishlist` | saved products (from this browser) |
+| `/custom` | explainer + "opens soon" (built in Stage 5) |
+| `/product/[id]` | gallery (up to 5), maker link, price + stock pill, description, quantity, note, Add to bag, Save, delivery rows, More from this seller |
 | `/cart` | the bag grouped by maker (guest or signed in), sold-out flags, "split into N seller orders" |
 | `/checkout` | Address → Review (grouped) → Pay; sold-out list with "Remove them from my bag" |
 | `/checkout/confirming/[orderId]` | "Confirming payment…" — verifies, then polls the order |
@@ -122,7 +142,9 @@ order: buyer contact, items, next-step button, Cancel with confirm). Toast = son
 ## API (all under `/api/`, proxied by Next.js)
 
 `auth/csrf` · `auth/signup` · `auth/signin` · `auth/signout` · `auth/me` (GET/PATCH) · `addresses` ·
-`categories` · `products` · `products/<id>` · `cart` · `cart/items` · `cart/items/<id>` · `cart/preview` (guest,
+`categories` (with live `product_count`) · `products` (`?q= category= seller= min_price= max_price=` (paise)
+`in_stock=1 sort=relevance|newest|price_asc|price_desc|rating|trending ids= limit=`) · `products/<id>` · `stores`
+(`?q= limit=`) · `stores/<slug>` · `stores/<slug>/reviews` · `cart` · `cart/items` · `cart/items/<id>` · `cart/preview` (guest,
 no sign-in) · `cart/merge` · `checkout` ·
 `orders` · `orders/<id>` · `payments/verify` · `payments/webhook` · `seller/overview` · `seller/store` (GET/POST/
 PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/products/<id>` ·
@@ -189,6 +211,22 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - **Overview "earnings this week"** = paid in the last 7 days, items + delivery, cancelled parts excluded.
 - **Test copy media**: `MEDIA_ROOT` can be set by env; the throwaway e2e copy uses its own folder, so it never
   touches real uploads.
+- **Wishlist is kept in the browser** (localStorage, `lib/wishlist.ts`), not in the database: there's no wishlist
+  model in PROMPT.md §6, and adding one would be a model change. The page says "saved in this browser". Easy to move
+  to the server later.
+- **Trending** = products with paid, not-cancelled orders in the last 30 days, most sold first; no orders → the
+  section is hidden. **Fresh this week** is only called that if a listing really is from the last 7 days;
+  otherwise the heading says "Newest finds".
+- **Search** (`catalog/browse.py`): every word must match name, description, shop name or category; name matches
+  come first. Unknown filter values in the URL are ignored (no errors). Up to 60 results.
+- **Rating** (stores, sort) is the average of real reviews; `null` / "No reviews yet" when there are none, and
+  unrated products sort last.
+- **Optimistic UI** only for bag quantities (`withQty`) and the wishlist, as PROMPT.md §3 says. Never for payments.
+- Category list needs an explicit `order_by("position")`: Django ignores `Meta.ordering` in counting (GROUP BY)
+  queries.
+- `<main>` has `min-w-0`: without it, a sideways-scrolling row (the category chips) made the whole page wider on phones.
+- Unsplash photos go through `next/image`; seller uploads use `<img>` until Stage 7 adds resized copies.
+- Every page has one `<h1>` (EmptyState takes `asPageTitle` when it is the whole page).
 - Known limit: while an item is held, its product page shows the reduced stock ("Sold out" for the last one) until
   the hold is paid or released. That's the honest answer, since another buyer is paying for it right now.
 - Products without a photo show the **fine black line drawing** of their category (UI-UX.md §7), not a "3D-style"
@@ -367,6 +405,22 @@ Why `stock_held`? Stage 1 orders took stock only when paid. Without the flag, re
 > on a schedule, and also lazily at the next checkout so it never depends on the job alone. A flag on the order
 > makes sure we only give back stock we actually took."
 
+### 9a. Filters in the URL, and optimistic updates (Stage 4)
+
+**Filters in the URL:** Explore keeps everything in the address (`/explore?q=cake&category=cakes&sort=price_asc`).
+`readFilters` turns the URL into an object, `filtersToQuery` turns it back (leaving out defaults), and `filtersToApi`
+turns it into the API query (rupees → paise). The page is rendered on the server from the URL, so a search can be
+shared, bookmarked, and survives the back button. Typing waits 350 ms before searching, so we don't send one
+request per key press.
+
+**Optimistic updates:** when a buyer presses + in the bag, `withQty` immediately computes the new line total, seller
+subtotal and grand total (integer paise) and shows them; the server's answer replaces them a moment later, or the
+old bag comes back if the server refuses. The wishlist is in the browser, so it's instant anyway. Payments are
+never optimistic: the order is paid only when the server says so.
+
+> *Say it:* "Explore's filters live in the URL, so results are shareable and the server renders them. Bag
+> quantities update optimistically and are reconciled with the server's response; payments never are."
+
 ### 9. The guest bag
 
 Signed-out visitors can fill a bag. It's kept in their browser's `localStorage` as product ids, quantities and
@@ -440,6 +494,15 @@ server inside a locked transaction; ownership is checked before anything else.
    `request.user.seller` (e.g. `user.seller.products`), so another seller's id simply isn't found (404). Tests try
    reading, editing and uploading to another seller's orders and products.
 
+### Stage 4
+1. **Why put search filters in the URL?** So a search can be shared, bookmarked and kept on back/forward, and the
+   server can render the results directly. One pair of functions converts URL ↔ filters, and it's unit-tested.
+2. **What is optimistic UI and where do you use it?** Showing the expected result before the server answers, then
+   reconciling. HomeHaat uses it only for bag quantities and the wishlist (cheap to undo), never for payments.
+3. **How do you avoid showing made-up numbers on a new marketplace?** Every count, rating and "trending" list is
+   computed from the database; sections with no data are hidden or show a designed empty state, ratings show
+   "No reviews yet", and "Fresh this week" is only used when a listing really is from this week.
+
 ## Stage log
 
 - **Stage 1** — monorepo, Docker Postgres (5433), `start-homehaat.ps1`, Django + Next.js via `/api` proxy, email
@@ -452,3 +515,7 @@ server inside a locked transaction; ownership is checked before anything else.
   (`advance_status`); Products with Live/Hidden switch and add/edit with up to 5 photos (browser compression,
   server checks + EXIF stripped); Store settings with editable shop link, cover photo and Pause; seller reviews
   list; permission tests; `docs/seller-guide.md` with screenshots.
+- **Stage 4**: search/filter/sort API (`browse.py`) with trending from real orders; public stores and reviews; full
+  home page, Explore, Categories, Makers, store page (tabs, share), product gallery, wishlist (browser), header and
+  footer per UI-UX; product card with heart and quick +; optimistic bag quantities; phone/tablet/desktop audit of
+  every page (no sideways scroll, alt text, labels, one h1).

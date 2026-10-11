@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import OuterRef, Subquery, Sum
+from django.db.models import Count, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from django.utils.text import slugify
@@ -10,12 +10,14 @@ from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 
 from accounts.models import User
+from catalog.browse import public_products, public_stores, search_products, search_stores
 from catalog.images import ImageError, clean_image
 from catalog.models import Category, Product, ProductImage, Seller
 from catalog.serializers import (
-    CategorySerializer,
+    CategoryWithCountSerializer,
     ProductImageSerializer,
     ProductSerializer,
+    PublicStoreSerializer,
     SellerProductSerializer,
     StoreSerializer,
 )
@@ -34,28 +36,65 @@ class IsSeller(BasePermission):
 
 class CategoryList(generics.ListAPIView):
     permission_classes = [AllowAny]
-    serializer_class = CategorySerializer
-    queryset = Category.objects.all()
+    serializer_class = CategoryWithCountSerializer
     pagination_class = None
 
-
-def public_products():
-    """Products buyers may see: active, from a store that isn't paused."""
-    return (
-        Product.objects.filter(is_active=True, seller__is_active=True)
-        .select_related("category", "seller")
-        .prefetch_related("images")
-    )
+    def get_queryset(self):
+        live = Q(products__is_active=True, products__seller__is_active=True)
+        # order_by is needed: Django drops Meta.ordering in GROUP BY (counting) queries
+        return Category.objects.annotate(product_count=Count("products", filter=live)).order_by("position")
 
 
 class ProductList(generics.ListAPIView):
+    """Search and browse. ?q= &category= &seller= &min_price= &max_price= (paise) &in_stock=1 &sort= &ids= &limit="""
+
     permission_classes = [AllowAny]
     serializer_class = ProductSerializer
     pagination_class = None
-    filterset_fields = {"category__slug": ["exact"], "seller__slug": ["exact"]}
+    filter_backends = []  # our own filtering in browse.search_products
 
     def get_queryset(self):
-        return public_products().order_by("-created_at")
+        return search_products(self.request.query_params)
+
+
+class StoreList(generics.ListAPIView):
+    """Makers: open shops, newest first. ?q= searches name, area and about."""
+
+    permission_classes = [AllowAny]
+    serializer_class = PublicStoreSerializer
+    pagination_class = None
+    filter_backends = []
+
+    def get_queryset(self):
+        return search_stores(self.request.query_params)
+
+
+class StoreDetail(generics.RetrieveAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = PublicStoreSerializer
+    lookup_field = "slug"
+
+    def get_queryset(self):
+        return public_stores()  # a paused shop gives 404
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def store_reviews(request, slug):
+    store = get_object_or_404(public_stores(), slug=slug)
+    return Response(
+        [
+            {
+                "id": r.id,
+                "rating": r.rating,
+                "comment": r.comment,
+                # first name only: buyers' full names and emails stay private
+                "buyer_name": r.buyer.name.split(" ")[0] if r.buyer.name else "A buyer",
+                "created_at": r.created_at,
+            }
+            for r in store.reviews.select_related("buyer")
+        ]
+    )
 
 
 class ProductDetail(generics.RetrieveAPIView):

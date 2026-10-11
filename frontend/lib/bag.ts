@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { getCart, previewCart, removeCartItem, updateCartItem } from "./api/cart";
 import { errorMessage } from "./api/client";
 import type { Cart, CartLine } from "./api/types";
+import { withQty } from "./bag-math";
 import { readGuestBag, removeLines, setLineQty, writeGuestBag } from "./guest-bag";
 import { useSession } from "./session";
 
@@ -36,7 +37,7 @@ export function useBag() {
     if (!sessionLoading) load();
   }, [sessionLoading, load]);
 
-  async function run(change: () => Promise<Cart | void>, message?: string) {
+  async function run(change: () => Promise<Cart | void>, message?: string, undo?: Cart | null) {
     try {
       const updated = await change();
       if (updated) setCart(updated);
@@ -44,15 +45,24 @@ export function useBag() {
       await refresh(); // header bag count
       if (message) toast(message);
     } catch (error) {
+      if (undo) setCart(undo); // the server said no: put the bag back as it was
       toast(`Couldn't update your bag. ${errorMessage(error)}`);
     }
   }
 
-  const setQty = (line: CartLine, qty: number) =>
-    run(async () => {
-      if (line.id !== null) return updateCartItem(line.id, qty);
-      writeGuestBag(setLineQty(readGuestBag(), line.product.id, qty));
-    });
+  /** Optimistic: the new quantity and totals show at once; the server's answer then replaces them. */
+  const setQty = (line: CartLine, qty: number) => {
+    const before = cart;
+    if (cart) setCart(withQty(cart, line.product.id, qty));
+    return run(
+      async () => {
+        if (line.id !== null) return updateCartItem(line.id, qty);
+        writeGuestBag(setLineQty(readGuestBag(), line.product.id, qty));
+      },
+      undefined,
+      before,
+    );
+  };
 
   const remove = (line: CartLine) =>
     run(async () => {

@@ -17,6 +17,32 @@ export interface Category {
   tint: string;
   art: string;
   photo_id: string;
+  product_count?: number; // only from /categories/: live products in it
+}
+
+/** A shop as buyers see it. Counts and rating are computed on the server; rating is null until reviewed. */
+export interface PublicStore {
+  slug: string;
+  name: string;
+  kind: string;
+  kind_label: string;
+  area: string;
+  bio: string;
+  cover: string | null;
+  main_category: Category | null;
+  delivery_days: number;
+  delivery_fee_paise: number;
+  product_count: number;
+  rating: number | null;
+  review_count: number;
+}
+
+export interface StoreReview {
+  id: number;
+  rating: number;
+  comment: string;
+  buyer_name: string;
+  created_at: string;
 }
 
 export interface SellerSummary {

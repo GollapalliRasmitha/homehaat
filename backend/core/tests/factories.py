@@ -34,7 +34,7 @@ def make_seller(owner=None, delivery_fee_paise=4000, **extra) -> Seller:
 def make_product(seller=None, price_paise=45000, stock=5, **extra) -> Product:
     return Product.objects.create(
         seller=seller or make_seller(),
-        category=make_category(),
+        category=extra.pop("category", None) or make_category(),
         name=extra.pop("name", f"Product {next(_n)}"),
         price_paise=price_paise,
         stock=stock,
