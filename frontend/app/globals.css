@@ -189,18 +189,25 @@
     margin-top: 4px;
   }
 
+  /* Grows to a second line for long text (e.g. a long shop name) instead of cutting it off.
+     One line still looks exactly like a 28px pill: 14px radius = fully round at that height. */
   .status {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 28px;
-    padding: 0 12px;
-    border-radius: 999px;
+    min-height: 28px;
+    max-width: 100%;
+    padding: 5px 12px;
+    border-radius: 14px;
     font-size: 13px;
     font-weight: 600;
+    line-height: 1.3;
+    text-align: left;
+    overflow-wrap: anywhere; /* even one very long word wraps instead of overflowing */
   }
   .status::before {
     content: "";
+    flex: none; /* the dot keeps its size when the text wraps */
     width: 6px;
     height: 6px;
     border-radius: 999px;

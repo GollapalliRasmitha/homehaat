@@ -67,7 +67,7 @@ export default function OrdersPage() {
                     {order.seller_orders.length} {order.seller_orders.length === 1 ? "maker" : "makers"}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex min-w-0 max-w-full flex-wrap gap-1.5">
                   {order.payment_status === "paid" ? (
                     order.seller_orders.map((part) => (
                       <span key={part.id} className={`status st-${part.status}`}>
