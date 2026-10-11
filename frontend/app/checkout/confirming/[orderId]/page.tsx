@@ -34,7 +34,7 @@ export default function ConfirmingPage() {
         const order = await getOrder(orderId).catch(() => null);
         if (order?.payment_status === "paid") {
           await refresh(); // bag count goes back to 0
-          router.replace(`/orders/${orderId}`);
+          router.replace(`/orders/${orderId}?placed=1`);
           return;
         }
         if (order?.payment_status === "failed") return setState("failed");

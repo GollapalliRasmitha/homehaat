@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { problemText } from "@/components/BagLine";
 import { EmptyState } from "@/components/EmptyState";
 import { addAddress, listAddresses } from "@/lib/api/auth";
-import { getCart } from "@/lib/api/cart";
 import { ApiError } from "@/lib/api/client";
 import { startCheckout } from "@/lib/api/orders";
-import type { Address, Cart } from "@/lib/api/types";
-import { formatINR } from "@/lib/format";
+import type { Address, SoldOutItem } from "@/lib/api/types";
+import { useBag } from "@/lib/bag";
+import { deliveryText, formatINR } from "@/lib/format";
 import { payWithRazorpay, rememberPayment } from "@/lib/razorpay";
 import { useSession } from "@/lib/session";
 
@@ -20,26 +21,25 @@ type Step = "address" | "review";
 export default function CheckoutPage() {
   const { user, loading } = useSession();
   const router = useRouter();
-  const [cart, setCart] = useState<Cart | null>(null);
+  const { cart, removeProducts, reload } = useBag();
   const [addresses, setAddresses] = useState<Address[] | null>(null);
   const [addressId, setAddressId] = useState<number | null>(null);
   const [step, setStep] = useState<Step>("address");
   const [paying, setPaying] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  const [soldOut, setSoldOut] = useState<string[]>([]);
+  const [soldOut, setSoldOut] = useState<SoldOutItem[]>([]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/signin?next=/checkout");
     if (!user) return;
-    Promise.all([getCart(), listAddresses()]).then(([c, a]) => {
-      setCart(c);
+    listAddresses().then((a) => {
       setAddresses(a);
       setAddressId(a[0]?.id ?? null);
     });
   }, [user, loading, router]);
 
   if (!cart || !addresses) return <p className="text-muted">Loading checkout…</p>;
-  if (cart.items.length === 0) {
+  if (cart.groups.length === 0) {
     return (
       <EmptyState
         title="Your bag is empty"
@@ -54,6 +54,7 @@ export default function CheckoutPage() {
   }
 
   const address = addresses.find((a) => a.id === addressId);
+  const makers = cart.groups.length;
 
   async function pay() {
     if (!addressId) return;
@@ -61,9 +62,9 @@ export default function CheckoutPage() {
     setFailure(null);
     setSoldOut([]);
     try {
-      // 1. The server creates the order and computes the total itself.
+      // 1. The server creates the order, splits it per seller, holds the stock and computes the total.
       const session = await startCheckout(addressId);
-      // 2. The buyer pays in Razorpay's own window.
+      // 2. The buyer pays in Razorpay's own window (it closes itself when the 15-minute hold ends).
       const outcome = await payWithRazorpay(session);
       if (outcome.kind === "success") {
         // 3. Never trust the browser: go to "Confirming payment…" and let the server check it.
@@ -74,10 +75,19 @@ export default function CheckoutPage() {
       if (outcome.kind === "failed") setFailure("Your payment didn't go through. You haven't been charged.");
       else toast("Payment cancelled. You haven't been charged.");
     } catch (error) {
-      if (error instanceof ApiError && Array.isArray(error.data.sold_out)) setSoldOut(error.data.sold_out as string[]);
-      else setFailure(error instanceof Error ? error.message : "Something went wrong. You haven't been charged.");
+      if (error instanceof ApiError && Array.isArray(error.data.sold_out)) {
+        setSoldOut(error.data.sold_out as SoldOutItem[]);
+        await reload();
+      } else {
+        setFailure(error instanceof Error ? error.message : "Something went wrong. You haven't been charged.");
+      }
     }
     setPaying(false);
+  }
+
+  async function removeSoldOut() {
+    await removeProducts(soldOut.map((item) => item.product_id));
+    setSoldOut([]);
   }
 
   return (
@@ -102,12 +112,16 @@ export default function CheckoutPage() {
       </ol>
 
       {soldOut.length > 0 && (
-        <div className="panel mb-4" role="alert">
+        <div className="panel mb-4 flex flex-col items-start gap-2" role="alert">
           <p className="font-semibold">Some items sold out while you were shopping.</p>
-          <p className="text-muted">{soldOut.join(", ")}</p>
-          <Link href="/cart" className="btn btn-white mt-3">
-            Update your bag
-          </Link>
+          <ul className="list-disc pl-5 text-muted">
+            {soldOut.map((item) => (
+              <li key={item.product_id}>{item.name}</li>
+            ))}
+          </ul>
+          <button className="btn btn-black mt-1" onClick={removeSoldOut}>
+            Remove {soldOut.length === 1 ? "it" : "them"} from my bag
+          </button>
         </div>
       )}
 
@@ -162,30 +176,37 @@ export default function CheckoutPage() {
               Delivering to {address.name}, {address.line1}, {address.city} {address.pincode}
             </p>
           )}
-          <div className="border-t border-line py-3">
-            <b>{cart.items[0].product.seller.name}</b>
-            {cart.items.map((item) => (
-              <div key={item.id} className="mt-1.5 flex justify-between text-[15px] text-muted">
-                <span>
-                  {item.qty} × {item.product.name}
-                </span>
-                <span>{formatINR(item.line_total)}</span>
+          {cart.groups.map((group) => (
+            <div key={group.seller.slug} className="border-t border-line py-3">
+              <b>{group.seller.name}</b> <span className="text-muted">· {deliveryText(group.seller.delivery_days)}</span>
+              {group.items.map((line) => (
+                <div key={line.product.id} className="mt-1.5 flex justify-between text-[15px] text-muted">
+                  <span>
+                    {line.qty} × {line.product.name}
+                    {line.problem && <span className="ml-2 font-semibold text-error">{problemText(line)}</span>}
+                  </span>
+                  <span>{formatINR(line.line_total)}</span>
+                </div>
+              ))}
+              <div className="mt-1.5 flex justify-between text-[15px] text-muted">
+                <span>Delivery</span>
+                <span>{formatINR(group.delivery_fee)}</span>
               </div>
-            ))}
-            <div className="mt-1.5 flex justify-between text-[15px] text-muted">
-              <span>Delivery</span>
-              <span>{formatINR(cart.delivery_total)}</span>
             </div>
-          </div>
+          ))}
           <div className="flex items-baseline justify-between border-t border-[#ddd] py-3.5">
             <span className="font-bold">Total</span>
             <b className="price text-[30px]">{formatINR(cart.grand_total)}</b>
           </div>
+          <p className="mb-4 rounded-[14px] bg-soft px-3.5 py-3 text-sm">
+            One payment. HomeHaat splits it into {makers} seller {makers === 1 ? "order" : "orders"}. We hold your
+            items for 15 minutes while you pay.
+          </p>
           <div className="flex flex-wrap items-center gap-2.5">
             <button className="btn btn-white" onClick={() => setStep("address")} disabled={paying}>
               Back
             </button>
-            <button className="btn btn-black btn-lg" onClick={pay} disabled={paying}>
+            <button className="btn btn-black btn-lg" onClick={pay} disabled={paying || cart.has_problems}>
               {paying ? "Opening payment…" : `Pay ${formatINR(cart.grand_total)}`}
             </button>
             <span className="testpill">Test mode, no real money</span>

@@ -1,17 +1,21 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { getMe } from "./api/auth";
-import { getCart } from "./api/cart";
+import { getCart, mergeGuestCart } from "./api/cart";
 import type { User } from "./api/types";
+import { clearGuestBag, countLines, readGuestBag } from "./guest-bag";
 
 interface Session {
   user: User | null;
   loading: boolean;
   bagCount: number;
-  /** Re-read the user and bag count from the server (after sign-in, add to bag, payment…). */
+  /** Re-read the user and bag count (after add to bag, payment…). */
   refresh: () => Promise<void>;
+  /** Call right after sign-in or sign-up: moves the guest bag into the account, then refreshes. */
+  signedIn: () => Promise<void>;
 }
 
 const SessionContext = createContext<Session | null>(null);
@@ -25,14 +29,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     try {
       const me = await getMe();
       setUser(me);
-      setBagCount(me ? (await getCart()).count : 0);
+      // Signed in: the bag is on the server. Guest: it's in this browser.
+      setBagCount(me ? (await getCart()).count : countLines(readGuestBag()));
     } catch {
       setUser(null);
-      setBagCount(0);
+      setBagCount(countLines(readGuestBag()));
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const signedIn = useCallback(async () => {
+    const guestLines = readGuestBag();
+    if (guestLines.length) {
+      try {
+        const { skipped } = await mergeGuestCart(guestLines);
+        clearGuestBag();
+        if (skipped.length) toast(`Not added to your bag: ${skipped.join(", ")}`);
+      } catch {
+        // keep the guest bag so nothing is lost; the next sign-in tries again
+      }
+    }
+    await refresh();
+  }, [refresh]);
 
   useEffect(() => {
     // Read the session once when the app loads. This is the standard way to
@@ -41,7 +60,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [refresh]);
 
-  return <SessionContext.Provider value={{ user, loading, bagCount, refresh }}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={{ user, loading, bagCount, refresh, signedIn }}>{children}</SessionContext.Provider>
+  );
 }
 
 export function useSession(): Session {

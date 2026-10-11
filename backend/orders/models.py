@@ -23,11 +23,16 @@ class Order(models.Model):
     razorpay_order_id = models.CharField(max_length=40, unique=True, null=True, blank=True)
     razorpay_payment_id = models.CharField(max_length=40, unique=True, null=True, blank=True)
     ship_to = models.JSONField()  # frozen copy of the address at checkout time
+    # True while this order has taken stock off the shelf (from checkout until it's
+    # paid, or until the hold is released). Releasing gives stock back only if True.
+    stock_held = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     paid_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
+        # expire_unpaid_orders looks for "pending and older than 15 minutes"
+        indexes = [models.Index(fields=["payment_status", "created_at"], name="order_status_created")]
 
     def __str__(self):
         return f"Order #{self.pk}"

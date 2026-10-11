@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from orders.models import Order, OrderItem, SellerOrder
+from orders.services import hold_expires_at
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -15,7 +16,7 @@ class SellerOrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SellerOrder
-        fields = ["id", "seller", "subtotal", "delivery_fee", "status", "items"]
+        fields = ["id", "seller", "subtotal", "delivery_fee", "status", "refund_needed", "items"]
 
     def get_seller(self, seller_order):
         return {"slug": seller_order.seller.slug, "name": seller_order.seller.name}
@@ -25,6 +26,7 @@ class OrderSerializer(serializers.ModelSerializer):
     """The buyer's view of their order: one block per seller."""
 
     seller_orders = SellerOrderSerializer(many=True, read_only=True)
+    hold_expires_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -37,8 +39,12 @@ class OrderSerializer(serializers.ModelSerializer):
             "ship_to",
             "created_at",
             "paid_at",
+            "hold_expires_at",
             "seller_orders",
         ]
+
+    def get_hold_expires_at(self, order):
+        return hold_expires_at(order) if order.payment_status == Order.PaymentStatus.PENDING else None
 
 
 class IncomingOrderSerializer(serializers.ModelSerializer):

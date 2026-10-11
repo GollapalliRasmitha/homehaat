@@ -1,120 +1,83 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
+import { BagLine } from "@/components/BagLine";
 import { EmptyState } from "@/components/EmptyState";
-import { ProductImage } from "@/components/ProductImage";
-import { getCart, removeCartItem, updateCartItem } from "@/lib/api/cart";
-import { ApiError } from "@/lib/api/client";
-import type { Cart } from "@/lib/api/types";
+import { useBag } from "@/lib/bag";
 import { deliveryText, formatINR } from "@/lib/format";
 import { useSession } from "@/lib/session";
 
 export default function CartPage() {
-  const { user, loading, refresh } = useSession();
-  const [cart, setCart] = useState<Cart | null>(null);
-  const [failed, setFailed] = useState(false);
+  const { user } = useSession();
+  const { cart, failed, loading, setQty, remove, removeProducts } = useBag();
 
-  useEffect(() => {
-    if (!user) return;
-    getCart()
-      .then(setCart)
-      .catch(() => setFailed(true));
-  }, [user]);
-
-  async function change(action: () => Promise<Cart>, message?: string) {
-    try {
-      setCart(await action()); // the server sends back the whole bag with fresh totals
-      await refresh();
-      if (message) toast(message);
-    } catch (error) {
-      toast(error instanceof ApiError ? error.message : "Couldn't update your bag.");
-    }
-  }
-
-  if (loading || (user && !cart && !failed)) return <p className="text-muted">Loading your bag…</p>;
   if (failed) return <EmptyState title="Couldn't load your bag" text="Please refresh the page in a moment." />;
-
-  const startExploring = (
-    <Link href="/" className="btn btn-black">
-      Start exploring
-    </Link>
-  );
-  if (!user) {
+  if (loading || !cart) return <p className="text-muted">Loading your bag…</p>;
+  if (cart.groups.length === 0) {
     return (
       <EmptyState
         title="Your bag is empty"
-        text="Sign in to add handmade things to your bag."
+        text="Find something handmade by a maker near you."
         action={
-          <Link href="/signin?next=/cart" className="btn btn-black">
-            Sign in
+          <Link href="/" className="btn btn-black">
+            Start exploring
           </Link>
         }
       />
     );
   }
-  if (!cart || cart.items.length === 0) {
-    return <EmptyState title="Your bag is empty" text="Find something handmade by a maker near you." action={startExploring} />;
-  }
 
-  const seller = cart.items[0].product.seller; // Stage 1: one maker per bag
+  const makers = cart.groups.length;
+  const problemIds = cart.groups.flatMap((g) => g.items).filter((l) => l.problem).map((l) => l.product.id);
   return (
     <>
       <h1 className="title">Your bag</h1>
       <p className="mb-6 mt-1.5 text-muted">
-        {cart.count} {cart.count === 1 ? "item" : "items"} from {seller.name}
+        {cart.count} {cart.count === 1 ? "item" : "items"} from {makers} {makers === 1 ? "maker" : "makers"}
       </p>
+
+      {cart.has_problems && (
+        <div className="panel mb-5 flex flex-wrap items-center justify-between gap-3" role="alert">
+          <p className="font-semibold">Some items sold out while you were shopping.</p>
+          <button className="btn btn-white" onClick={() => removeProducts(problemIds)}>
+            Remove sold-out items
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-start gap-7">
-        <section className="panel min-w-0 flex-[999_1_520px]" aria-label={seller.name}>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3.5">
-            <div>
-              <div className="text-lg font-semibold">{seller.name}</div>
-              {seller.area && <div className="text-sm text-muted">{seller.area}</div>}
-            </div>
-            <span className="status st-delivered">{deliveryText(seller.delivery_days)}</span>
-          </div>
-          {cart.items.map((item) => (
-            <div key={item.id} className="flex flex-wrap items-center gap-4 border-b border-line py-4">
-              <ProductImage product={item.product} className="size-[84px] flex-none rounded-2xl" />
-              <div className="min-w-0 flex-[1_1_180px]">
-                <div className="font-bold">{item.product.name}</div>
-                <div className="text-sm text-muted">{formatINR(item.product.price_paise)} each</div>
-                {item.note && <div className="text-sm text-muted">Note: {item.note}</div>}
-                <button
-                  className="py-2 text-sm text-muted underline"
-                  onClick={() => change(() => removeCartItem(item.id), "Removed from bag")}
-                >
-                  Remove
-                </button>
+        <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-[18px]">
+          {cart.groups.map((group) => (
+            <section key={group.seller.slug} className="panel" aria-label={group.seller.name}>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3.5">
+                <div>
+                  <div className="text-lg font-semibold">{group.seller.name}</div>
+                  {group.seller.area && <div className="text-sm text-muted">{group.seller.area}</div>}
+                </div>
+                <span className="status st-delivered">{deliveryText(group.seller.delivery_days)}</span>
               </div>
-              <div className="inline-flex h-[46px] items-center rounded-full border border-line">
-                <button
-                  className="h-11 w-[46px] rounded-full text-xl hover:bg-soft disabled:opacity-30"
-                  aria-label={`Decrease quantity of ${item.product.name}`}
-                  disabled={item.qty <= 1}
-                  onClick={() => change(() => updateCartItem(item.id, item.qty - 1))}
-                >
-                  −
-                </button>
-                <span className="min-w-7 text-center font-semibold tabular-nums">{item.qty}</span>
-                <button
-                  className="h-11 w-[46px] rounded-full text-xl hover:bg-soft"
-                  aria-label={`Increase quantity of ${item.product.name}`}
-                  onClick={() => change(() => updateCartItem(item.id, item.qty + 1))}
-                >
-                  +
-                </button>
+              {group.items.map((line) => (
+                <BagLine
+                  key={line.product.id}
+                  line={line}
+                  onQty={(qty) => setQty(line, qty)}
+                  onRemove={() => remove(line)}
+                />
+              ))}
+              <div className="flex flex-col gap-1.5 pt-3">
+                <div className="flex justify-between text-[15px] text-muted">
+                  <span>Delivery</span>
+                  <span>{formatINR(group.delivery_fee)}</span>
+                </div>
+                <div className="flex justify-between text-[15px] font-bold">
+                  <span>Subtotal from {group.seller.name}</span>
+                  <span>{formatINR(group.subtotal)}</span>
+                </div>
               </div>
-              <span className="price min-w-[90px] text-right">{formatINR(item.line_total)}</span>
-            </div>
+            </section>
           ))}
-          <div className="flex justify-between pt-3 text-[15px] text-muted">
-            <span>Delivery</span>
-            <span>{formatINR(cart.delivery_total)}</span>
-          </div>
-        </section>
+        </div>
 
         <aside className="sticky top-4 flex min-w-0 flex-[1_1_300px] flex-col gap-3.5 rounded-[24px] bg-soft p-6" aria-label="Order summary">
           <h2 className="text-[22px]">Summary</h2>
@@ -123,17 +86,27 @@ export default function CartPage() {
             <span>{formatINR(cart.items_total)}</span>
           </div>
           <div className="flex justify-between text-[15px] text-muted">
-            <span>Delivery</span>
+            <span>
+              Delivery ({makers} {makers === 1 ? "maker" : "makers"})
+            </span>
             <span>{formatINR(cart.delivery_total)}</span>
           </div>
           <div className="flex items-baseline justify-between border-t border-[#ddd] py-3.5">
             <span className="font-bold">Total</span>
             <b className="price text-[30px]">{formatINR(cart.grand_total)}</b>
           </div>
-          <div className="rounded-[14px] bg-white px-3.5 py-3 text-sm">One payment. HomeHaat splits it into 1 order, one for each maker.</div>
-          <Link href="/checkout" className="btn btn-black btn-lg">
-            Checkout
-          </Link>
+          <div className="rounded-[14px] bg-white px-3.5 py-3 text-sm">
+            One payment. HomeHaat splits it into {makers} seller {makers === 1 ? "order" : "orders"}.
+          </div>
+          {cart.has_problems ? (
+            <button className="btn btn-black btn-lg" disabled>
+              Remove sold-out items to check out
+            </button>
+          ) : (
+            <Link href={user ? "/checkout" : "/signin?next=/checkout"} className="btn btn-black btn-lg">
+              {user ? "Checkout" : "Sign in to check out"}
+            </Link>
+          )}
         </aside>
       </div>
     </>

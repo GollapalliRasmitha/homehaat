@@ -36,6 +36,9 @@ export default function AccountPage() {
       <h1 className="title text-[32px]">Hi{user.name ? `, ${user.name.split(" ")[0]}` : ""}</h1>
       <p className="text-muted">{user.email}</p>
       <div className="flex flex-wrap gap-2.5">
+        <Link href="/orders" className="btn btn-white">
+          My orders
+        </Link>
         <Link href={user.store_slug ? "/seller" : "/sell"} className="btn btn-white">
           {user.store_slug ? "My shop" : "Open your shop"}
         </Link>

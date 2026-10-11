@@ -1,11 +1,18 @@
 """
-[KEY LOGIC] Turning a buyer's cart into an order.
+[KEY LOGIC] Turning a buyer's bag into an order, and holding the stock.
 
-Stage 1: the cart holds products from ONE seller, so we create
-one Order + one SellerOrder + its OrderItems. Stage 2 splits by seller.
+One checkout = one Order (one payment) split into one SellerOrder per seller.
+The stock is taken off the shelf at checkout and held for ORDER_HOLD_MINUTES.
+If the order isn't paid in time, release_hold() puts the stock back.
 """
 
+from collections import defaultdict
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import transaction
+from django.db.models import F
+from django.utils import timezone
 
 from cart.models import CartItem
 from catalog.models import Product
@@ -21,64 +28,121 @@ class CheckoutError(Exception):
 
 
 class SoldOutError(CheckoutError):
-    def __init__(self, items: list[str]):
+    def __init__(self, items: list[dict]):
         super().__init__("Some items sold out while you were shopping.")
-        self.items = items  # product names, so the bag can show which ones
+        self.items = items  # [{"product_id", "name"}], so the bag can show and remove them
+
+
+def hold_expires_at(order: Order):
+    return order.created_at + timedelta(minutes=settings.ORDER_HOLD_MINUTES)
 
 
 @transaction.atomic  # everything below is saved together, or not at all
 def create_order_from_cart(user, address) -> Order:
-    cart_items = list(CartItem.objects.filter(user=user))  # only THIS buyer's cart
+    # 0. The buyer closed the payment window and pressed Pay again: let go of the
+    #    earlier unpaid attempt first, so it doesn't keep their own stock locked up.
+    for earlier in Order.objects.filter(buyer=user, payment_status=Order.PaymentStatus.PENDING):
+        release_hold(earlier)
+
+    # 1. Only THIS buyer's bag.
+    cart_items = list(CartItem.objects.filter(user=user).order_by("created_at"))
     if not cart_items:
         raise CheckoutError("Your bag is empty.")
 
-    # Lock these product rows until the transaction ends, so nobody else can
-    # change their stock while we check it. Prices are read here, from the
-    # database, never from the request.
+    # 2. Lock the product rows until this transaction ends. A second buyer checking
+    #    out the same cake waits here, then reads the stock we left behind.
+    #    order_by("id") locks rows in the same order every time, so two checkouts
+    #    can never each hold one lock and wait for the other's (a deadlock).
     product_ids = [item.product_id for item in cart_items]
-    # of=("self",) locks only the product rows, not the joined seller row.
-    products = Product.objects.select_for_update(of=("self",)).select_related("seller").filter(id__in=product_ids)
-    products = {product.id: product for product in products}
+    locked = Product.objects.select_for_update(of=("self",)).select_related("seller").filter(id__in=product_ids)
+    products = {product.id: product for product in locked.order_by("id")}
 
-    sellers = {product.seller for product in products.values()}
-    if len(sellers) != 1:
-        raise CheckoutError("For now, one order can only have products from one maker.")
-    seller = sellers.pop()
-    if not seller.is_active:
-        raise CheckoutError(f"{seller.name} isn't taking orders right now.")
+    # 3. Group the bag by seller: each seller gets their own part of the order.
+    by_seller = defaultdict(list)
+    for item in cart_items:
+        by_seller[products[item.product_id].seller].append(item)
 
+    paused = [seller.name for seller in by_seller if not seller.is_active]
+    if paused:
+        raise CheckoutError(f"{', '.join(paused)} isn't taking orders right now. Remove their items to continue.")
+    if any(seller.owner_id == user.id for seller in by_seller):
+        raise CheckoutError("You can't buy from your own shop.")
+
+    # 4. Every item must still be for sale, with enough stock.
     sold_out = [
-        products[item.product_id].name
+        {"product_id": item.product_id, "name": products[item.product_id].name}
         for item in cart_items
         if not products[item.product_id].is_active or products[item.product_id].stock < item.qty
     ]
     if sold_out:
         raise SoldOutError(sold_out)
 
-    # All money is integer paise: 45000 = ₹450.
-    items_total = sum(products[item.product_id].price_paise * item.qty for item in cart_items)
-    delivery_fee = seller.delivery_fee_paise
+    # 5. Money, from database prices only. Integer paise: 45000 = ₹450.
+    def line_total(item):
+        return products[item.product_id].price_paise * item.qty
+
+    items_total = sum(line_total(item) for item in cart_items)
+    delivery_total = sum(seller.delivery_fee_paise for seller in by_seller)  # one fee per seller
 
     order = Order.objects.create(
         buyer=user,
         items_total=items_total,
-        delivery_total=delivery_fee,
-        grand_total=items_total + delivery_fee,
+        delivery_total=delivery_total,
+        grand_total=items_total + delivery_total,
         ship_to=address.snapshot(),  # frozen copy of the address
+        stock_held=True,
     )
-    seller_order = SellerOrder.objects.create(
-        order=order, seller=seller, subtotal=items_total, delivery_fee=delivery_fee
-    )
-    OrderItem.objects.bulk_create(
-        OrderItem(
-            seller_order=seller_order,
-            product=products[item.product_id],
-            name=products[item.product_id].name,  # snapshot: what they bought...
-            unit_price=products[item.product_id].price_paise,  # ...and the price they paid
-            qty=item.qty,
-            note=item.note,
+    for seller, items in by_seller.items():
+        seller_order = SellerOrder.objects.create(
+            order=order,
+            seller=seller,
+            subtotal=sum(line_total(item) for item in items),
+            delivery_fee=seller.delivery_fee_paise,
         )
-        for item in cart_items
-    )
-    # Stock and cart are NOT changed here: that happens only once payment is confirmed.
+        OrderItem.objects.bulk_create(
+            OrderItem(
+                seller_order=seller_order,
+                product=products[item.product_id],
+                name=products[item.product_id].name,  # snapshot: what they bought...
+                unit_price=products[item.product_id].price_paise,  # ...and the price they paid
+                qty=item.qty,
+                note=item.note,
+            )
+            for item in items
+        )
+
+    # 6. Hold the stock. F() makes Postgres do "stock = stock - qty" itself.
+    #    The rows are still locked, so nobody can sneak in between the check and this.
+    for item in cart_items:
+        Product.objects.filter(pk=item.product_id).update(stock=F("stock") - item.qty)
+
+    # The cart is NOT cleared here: only once the payment is confirmed.
     return order
+
+
+@transaction.atomic
+def release_hold(order: Order) -> bool:
+    """
+    An unpaid order gives up: pending -> failed, and its held stock goes back
+    on the shelf. Returns True if it did that, False if there was nothing to do.
+    """
+    # Lock the order row, so a payment confirmation and a release can't both run at once.
+    order = Order.objects.select_for_update().get(pk=order.pk)
+    if order.payment_status != Order.PaymentStatus.PENDING:
+        return False  # already paid or already failed: leave it alone
+
+    if order.stock_held:  # orders from before Stage 2 never held stock, so they give nothing back
+        for item in OrderItem.objects.filter(seller_order__order=order, product__isnull=False):
+            Product.objects.filter(pk=item.product_id).update(stock=F("stock") + item.qty)
+
+    order.payment_status = Order.PaymentStatus.FAILED
+    order.stock_held = False
+    order.save(update_fields=["payment_status", "stock_held"])
+    return True
+
+
+def expire_unpaid_orders() -> int:
+    """Release every order still unpaid after the hold time. Returns how many."""
+    cutoff = timezone.now() - timedelta(minutes=settings.ORDER_HOLD_MINUTES)
+    expired = Order.objects.filter(payment_status=Order.PaymentStatus.PENDING, created_at__lt=cutoff)
+    return sum(release_hold(order) for order in expired)

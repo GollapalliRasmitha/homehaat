@@ -11,7 +11,14 @@ from accounts.models import Address
 from catalog.views import IsSeller
 from orders.models import Order, SellerOrder
 from orders.serializers import IncomingOrderSerializer, OrderSerializer
-from orders.services import CheckoutError, SoldOutError, create_order_from_cart
+from orders.services import (
+    CheckoutError,
+    SoldOutError,
+    create_order_from_cart,
+    expire_unpaid_orders,
+    hold_expires_at,
+    release_hold,
+)
 from payments import razorpay_client
 
 log = logging.getLogger("homehaat.orders")
@@ -34,6 +41,10 @@ def checkout(request):
     data.is_valid(raise_exception=True)
     address = get_object_or_404(Address, pk=data.validated_data["address_id"], user=request.user)
 
+    # Free anything whose 15-minute hold has run out, so this buyer can have it
+    # even if the scheduled expire_orders job hasn't run yet.
+    expire_unpaid_orders()
+
     try:
         order = create_order_from_cart(request.user, address)
     except SoldOutError as exc:
@@ -45,8 +56,7 @@ def checkout(request):
         rzp_order = razorpay_client.create_order(amount_paise=order.grand_total, receipt=f"homehaat-{order.pk}")
     except razorpay_client.RazorpayError as exc:
         log.error("Razorpay order failed for order %s: %s", order.pk, exc)
-        order.payment_status = Order.PaymentStatus.FAILED
-        order.save(update_fields=["payment_status"])
+        release_hold(order)  # failed, and the held stock goes back on the shelf
         return Response({"detail": "Payments are unavailable right now. You haven't been charged."}, status=502)
 
     order.razorpay_order_id = rzp_order["id"]
@@ -61,6 +71,7 @@ def checkout(request):
             "currency": "INR",
             "key_id": settings.RAZORPAY_KEY_ID,
             "prefill": {"name": request.user.name, "email": request.user.email, "contact": address.phone},
+            "hold_expires_at": hold_expires_at(order),  # Checkout.js closes itself at this time
         },
         status=status.HTTP_201_CREATED,
     )
@@ -75,7 +86,9 @@ class MyOrderList(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        return orders_with_details().filter(buyer=self.request.user)
+        # Failed attempts (closed payment window, expired hold) would only clutter the list.
+        mine = orders_with_details().filter(buyer=self.request.user)
+        return mine.exclude(payment_status=Order.PaymentStatus.FAILED)
 
 
 class MyOrderDetail(generics.RetrieveAPIView):

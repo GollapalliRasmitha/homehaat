@@ -11,9 +11,10 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
+from catalog.models import Product
 from core.tests.factories import add_to_cart, make_address, make_product, make_seller, make_user
-from orders.models import Order
-from orders.services import create_order_from_cart
+from orders.models import Order, SellerOrder
+from orders.services import create_order_from_cart, release_hold
 from payments.webhook import (
     AmountMismatchError,
     mark_order_paid,
@@ -58,7 +59,7 @@ class PaidOrderMixin:
 
 
 class MarkOrderPaidTests(PaidOrderMixin, TestCase):
-    def test_marks_paid_reduces_stock_and_clears_cart(self):
+    def test_marks_paid_keeps_the_held_stock_and_clears_cart(self):
         changed = mark_order_paid(self.order, "pay_1", 49000)
 
         self.assertTrue(changed)
@@ -67,7 +68,7 @@ class MarkOrderPaidTests(PaidOrderMixin, TestCase):
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
         self.assertEqual(self.order.razorpay_payment_id, "pay_1")
         self.assertIsNotNone(self.order.paid_at)
-        self.assertEqual(self.cake.stock, 4)
+        self.assertEqual(self.cake.stock, 4)  # taken once, at checkout
         self.assertEqual(self.buyer.cart_items.count(), 0)
 
     def test_is_idempotent(self):
@@ -85,13 +86,45 @@ class MarkOrderPaidTests(PaidOrderMixin, TestCase):
         self.order.refresh_from_db()
         self.cake.refresh_from_db()
         self.assertEqual(self.order.payment_status, Order.PaymentStatus.PENDING)
-        self.assertEqual(self.cake.stock, 5)
+        self.assertEqual(self.cake.stock, 4)  # still held for this buyer
 
     def test_keeps_cart_items_added_after_checkout(self):
         later = make_product(self.seller, name="Added later")
         add_to_cart(self.buyer, later)
         mark_order_paid(self.order, "pay_1", 49000)
         self.assertEqual(list(self.buyer.cart_items.values_list("product__name", flat=True)), ["Added later"])
+
+
+class LatePaymentTests(PaidOrderMixin, TestCase):
+    """The money arrives after the 15-minute hold ran out and the stock was given back."""
+
+    def setUp(self):
+        super().setUp()
+        release_hold(self.order)  # what expire_orders does after 15 minutes
+        self.cake.refresh_from_db()
+        self.assertEqual(self.cake.stock, 5)
+
+    def test_takes_the_stock_again_if_it_is_still_there(self):
+        self.assertTrue(mark_order_paid(self.order, "pay_late", 49000))
+
+        self.order.refresh_from_db()
+        self.cake.refresh_from_db()
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)
+        self.assertEqual(self.cake.stock, 4)
+        self.assertEqual(self.order.seller_orders.get().status, SellerOrder.Status.NEW)
+
+    def test_records_refund_needed_if_someone_else_bought_it_meanwhile(self):
+        Product.objects.filter(pk=self.cake.pk).update(stock=0)
+
+        self.assertTrue(mark_order_paid(self.order, "pay_late", 49000))
+
+        self.order.refresh_from_db()
+        part = self.order.seller_orders.get()
+        self.assertEqual(self.order.payment_status, Order.PaymentStatus.PAID)  # the money was taken
+        self.assertEqual(part.status, SellerOrder.Status.CANCELLED)
+        self.assertTrue(part.refund_needed)
+        self.cake.refresh_from_db()
+        self.assertEqual(self.cake.stock, 0)  # never negative
 
 
 @override_settings(RAZORPAY_WEBHOOK_SECRET=WEBHOOK_SECRET)

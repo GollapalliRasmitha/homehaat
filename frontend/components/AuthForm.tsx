@@ -19,7 +19,7 @@ function safeNext(value: string | null): string {
 export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const router = useRouter();
   const next = safeNext(useSearchParams().get("next"));
-  const { refresh } = useSession();
+  const { signedIn } = useSession();
   const [error, setError] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -33,7 +33,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
     try {
       const user =
         mode === "signup" ? await signUp({ email, password, name: String(form.get("name")) }) : await signIn({ email, password });
-      await refresh();
+      await signedIn(); // moves anything added as a guest into the account's bag
       toast(`Welcome${user.name ? ", " + user.name.split(" ")[0] : ""}`);
       router.push(next);
     } catch (e) {

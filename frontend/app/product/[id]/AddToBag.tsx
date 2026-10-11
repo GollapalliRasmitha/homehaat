@@ -1,16 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { addToCart } from "@/lib/api/cart";
 import { ApiError } from "@/lib/api/client";
+import { addLine, readGuestBag, writeGuestBag } from "@/lib/guest-bag";
 import { useSession } from "@/lib/session";
 
 export function AddToBag({ productId, stock, sellerSlug }: { productId: number; stock: number; sellerSlug: string }) {
   const { user, refresh } = useSession();
-  const router = useRouter();
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -19,9 +18,14 @@ export function AddToBag({ productId, stock, sellerSlug }: { productId: number; 
 
   async function add() {
     if (!user) {
-      // Guest bags arrive in Stage 2. For now, sign in first and come back here.
-      router.push(`/signin?next=/product/${productId}`);
-      return;
+      // Guest: keep it in this browser. It moves into the account at sign-in.
+      const { lines, added } = addLine(readGuestBag(), productId, qty, note, max);
+      if (added === 0) {
+        return toast(`Only ${stock} available, and ${stock === 1 ? "it's" : "they're"} already in your bag.`);
+      }
+      writeGuestBag(lines);
+      await refresh();
+      return toast(added < qty ? `Added ${added}: only ${stock} available` : "Added to bag");
     }
     setBusy(true);
     try {

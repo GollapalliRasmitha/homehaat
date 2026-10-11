@@ -5,6 +5,8 @@ import type { NextConfig } from "next";
 const API = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
+  // Lets a second, throwaway copy (end-to-end checks) run next to your normal one. Default: .next
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Keep "/api/cart/" exactly as written. Django URLs end with a slash, and
   // Next.js would otherwise redirect "/api/cart/" to "/api/cart".
   skipTrailingSlashRedirect: true,

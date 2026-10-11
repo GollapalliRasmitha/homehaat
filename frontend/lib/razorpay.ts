@@ -29,6 +29,8 @@ export type PaymentOutcome = { kind: "success"; response: RazorpaySuccess } | { 
 /** Opens the Razorpay window and resolves when the buyer pays, fails or closes it. */
 export async function payWithRazorpay(session: CheckoutSession): Promise<PaymentOutcome> {
   await loadScript();
+  // Close the payment window when the stock hold ends, so nobody pays for items we've let go.
+  const secondsLeft = Math.floor((new Date(session.hold_expires_at).getTime() - Date.now()) / 1000);
   return new Promise((resolve) => {
     let failed = false;
     const rzp = new window.Razorpay!({
@@ -39,7 +41,8 @@ export async function payWithRazorpay(session: CheckoutSession): Promise<Payment
       name: "HomeHaat",
       description: `Order #${session.order_id}`,
       prefill: session.prefill,
-      theme: { color: "#111111" },
+      theme: { color: "#111111" }, // Razorpay's own option, needs a colour value (matches --ink)
+      timeout: Math.max(60, secondsLeft),
       handler: (response: RazorpaySuccess) => resolve({ kind: "success", response }),
       modal: { ondismiss: () => resolve(failed ? { kind: "failed" } : { kind: "closed" }) },
     });

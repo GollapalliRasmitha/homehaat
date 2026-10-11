@@ -25,6 +25,8 @@ api = [
     path("cart/", cart.cart),
     path("cart/items/", cart.add_item),
     path("cart/items/<int:item_id>/", cart.change_item),
+    path("cart/preview/", cart.preview),
+    path("cart/merge/", cart.merge),
     # checkout, orders, payments
     path("checkout/", orders.checkout),
     path("orders/", orders.MyOrderList.as_view()),

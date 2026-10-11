@@ -12,6 +12,9 @@ export function Footer() {
           <Link href="/cart" className="text-muted no-underline hover:text-ink">
             Bag
           </Link>
+          <Link href="/orders" className="text-muted no-underline hover:text-ink">
+            My orders
+          </Link>
           <Link href="/account" className="text-muted no-underline hover:text-ink">
             Account
           </Link>

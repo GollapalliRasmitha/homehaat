@@ -4,7 +4,7 @@ A multi-seller marketplace for home businesses (bakers, pickle makers, artists, 
 Buyers fill one bag, pay once, and the order is split per seller. Full brief: `PROMPT.md`. Design brief: `UI-UX.md`.
 Visual reference: `design/HomeHaat-demo-empty.html` (copy its look, never its data). `design/_old-styles/` is NOT used.
 
-**Current stage: 1 of 8 — thin path end to end (done, waiting for "continue").**
+**Current stage: 2 of 8 — multi-seller bag and order split (done, waiting for "continue").**
 
 ---
 
@@ -39,19 +39,23 @@ homehaat/
     accounts/             User (email login, role), Address, sign-up/in/out, /auth/me
     catalog/              Category, Seller, Product, ProductImage; public products; seller store/products
                           management/commands/seed_categories.py
-    cart/                 CartItem; /api/cart/ (totals computed from DB prices)
+    cart/                 CartItem; /api/cart/ grouped by seller, guest preview + merge (totals from DB prices)
     orders/               Order, SellerOrder, OrderItem; services.py [KEY LOGIC]; checkout + order views
+                          management/commands/expire_orders.py
     payments/             webhook.py [KEY LOGIC]; razorpay_client.py (only file that calls Razorpay); views.py
     reviews/, custom_requests/   models only for now (Stages 5–6)
     ai/                   empty until Stage 6
     core/tests/factories.py   test-only helpers (never used by the running site)
   frontend/               Next.js 16 (App Router) + TypeScript + Tailwind v4 + lucide-react + sonner
     app/                  pages (see "Pages" below)
-    components/           Header, Footer, ProductCard, ProductImage, CategoryArt, EmptyState, AuthForm
+    components/           Header, Footer, ProductCard, ProductImage, CategoryArt, EmptyState, AuthForm,
+                          PasswordInput, BagLine, OrderTimeline
     lib/api/*.ts          the ONLY way components get data (client.ts is the only fetch call)
     lib/format.ts         formatINR, rupeesToPaise, deliveryText (+ format.test.ts)
-    lib/razorpay.ts       loads Checkout.js, opens the payment window
-    lib/session.tsx       who is signed in + bag count
+    lib/guest-bag.ts      signed-out bag in localStorage: ids + qty only, never prices (+ guest-bag.test.ts)
+    lib/bag.ts            useBag(): one bag API for pages, signed in or guest
+    lib/razorpay.ts       loads Checkout.js, opens the payment window (closes when the hold ends)
+    lib/session.tsx       who is signed in + bag count; signedIn() merges the guest bag
   design/  docs/  docker-compose.yml  start-homehaat.ps1  .env.example
 ```
 
@@ -80,18 +84,20 @@ Shared classes (in `globals.css` `@layer components`, become full components in 
 Components so far: `Header`, `Footer`, `ProductCard` (+ `stockTag`), `ProductImage` (seller photo or category line
 drawing on its tint), `CategoryArt` (8 fine-line drawings), `EmptyState` (soft panel, round 120px photo, heading,
 one line, one action), `AuthForm`, `PasswordInput` (show/hide eye toggle, hidden by default — use it for
-**every** password field). Toast = sonner, black pill, bottom centre.
+**every** password field), `BagLine` (+ `problemText`), `OrderTimeline` (4 bars: New → Preparing → Out for
+delivery → Delivered). Toast = sonner, black pill, bottom centre.
 
-## Pages (Stage 1, plain styling)
+## Pages (plain styling until Stage 4)
 
 | URL | What |
 |---|---|
 | `/` | hero heading + "Fresh this week" product list (empty state when none) |
 | `/product/[id]` | product page, quantity, note, Add to bag |
-| `/cart` | the bag (one maker in Stage 1) with totals from the server |
-| `/checkout` | Address → Review → Pay (Razorpay Checkout.js) |
+| `/cart` | the bag grouped by maker (guest or signed in), sold-out flags, "split into N seller orders" |
+| `/checkout` | Address → Review (grouped) → Pay; sold-out list with "Remove them from my bag" |
 | `/checkout/confirming/[orderId]` | "Confirming payment…" — verifies, then polls the order |
-| `/orders/[id]` | order success page (one block per seller order) |
+| `/orders` | my orders (failed attempts hidden), each maker's status |
+| `/orders/[id]` | one block per seller order with OrderTimeline; `?placed=1` shows "Order placed" |
 | `/signin`, `/signup`, `/account` | email + password |
 | `/sell` | plain "Open your shop" form |
 | `/seller` | plain seller page: paid orders + product list |
@@ -100,7 +106,8 @@ one line, one action), `AuthForm`, `PasswordInput` (show/hide eye toggle, hidden
 ## API (all under `/api/`, proxied by Next.js)
 
 `auth/csrf` · `auth/signup` · `auth/signin` · `auth/signout` · `auth/me` (GET/PATCH) · `addresses` ·
-`categories` · `products` · `products/<id>` · `cart` · `cart/items` · `cart/items/<id>` · `checkout` ·
+`categories` · `products` · `products/<id>` · `cart` · `cart/items` · `cart/items/<id>` · `cart/preview` (guest,
+no sign-in) · `cart/merge` · `checkout` ·
 `orders` · `orders/<id>` · `payments/verify` · `payments/webhook` · `seller/store` · `seller/products` ·
 `seller/products/<id>` · `seller/orders`
 
@@ -116,11 +123,22 @@ one line, one action), `AuthForm`, `PasswordInput` (show/hide eye toggle, hidden
 - **Roles:** set only by the server. `role` is read-only in the API; opening a shop makes you a seller.
 - **Next.js 16 `cacheComponents` is off** to keep the data model simple: every API call is `cache: "no-store"`.
   Caching for public pages comes in Stage 7.
-- **Stage 1 limit:** one maker per bag (cart API returns 409 for a second maker). Stage 2 removes it.
-- **Stock is reduced only when the payment is confirmed**, not at checkout. Checkout still locks and checks stock.
-  Open question for Stage 2: two buyers can both check out the last cake before either pays; we need to decide between
-  *reserving stock at checkout* (released by `expire_orders`) or *refunding the second payer*. Until then
-  `mark_order_paid` floors stock at 0 so a captured payment is never lost.
+- **Stock is held at checkout for 15 minutes** (Rasmitha's decision, Stage 2; PROMPT.md said 30 min for
+  `expire_orders`, 15 wins). `Product.stock` therefore means *available* stock. `settings.ORDER_HOLD_MINUTES = 15`.
+- **`Order.stock_held`** says whether an order has stock off the shelf. Release gives stock back only if it's True,
+  so Stage 1 orders (which never held stock) can't inflate stock when they expire.
+- **Holds are released** by `expire_orders` (start script, and a GitHub Actions schedule in Stage 8), **and lazily at
+  the start of every checkout**, so an expired hold never blocks the next buyer even if the job hasn't run. A buyer
+  pressing Pay again also releases their own earlier unpaid attempt. Razorpay Checkout gets a `timeout` so the
+  window closes when the hold ends.
+- **Late payment** (money arrives after the hold ended): `mark_order_paid` takes the stock again per seller; a seller
+  whose items are gone gets their part *cancelled with `refund_needed`* (no live refunds in test mode). The order is
+  still marked paid, because the money was taken.
+- **Guest bag** lives in `localStorage` (product ids, qty, note only). The server prices it (`cart/preview`) and merges
+  it at sign-in/sign-up (`cart/merge`: adds quantities, caps at stock and 50, skips your own products).
+- My orders hides `failed` attempts (closed payment windows, expired holds); the detail page still opens.
+- `next.config.ts` reads an optional `NEXT_DIST_DIR`, only so a throwaway end-to-end copy can run beside your
+  normal one (ports 3001/8001, database `homehaat_e2e`). Normal runs use `.next`.
 - **Local payments** use the signed `/api/payments/verify/` backup (cloudflared tunnel skipped by choice). The webhook
   code is built and tested and goes live in Stage 8.
 - `Seller.main_category` (nullable) was added to the Section 6 model: it's the cover-photo fallback and default
@@ -128,6 +146,8 @@ one line, one action), `AuthForm`, `PasswordInput` (show/hide eye toggle, hidden
 - `CustomRequest.images` is a separate `CustomRequestImage` table (up to 3), like `ProductImage`.
 - `mark_order_paid(order, payment_id, amount_paise)` takes the amount too, so the webhook and verify paths share one
   amount check.
+- Known limit: while an item is held, its product page shows the reduced stock ("Sold out" for the last one) until
+  the hold is paid or released. That's the honest answer, since another buyer is paying for it right now.
 - Products without a photo show the **fine black line drawing** of their category (UI-UX.md §7), not a "3D-style"
   illustration (PROMPT.md §4 says 3D; UI-UX.md replaces it and bans 3D).
 - UI copy says **"bag"** (UI-UX.md); the URL is `/cart` and the code says `cart` (PROMPT.md).
@@ -150,33 +170,45 @@ types a price, `rupeesToPaise` reads the text itself (`"450.5"` → `45050`), ne
 
 ### 2. `create_order_from_cart(user, address)` — `backend/orders/services.py` [KEY LOGIC]
 
-**What it does:** turns this buyer's bag into a *pending* order, ready to pay.
+**What it does:** turns this buyer's bag into *one* pending order (one payment), **split into one `SellerOrder`
+per seller**, and **holds the stock** for 15 minutes.
 
 **Step by step:**
-1. Read the buyer's cart items (`CartItem.objects.filter(user=user)`) — only *this* buyer's rows. Empty → error.
-2. Load the products with `select_for_update()`. This **locks those rows** in Postgres until the transaction ends,
-   so no other checkout can change their stock while we're checking it. `of=("self",)` locks only the products.
-3. Check there's exactly one seller (Stage 1) and the store isn't paused.
-4. Check every product is still active and has enough stock. If not → `SoldOutError` with the product names, so the
-   bag can show which ones.
-5. Compute the totals **from the database prices**: `items_total = Σ price_paise × qty`, plus the seller's delivery fee.
-6. Create the `Order` (pending), one `SellerOrder`, and the `OrderItem`s with **snapshots** of the name and price.
-7. Don't touch stock or the cart yet — that happens only when the payment is confirmed.
+0. If this buyer has an earlier unpaid attempt (they closed the payment window and pressed Pay again), release it
+   first, so their own hold doesn't block them.
+1. Read the buyer's cart items (`CartItem.objects.filter(user=user)`): only *this* buyer's rows. Empty → error.
+2. Load the products with `select_for_update()`, which **locks those rows** until the transaction ends (see section 7).
+   `of=("self",)` locks only the product rows, and `order_by("id")` locks them in the same order every time.
+3. **Group the cart by seller** (`defaultdict(list)`: seller → their cart items). Any paused store → error. Buying
+   from your own shop → error.
+4. Check every product is still active and has enough stock. If not → `SoldOutError` with `{product_id, name}` for
+   each, so the bag can show them and remove them in one click.
+5. Compute the money **from database prices**: each line `price_paise × qty`; `items_total` = all lines;
+   `delivery_total` = **one delivery fee per seller**; `grand_total` = both.
+6. Create the `Order` (pending, `stock_held=True`), then for each seller one `SellerOrder` (that seller's items
+   subtotal + their delivery fee) with its `OrderItem`s, which **snapshot** the name and price.
+7. **Hold the stock:** `stock = F("stock") - qty` for each line. The rows are still locked, so nothing can change
+   between the check in step 4 and this.
+8. The cart is *not* cleared yet; that happens only when the payment is confirmed.
+
+Example: a cake (₹450 × 2) and a candle (₹50) from a baker with ₹40 delivery, plus pickles (₹120 × 3) from a pickle
+maker with ₹30 delivery → two SellerOrders: baker ₹950 + ₹40, pickles ₹360 + ₹30 → one payment of **₹1,380**.
 
 **Why it's safe:**
-- The whole function is wrapped in **`@transaction.atomic`**: if anything fails halfway (e.g. sold out), *nothing* is
-  saved. You never get an order without its items.
+- The whole function is wrapped in **`@transaction.atomic`**: if anything fails halfway (e.g. one item sold out),
+  *nothing* is saved and *no* stock is held. You never get half an order, or stock held for an order that doesn't
+  exist.
 - **Prices never come from the request.** The checkout API only accepts `address_id`; a test sends
   `grand_total: 100` and proves it's ignored.
 - **Snapshots** (`OrderItem.name`, `unit_price`, `Order.ship_to`) mean a seller editing a product, or a buyer editing
   their address, can't change an order that already exists.
 - The address is looked up with `user=request.user`, so you can't ship to someone else's saved address.
 
-**Django features:** `transaction.atomic`, `select_for_update(of=...)`, `select_related`, `bulk_create`, JSONField.
+**Django features:** `transaction.atomic`, `select_for_update(of=...)`, `F()`, `bulk_create`, `defaultdict` grouping.
 
 > *Say it:* "Checkout reads the cart on the server, locks the products with `select_for_update` inside
-> `transaction.atomic`, checks stock, and computes the total from database prices. If the buyer sends a price,
-> it's ignored. Everything is saved together or not at all."
+> `transaction.atomic`, groups the items by seller and creates one SellerOrder each, with one delivery fee per
+> seller. Prices come from the database, and the stock is held right away for 15 minutes. It's all or nothing."
 
 ### 3. Signature checks — `backend/payments/webhook.py` [KEY LOGIC]
 
@@ -203,27 +235,32 @@ Anyone on the internet can send a POST to our webhook URL saying "order 5 is pai
 1. Re-load the order with **`select_for_update()`** (locks the order row).
 2. Already **paid** → return `False` and do nothing. This is what *idempotent* means: calling it 1 time or 5 times
    has the same result. Razorpay retries webhooks, and the verify call can arrive at the same time as the webhook.
-3. Not pending (e.g. failed) → refuse. **Amount ≠ `grand_total`** → `AmountMismatchError`, order stays pending.
-4. Set `payment_status="paid"`, save the `razorpay_payment_id` (unique in the DB) and `paid_at`.
-5. Reduce stock with **`F("stock") - qty`**. `F()` makes Postgres do `stock = stock - 1` itself, instead of Python
-   reading 5 and writing 4 (which could overwrite someone else's change). `Greatest(..., 0)` stops it going negative.
+3. Must be pending, or failed (a *late* payment after the hold ran out). **Amount ≠ `grand_total`** →
+   `AmountMismatchError`, nothing changes.
+4. Normal case: the stock was already held at checkout (`stock_held=True`), so **stock isn't touched again**.
+   Late case (`stock_held=False`): `_take_stock_again` locks each seller's products and, if they're all still there,
+   takes them with `F("stock") - qty`. A seller whose items are gone gets their SellerOrder **cancelled with
+   `refund_needed=True`**. The money was taken, so we record it rather than lose it.
+5. Set `payment_status="paid"`, save the `razorpay_payment_id` (unique in the DB) and `paid_at`.
 6. Remove just those products from the buyer's cart (things added after checkout stay).
 
-**Why it's safe:** the lock in step 1 means two simultaneous calls run one after the other — the second one sees
-"paid" and stops. So stock is reduced exactly once (a test sends the same webhook 3 times and checks stock went
-down by 1). It's all inside `transaction.atomic`, so "paid" and "stock reduced" happen together or not at all.
+**Why it's safe:** the lock in step 1 means two simultaneous calls run one after the other; the second one sees
+"paid" and stops. A test sends the same webhook 3 times and checks the stock went down once. Everything is inside
+`transaction.atomic`.
 
-**Django features:** `transaction.atomic`, `select_for_update`, `F()` expressions, `Greatest`, `update()`.
+**Django features:** `transaction.atomic`, `select_for_update`, `F()` expressions, `prefetch_related`, `update()`.
 
-> *Say it:* "Marking paid is idempotent: it locks the order row, and if it's already paid it returns early. So a
-> retried webhook can't reduce stock twice. Stock goes down with an `F()` expression, so the database does the
-> subtraction atomically."
+> *Say it:* "Marking paid is idempotent: it locks the order row and returns early if it's already paid. Stock was
+> already held at checkout, so paying doesn't touch it. If the money arrives after the hold ran out, we try to take
+> the stock again, and if a seller's items are gone we cancel just that part and flag a refund."
 
 ### 5. The payment flow end to end
 
 ```
 Bag ─► POST /api/checkout/ {address_id}
-       └ create_order_from_cart → Order (pending)  ─► Razorpay Orders API (amount fixed on their side)
+       └ expire_unpaid_orders (free old holds) → create_order_from_cart
+         → Order (pending) + one SellerOrder per seller, stock held 15 min
+         ─► Razorpay Orders API (amount fixed on their side)  [fails → release_hold]
 Browser opens Razorpay Checkout.js ─► buyer pays with a test card
        └ Razorpay returns {order_id, payment_id, signature} to the browser
 "Confirming payment…" page ─► POST /api/payments/verify/   (local backup)
@@ -243,6 +280,58 @@ Because cookies are sent automatically, another website could try to make your b
 blocks that: every change must include the `csrftoken` value in an `X-CSRFToken` header, which only our own pages
 can read. `lib/api/client.ts` does this for every POST/PATCH/DELETE.
 
+### 7. The race for the last item — `select_for_update` [KEY LOGIC]
+
+Two buyers press Pay for the **last cake** at the same instant. Without care, both read "stock = 1", both pass the
+check, and both buy it: one cake, two paid orders.
+
+`select_for_update()` makes Postgres put a **row lock** on that product. Buyer A's checkout gets the lock and runs.
+Buyer B's checkout reaches the same line and **waits**. A holds the cake (stock 1 → 0) and commits, which releases
+the lock. Only then does B continue; Postgres hands B the *fresh* row (stock 0), so B gets "Some items sold out
+while you were shopping." One order, one sold-out message, stock 0, never −1.
+
+The test (`orders/tests/test_race.py`) really does this: two threads with their own database connections, started
+together by a `threading.Barrier`, inside a `TransactionTestCase` (real transactions, like two real requests).
+**Proof the lock matters:** with `select_for_update` removed, the same test fails every time. Both buyers pass the
+check, and the second crashes trying to set the stock to −1.
+
+`order_by("id")` on the locked query avoids a *deadlock*: if A locked cake-then-jar while B locked jar-then-cake,
+each would wait for the other forever. Locking in id order means they always queue the same way.
+
+> *Say it:* "Checkout locks the product rows with `select_for_update`. The second buyer waits for the first to
+> commit, then sees the updated stock and gets a sold-out error. I proved it with a two-thread test, and showed the
+> test fails without the lock."
+
+### 8. Holding stock for 15 minutes — `release_hold` and `expire_unpaid_orders` [KEY LOGIC]
+
+Checkout takes the stock off the shelf straight away, so two people can't both pay for the last cake. But someone
+might start checkout and then walk away, so the hold must end:
+
+- **`release_hold(order)`** locks the order. If it's still **pending**, it puts the held stock back
+  (`stock = F("stock") + qty`, only if `stock_held` is True), sets `failed`, and sets `stock_held=False`. For a paid
+  or already-failed order it does nothing, so it's safe to call twice.
+- **`expire_unpaid_orders()`** releases every pending order older than `ORDER_HOLD_MINUTES` (15). It runs from
+  `python manage.py expire_orders` (start script now, a schedule in Stage 8) **and at the start of every checkout**,
+  so an abandoned hold never blocks the next buyer.
+- When Razorpay can't be reached at checkout, the new order is released immediately.
+- Razorpay's window gets a `timeout`, so it closes when the hold ends. If money still arrives late, section 4
+  handles it.
+
+Why `stock_held`? Stage 1 orders took stock only when paid. Without the flag, releasing an old Stage 1 order would
+*add* stock that was never taken away. The flag makes "give back" happen only for orders that really hold stock.
+
+> *Say it:* "Stock is held at checkout for 15 minutes. If the order isn't paid, a release puts it back. That runs
+> on a schedule, and also lazily at the next checkout so it never depends on the job alone. A flag on the order
+> makes sure we only give back stock we actually took."
+
+### 9. The guest bag
+
+Signed-out visitors can fill a bag. It's kept in their browser's `localStorage` as product ids, quantities and
+notes, **never prices**. To show it, the browser sends that list to `POST /api/cart/preview/`, and the server prices
+it exactly like a real cart. When they sign in or sign up, `session.signedIn()` sends the list to
+`POST /api/cart/merge/`, which adds it to their account bag (quantities added together, capped at stock and 50, own
+products skipped), then clears the browser copy. Checkout still needs sign-in.
+
 ---
 
 ## Interview notes
@@ -256,8 +345,24 @@ can read. `lib/api/client.ts` does this for every POST/PATCH/DELETE.
 3. **What if Razorpay sends the same webhook twice?** `mark_order_paid` is idempotent: it locks the order row with
    `select_for_update` and returns early if it's already paid, so stock is reduced once. A test proves it.
 
+### Stage 2
+1. **How do you split one payment between several sellers?** One `Order` holds the single payment; checkout groups
+   the bag by seller and creates one `SellerOrder` per seller with its own subtotal and delivery fee. Each seller
+   only sees and updates their own part. A test checks a 3-seller bag makes exactly 3 seller orders with the right
+   amounts.
+2. **Two people buy the last item at the same moment: what happens?** Checkout locks the product rows with
+   `select_for_update` inside `transaction.atomic`. The second checkout waits, then reads stock 0 and gets
+   "sold out". A two-thread test proves it, and fails if the lock is removed.
+3. **Why hold stock at checkout instead of when paid, and what if they never pay?** Holding at checkout means the
+   buyer who reached payment can't lose the item to someone slower. The hold lasts 15 minutes; `release_hold` puts
+   the stock back for unpaid orders. It runs on a schedule and at every checkout, and a `stock_held` flag stops it
+   giving back stock that was never taken.
+
 ## Stage log
 
 - **Stage 1** — monorepo, Docker Postgres (5433), `start-homehaat.ps1`, Django + Next.js via `/api` proxy, email
   sign-in, all Section 6 models, `seed_categories`, tokens + fonts, product list/page, single-seller bag, checkout with
   one address, Razorpay test payment (verify backup), webhook (tested), success page, seller page with paid orders.
+- **Stage 2**: bag grouped by seller, guest bag + merge on sign-in, grouped checkout review, one SellerOrder per
+  seller, stock held 15 min (`release_hold`, `expire_orders`, lazy expiry at checkout, Razorpay timeout), late-payment
+  handling, sold-out list with one-click remove, My orders + order detail with OrderTimeline, race-condition test.

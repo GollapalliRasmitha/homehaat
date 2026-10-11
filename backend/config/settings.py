@@ -153,6 +153,10 @@ RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
 if RAZORPAY_KEY_ID and not RAZORPAY_KEY_ID.startswith("rzp_test_"):
     raise RuntimeError("HomeHaat only runs Razorpay in test mode. Use a key that starts with rzp_test_.")
 
+# --- Orders ---
+# Checkout holds the stock for this long. Unpaid after that -> order fails, stock goes back.
+ORDER_HOLD_MINUTES = 15
+
 # --- AI listing helper (Stage 6) ---
 AI_ENABLED = env_bool("AI_ENABLED", False)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")

@@ -1,13 +1,15 @@
 """API tests for POST /api/checkout/ and order reading permissions."""
 
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from core.tests.factories import add_to_cart, make_address, make_product, make_seller, make_user
 from orders.models import Order
-from orders.services import create_order_from_cart
+from orders.services import create_order_from_cart, release_hold
 from payments.webhook import mark_order_paid
 
 FAKE_RZP_ORDER = {"id": "order_FAKE1", "amount": 49000, "currency": "INR"}
@@ -64,8 +66,28 @@ class CheckoutApiTests(TestCase):
             res = client_for(self.buyer).post(self.url, {"address_id": self.address.id}, format="json")
 
         self.assertEqual(res.status_code, 409)
-        self.assertEqual(res.data["sold_out"], [self.cake.name])
+        self.assertEqual(res.data["sold_out"], [{"product_id": self.cake.id, "name": self.cake.name}])
         create.assert_not_called()
+
+    def test_tells_the_browser_when_the_hold_ends(self):
+        with patch("orders.views.razorpay_client.create_order", return_value=FAKE_RZP_ORDER):
+            res = client_for(self.buyer).post(self.url, {"address_id": self.address.id}, format="json")
+        self.assertIn("hold_expires_at", res.data)
+
+    def test_an_expired_hold_frees_the_item_for_the_next_buyer(self):
+        self.cake.stock = 1
+        self.cake.save()
+        slow_buyer = make_user()
+        add_to_cart(slow_buyer, self.cake)
+        stale = create_order_from_cart(slow_buyer, make_address(slow_buyer))  # holds the last cake…
+        Order.objects.filter(pk=stale.pk).update(created_at=timezone.now() - timedelta(minutes=20))  # …and leaves
+
+        with patch("orders.views.razorpay_client.create_order", return_value=FAKE_RZP_ORDER):
+            res = client_for(self.buyer).post(self.url, {"address_id": self.address.id}, format="json")
+
+        self.assertEqual(res.status_code, 201)  # no need to wait for the scheduled expire_orders run
+        stale.refresh_from_db()
+        self.assertEqual(stale.payment_status, Order.PaymentStatus.FAILED)
 
     def test_razorpay_failure_marks_order_failed(self):
         from payments.razorpay_client import RazorpayError
@@ -75,6 +97,8 @@ class CheckoutApiTests(TestCase):
 
         self.assertEqual(res.status_code, 502)
         self.assertEqual(Order.objects.get().payment_status, Order.PaymentStatus.FAILED)
+        self.cake.refresh_from_db()
+        self.assertEqual(self.cake.stock, 5)  # the hold was given back
 
     def test_requires_sign_in(self):
         res = APIClient().post(self.url, {"address_id": self.address.id}, format="json")
@@ -91,6 +115,10 @@ class OrderPermissionTests(TestCase):
     def test_buyer_b_cannot_read_buyer_a_order(self):
         res = client_for(make_user()).get(f"/api/orders/{self.order.id}/")
         self.assertEqual(res.status_code, 404)
+
+    def test_order_list_hides_failed_attempts(self):
+        release_hold(self.order)
+        self.assertEqual(client_for(self.buyer_a).get("/api/orders/").data, [])
 
     def test_buyer_a_can_read_own_order(self):
         res = client_for(self.buyer_a).get(f"/api/orders/{self.order.id}/")

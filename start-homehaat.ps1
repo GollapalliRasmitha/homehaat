@@ -92,6 +92,8 @@ Step "Migrating the database and seeding categories"
 if ($LASTEXITCODE -ne 0) { Fail "migrate failed." }
 & $python (Join-Path $backend "manage.py") seed_categories
 if ($LASTEXITCODE -ne 0) { Fail "seed_categories failed." }
+# Give back stock held by orders left unpaid for more than 15 minutes (also run by checkout itself).
+& $python (Join-Path $backend "manage.py") expire_orders
 
 # --- 6. Two windows ---------------------------------------------------------------
 Step "Opening Django (8000) and Next.js (3000)"

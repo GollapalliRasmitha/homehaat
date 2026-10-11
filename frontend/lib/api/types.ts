@@ -41,20 +41,38 @@ export interface Product {
   created_at: string;
 }
 
+/** Why a bag line can't be bought right now. */
+export type LineProblem = "sold_out" | "not_enough" | "unavailable" | null;
+
 export interface CartLine {
-  id: number;
+  id: number | null; // null for a guest's bag (kept in the browser)
   qty: number;
   note: string;
   line_total: number;
+  problem: LineProblem;
   product: Product;
 }
 
-export interface Cart {
+export interface CartGroup {
+  seller: SellerSummary;
   items: CartLine[];
+  items_total: number;
+  delivery_fee: number;
+  subtotal: number;
+}
+
+export interface Cart {
+  groups: CartGroup[];
   count: number;
   items_total: number;
   delivery_total: number;
   grand_total: number;
+  has_problems: boolean;
+}
+
+export interface SoldOutItem {
+  product_id: number;
+  name: string;
 }
 
 export interface Address {
@@ -89,6 +107,7 @@ export interface SellerOrder {
   subtotal: number;
   delivery_fee: number;
   status: SellerOrderStatus;
+  refund_needed: boolean;
   items: OrderItem[];
 }
 
@@ -103,6 +122,7 @@ export interface Order {
   ship_to: ShipTo;
   created_at: string;
   paid_at: string | null;
+  hold_expires_at: string | null;
   seller_orders: SellerOrder[];
 }
 
@@ -113,6 +133,7 @@ export interface CheckoutSession {
   currency: "INR";
   key_id: string;
   prefill: { name: string; email: string; contact: string };
+  hold_expires_at: string;
 }
 
 export interface RazorpaySuccess {
