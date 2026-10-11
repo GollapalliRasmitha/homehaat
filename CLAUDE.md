@@ -10,7 +10,10 @@ Visual reference: `design/HomeHaat-demo-empty.html` (copy its look, never its da
 
 ## How we work (short version of PROMPT.md section 0)
 
-- One stage at a time, in order. After each: lint, type-check, tests, commit `stage-N: …`, summary + 3 interview Q&As, **stop**.
+- One stage at a time, in order. After each: lint, type-check, tests, commit `stage-N: …`, push to GitHub
+  (`origin` = https://github.com/GollapalliRasmitha/homehaat, branch `main`), summary + 3 interview Q&As, **stop**.
+- Before every push: `.env` must stay untracked (it's in `.gitignore`); only `.env.example` with empty values is
+  committed. Never put real keys in code, docs or chat.
 - **[KEY LOGIC]** functions: tests first, then code, then a plain-English explanation in "How it works" below.
 - Money is **integer paise** everywhere (₹450 = `45000`). Display only through `formatINR` (`frontend/lib/format.ts`).
 - Real data only. The only seeded thing is the category list (`seed_categories`). No demo sellers/products/orders, ever.
