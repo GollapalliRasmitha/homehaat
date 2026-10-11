@@ -109,6 +109,9 @@ one line, one action), `AuthForm`. Toast = sonner, black pill, bottom centre.
   trailing slash Django needs; `skipTrailingSlashRedirect: true`). So the session cookie is first-party.
 - **Auth:** Django sessions (httpOnly, SameSite=Lax, Secure in production) + CSRF on every change. DRF only checks
   CSRF for signed-in users, so sign-up/sign-in add a `CsrfRequired` permission (stops "login CSRF").
+- **Cookie names are `homehaat_session` / `homehaat_csrftoken`**, not Django's defaults. Browsers share cookies
+  across ports on `localhost`, so Oppora's `sessionid`/`csrftoken` would otherwise collide with ours. The frontend
+  reads the name in `lib/api/client.ts` (`CSRF_COOKIE`); keep it in sync with `settings.CSRF_COOKIE_NAME`.
 - **Roles:** set only by the server. `role` is read-only in the API; opening a shop makes you a seller.
 - **Next.js 16 `cacheComponents` is off** to keep the data model simple: every API call is `cache: "no-store"`.
   Caching for public pages comes in Stage 7.

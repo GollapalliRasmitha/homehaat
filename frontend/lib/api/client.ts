@@ -35,11 +35,14 @@ function readCookie(name: string): string | undefined {
     ?.split("=")[1];
 }
 
+// Must match CSRF_COOKIE_NAME in backend/config/settings.py.
+const CSRF_COOKIE = "homehaat_csrftoken";
+
 let csrfReady: Promise<unknown> | null = null;
 
-/** Django needs the csrftoken cookie before any POST/PATCH/DELETE. */
+/** Django needs the CSRF cookie before any POST/PATCH/DELETE. */
 async function ensureCsrf() {
-  if (readCookie("csrftoken")) return;
+  if (readCookie(CSRF_COOKIE)) return;
   csrfReady ??= fetch("/api/auth/csrf/", { credentials: "same-origin" });
   await csrfReady;
   csrfReady = null;
@@ -53,7 +56,7 @@ export async function apiFetch<T>(path: string, options: { method?: Method; body
 
   if (method !== "GET") {
     await ensureCsrf();
-    headers["X-CSRFToken"] = readCookie("csrftoken") ?? "";
+    headers["X-CSRFToken"] = readCookie(CSRF_COOKIE) ?? "";
   }
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
 

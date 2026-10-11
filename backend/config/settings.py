@@ -120,6 +120,10 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # --- Sessions, cookies, CSRF ---
 # The browser talks to Next.js on :3000, which proxies /api/* here, so the
 # session cookie is first-party. HttpOnly keeps it away from JavaScript.
+# Own cookie names: browsers share cookies across ports on "localhost", so Oppora's
+# default "sessionid"/"csrftoken" cookies would otherwise collide with ours.
+SESSION_COOKIE_NAME = "homehaat_session"
+CSRF_COOKIE_NAME = "homehaat_csrftoken"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"

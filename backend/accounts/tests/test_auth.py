@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -13,7 +14,7 @@ class AuthTests(TestCase):
 
     def csrf(self):
         self.client.get("/api/auth/csrf/")
-        return {"HTTP_X_CSRFTOKEN": self.client.cookies["csrftoken"].value}
+        return {"HTTP_X_CSRFTOKEN": self.client.cookies[settings.CSRF_COOKIE_NAME].value}
 
     def test_sign_up_signs_you_in_as_a_buyer(self):
         res = self.client.post(
