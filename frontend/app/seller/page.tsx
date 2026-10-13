@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { IncomingOrderCard } from "@/components/IncomingOrderCard";
 import { LoadError } from "@/components/LoadError";
 import { StatCard } from "@/components/StatCard";
+import { TakingOrders } from "@/components/TakingOrders";
 import { getOverview } from "@/lib/api/seller";
 import type { SellerOverview } from "@/lib/api/types";
 import { formatINR } from "@/lib/format";
@@ -14,7 +15,7 @@ import { PHOTOS } from "@/lib/photos";
 import { useSession } from "@/lib/session";
 
 export default function OverviewPage() {
-  const { user } = useSession();
+  const { user, refresh } = useSession();
   const [data, setData] = useState<SellerOverview | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
@@ -37,7 +38,9 @@ export default function OverviewPage() {
   const firstName = user?.name.split(" ")[0];
   return (
     <>
-      <h2 className="text-[clamp(26px,3vw,36px)]">
+      <TakingOrders />
+
+      <h2 className="mt-8 text-[clamp(26px,3vw,36px)]">
         Hi{firstName ? `, ${firstName}` : ""}. <span className="serif">Here&apos;s your shop today.</span>
       </h2>
 
@@ -45,7 +48,11 @@ export default function OverviewPage() {
       <div className="mb-10 mt-6 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3.5">
         <StatCard value={formatINR(data.earnings_week)} label="Earned in the last 7 days" />
         <StatCard value={String(data.open_orders)} label="Open orders" />
-        <StatCard value={String(data.products_listed)} label="Products listed" />
+        <StatCard
+          value={String(data.products_listed)}
+          note={data.out_of_stock > 0 ? `${data.out_of_stock} out of stock` : undefined}
+          label="Products listed"
+        />
         <StatCard
           value={data.rating === null ? "—" : `${data.rating} ★`}
           label={
@@ -97,7 +104,10 @@ export default function OverviewPage() {
             <IncomingOrderCard
               key={order.id}
               order={order}
-              onChange={() => setAttempt((n) => n + 1)} // reload: the numbers above change too
+              onChange={() => {
+                setAttempt((n) => n + 1); // reload: the numbers above change too
+                refresh(); // and the "Shop orders" count in the tabs and menu
+              }}
             />
           ))}
         </div>

@@ -63,10 +63,12 @@ homehaat/
                           ConfirmDialog (Radix), PhotoPicker, StoreForm, ProductForm, IncomingOrderCard,
                           HeroSearch, ShowcaseCard, CategoryTile(+Grid), ProductGrid, QuickAdd, WishlistButton,
                           MakerCard(+Grid), Monogram, SectionHead, ShareButton, SafeImage/SafeImg, RequestCard,
-                          ItemThumb, Stars (+StarInput), ReviewForm, AddressForm (add + update)
+                          ItemThumb, Stars (+StarInput), ReviewForm, AddressForm (add + update), AccountMenu,
+                          SellerBar, TakingOrders
     lib/api/*.ts          the ONLY way components get data (client.ts is the only fetch call)
     lib/format.ts         formatINR, rupeesToPaise, deliveryText (+ format.test.ts)
     lib/address-rules.ts  the same address rules as the server, for messages next to each field (+ test)
+    lib/product-controls.ts productStatus (Live / Out of stock / Hidden) + deleteText (+ test)
     lib/guest-bag.ts      signed-out bag in localStorage: ids + qty only, never prices (+ guest-bag.test.ts)
     lib/bag.ts            useBag(): one bag API for pages, signed in or guest
     lib/compress-image.ts shrinks photos in the browser before upload (+ test)
@@ -126,28 +128,30 @@ Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference
 | `/explore` | search & category: title, search box, sort, In stock only, price range, category chips, page (all in the URL); real total, "Did you mean …?", Previous/Next (24 per page); matching makers above the grid |
 | `/categories` | 8 tiles with live product counts |
 | `/makers` | all open shops |
-| `/store/[slug]` | cover (upload, else the main category photo), monogram, name, kind · area, bio, facts, Request a custom order / Manage my shop, Share, ARIA tabs per category + Reviews |
+| `/store/[slug]` | cover (upload, else the main category photo), "Not taking orders right now" when paused, monogram, name, kind · area, bio, facts, Request a custom order / Manage my shop, Share, ARIA tabs per category + Reviews |
 | `/wishlist` | saved products (from this browser) |
 | `/custom` | request form (maker, description, up to 3 photos, needed-by, budget; `?maker=` preselects) + Your requests (Accept and add to bag / Decline / Add to bag again) |
 | `/product/[id]` | gallery (up to 5), maker link, price + stock pill, description, quantity, note, Add to bag, Save, delivery rows, More from this seller |
 | `/cart` | the bag grouped by maker (guest or signed in), sold-out flags, "split into N seller orders" |
 | `/checkout` | Address → Review (grouped) → Pay; sold-out list with "Remove them from my bag" |
 | `/checkout/confirming/[orderId]` | "Confirming payment…" — verifies, then polls the order |
-| `/orders` | my orders (failed attempts hidden), each maker's status |
+| `/orders` | "Buying · My orders" (failed attempts hidden), each maker's status |
 | `/orders/[id]` | one block per seller order with OrderTimeline; `?placed=1` shows "Order placed"; delivered → **Write a review** / Your review + Edit |
 | `/signin`, `/signup`, `/account` | email + password |
+| `/account/addresses` | "Buying · Saved addresses": list, Update address (old ones that break the rules), Add an address |
 | `/sell` | Open your shop (StoreForm: link auto from name and editable, cover photo) → then Add a product |
-| `/seller` | SellerShell (`app/seller/layout.tsx`: shop name, Paused badge, tabs) → **Overview**: greeting, 4 StatCards, open orders |
-| `/seller/orders` | status filter chips with counts; next-step button; Cancel with confirmation |
-| `/seller/products` | list with photo, price, stock, sold, Live/Hidden switch, Edit |
+| `/seller` | **Seller mode**: the black `SellerBar` replaces the header; SellerShell (`app/seller/layout.tsx`) = tabs Overview · Shop orders (count) · Products · Custom requests · Reviews · Settings, and the page's h1 "Selling · <tab>" (+ Paused badge) → **Overview**: Taking orders switch, greeting, 4 StatCards (products "N · M out of stock"), open orders |
+| `/seller/orders` | "Selling · Shop orders": status filter chips with counts; next-step button; Cancel with confirmation (buttons full width on phones) |
+| `/seller/products` | rows (`ProductRow`): photo, name, "₹price · stock · sold", Live / Out of stock / Hidden pill; Mark out of stock · Back in stock (inline "How many can you make?" panel) · Hide/Show · Edit · Delete (inline confirmation card) |
 | `/seller/products/new`, `/seller/products/[id]` | ProductForm with up to 5 photos; **Write listing with AI** (only when AI is on) → suggestion with Use this / Dismiss |
 | `/seller/requests` | filter chips with counts; Send quote (₹ + note) / Decline with confirm; the Overview shows "N requests waiting for your price" |
 | `/seller/reviews` | read-only reviews (stars, first name, date) + average |
-| `/seller/settings` | StoreForm + Pause my shop |
+| `/seller/settings` | StoreForm (Pause moved to the Overview "Taking orders" switch) |
 
 ## API (all under `/api/`, proxied by Next.js)
 
-`auth/csrf` · `auth/signup` · `auth/signin` · `auth/signout` · `auth/me` (GET/PATCH) · `addresses` (each with
+`auth/csrf` · `auth/signup` · `auth/signin` · `auth/signout` · `auth/me` (GET/PATCH; user has `shop_name`, `open_orders`) ·
+`addresses` (each with
 `problems`) · `addresses/<id>` (GET/PATCH, mine only) ·
 `categories` (with live `product_count`) · `products` (`?q= category= seller= min_price= max_price=` (paise)
 `in_stock=1 sort=relevance|newest|price_asc|price_desc|rating|trending ids= limit=`) · `search` (same filters + `page=` →
@@ -156,7 +160,7 @@ Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference
 no sign-in) · `cart/merge` · `checkout` ·
 `orders` · `orders/<id>` · `payments/verify` · `payments/webhook` · `seller/overview` · `seller/store` (GET/POST/
 PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/products/<id>` ·
-`seller/products/<id>/images` (POST) · `seller/products/<id>/images/order` · `seller/products/<id>/images/<img>`
+`seller/products/<id>` DELETE (→ `{result: deleted|archived, past_orders}`) · `seller/products/<id>/images` (POST) · `seller/products/<id>/images/order` · `seller/products/<id>/images/<img>`
 (DELETE) · `seller/orders` (`?status=`) · `seller/orders/<id>/status` (POST `{status}`) · `seller/reviews` ·
 `seller/requests` · `seller/requests/<id>/quote` (POST `{quote_paise, note}`) · `seller/requests/<id>/decline` ·
 `requests` (GET mine / POST new, 10 per hour) · `requests/<id>` · `requests/<id>/images` (≤3, while open) ·
@@ -228,7 +232,29 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - **Cancelling a paid seller order** sets `refund_needed` and puts that order's items back into stock.
 - **Shop link (slug)**: made from the name, editable at Open your shop and in Store settings; lowercase letters,
   numbers and dashes; unique (keeping your own is fine).
-- **Pause store** = `Seller.is_active=False`: products disappear for buyers and checkout refuses that seller.
+- **Shopping vs selling.** The shopping header (every page except /seller) has only buying links plus one small
+  outlined pill: "Switch to selling" (has a shop) or "Sell on HomeHaat". The account button opens `AccountMenu`:
+  BUYING (My orders · Wishlist · My custom requests · Saved addresses), SELLING · shop name (Seller dashboard ·
+  Shop orders with the open-orders badge · Products · View my shop page), Sign out. It's a disclosure (button +
+  links), not an ARIA menu: Escape and outside clicks close it, and focus returns to the button. On /seller pages
+  `SellerBar` (black `bg-ink`, white SELLING pill, shop name, ← Back to shopping, View my shop page from 1024px,
+  account) replaces the header; phones stack it (row 1 pill + name + account, row 2 back link). Labels are always
+  "Selling · …" / "Buying · …", and the seller's tab is "Shop orders", so it can't be confused with "My orders".
+  `/auth/me` carries `shop_name` and `open_orders` for the menu and tabs (refreshed after a status change).
+- **Pause = "Taking orders" off** (`Seller.is_active=False`), now a `role="switch"` on the Overview (moved from Store
+  settings). Changed in this step so the copy is true ("Buyers can still see your shop"): a paused shop's page and
+  its product pages still open (`all_stores`, `shop_products`), with "Not taking orders right now" and Add to bag /
+  the card's + disabled; the cart API refuses with "This maker isn't taking orders right now"; checkout refuses that
+  seller as before. A paused shop is left out of the Makers list, search, home sections and counts.
+- **Out of stock / Back in stock** are just `stock` edits (PATCH): stock 0 → buyers see "Sold out", Add to bag is
+  refused and bag lines are flagged `sold_out` at checkout. Back in stock asks "How many can you make?" (1+).
+- **Delete a product** (`DELETE seller/products/<id>`): never in a paid or pending order → deleted completely, with
+  its photo files. In past orders → **archived** (`Product.is_archived=True` and `is_active=False`, an additive
+  field, migration `catalog.0003`): gone from the shop, search and the seller's list, can't be edited back
+  (404), still shown in those orders (they keep their snapshot), and any bag line with it is flagged
+  `unavailable`. `past_orders` on each seller product feeds the confirmation text. Failed attempts don't count.
+- **Owner only:** every product/order change goes through `my_products(user)` / `user.seller`, so another seller
+  gets 404 and a buyer 403 (`catalog/tests/test_product_controls.py`).
 - **Reviews**: one per buyer per maker (the existing unique constraint), so writing again **edits** it; allowed only
   after a delivered, paid seller order from that maker; not for your own shop. Buyers see "Write a review" on the
   delivered block of their order page. Shown with first name only. Sellers can't edit or remove reviews. Each block
@@ -738,3 +764,6 @@ Gemini (`mock.patch`), so they never call the internet.
   page and seller dashboard; full search (Postgres full-text + substring, area, ranking, 24 per page with real totals,
   "Did you mean"); AI listing helper (Gemini free tier, strict schema, `validate_listing`, 10/hour, off by default,
   `docs/ai-setup.md`); seller guide updated.
+- **After Stage 6**: stricter Indian address checks + Razorpay contact prefill; Gemini model fallback; shopping vs
+  selling separation (account menu, black seller bar, "Selling · …" labels), Taking orders switch (paused shops stay
+  visible), product controls (out of stock / back in stock / delete or archive).

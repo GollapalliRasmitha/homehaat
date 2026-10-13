@@ -9,6 +9,8 @@ export interface User {
   phone: string;
   role: Role;
   store_slug: string | null;
+  shop_name: string | null; // null = no shop yet
+  open_orders: number; // paid shop orders still to prepare or deliver (the account menu badge)
 }
 
 export interface Category {
@@ -35,6 +37,7 @@ export interface PublicStore {
   product_count: number;
   rating: number | null;
   review_count: number;
+  taking_orders: boolean; // false = paused: the page still opens, but nothing can be ordered
 }
 
 export interface StoreReview {
@@ -53,6 +56,7 @@ export interface SellerSummary {
   area: string;
   delivery_days: number;
   delivery_fee_paise: number;
+  taking_orders: boolean; // false = the shop is paused: no Add to bag
 }
 
 export interface Product {
@@ -205,6 +209,7 @@ export interface SellerProduct {
   images: ProductPhoto[];
   image: string | null;
   sold: number;
+  past_orders: number; // orders that include it: Delete archives instead of removing when > 0
   created_at: string;
 }
 
@@ -228,6 +233,7 @@ export interface SellerOverview {
   earnings_week: number; // paise
   open_orders: number;
   products_listed: number;
+  out_of_stock: number; // listed products with stock 0
   rating: number | null; // null = no reviews yet
   review_count: number;
   open_requests: number; // custom requests waiting for a quote

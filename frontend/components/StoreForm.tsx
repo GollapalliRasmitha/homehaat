@@ -43,7 +43,6 @@ export function StoreForm({ store, onSaved }: { store?: Store; onSaved: (store: 
   const [slug, setSlug] = useState(store?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(editing); // once edited by hand, stop following the name
   const [cover, setCover] = useState<PickedPhoto[]>(store?.cover ? [{ key: "cover", url: store.cover }] : []);
-  const [paused, setPaused] = useState(store ? !store.is_active : false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
@@ -85,7 +84,6 @@ export function StoreForm({ store, onSaved }: { store?: Store; onSaved: (store: 
       bio: value("bio"),
       delivery_days: days,
       delivery_fee_paise: fee!,
-      ...(editing ? { is_active: !paused } : {}),
     };
 
     setBusy(true);
@@ -215,17 +213,6 @@ export function StoreForm({ store, onSaved }: { store?: Store; onSaved: (store: 
       <div className="sm:col-span-2">
         <PhotoPicker photos={cover} onChange={setCover} max={1} label="Cover photo (optional)" />
       </div>
-      {editing && (
-        <label className="flex items-start gap-3 rounded-[14px] bg-soft p-3.5 sm:col-span-2">
-          <input type="checkbox" checked={paused} onChange={(e) => setPaused(e.target.checked)} className="mt-1 size-4" />
-          <span>
-            <b>Pause my shop</b>
-            <span className="block text-sm text-muted">
-              Buyers won&apos;t see your products and can&apos;t order until you unpause. Orders already placed stay.
-            </span>
-          </span>
-        </label>
-      )}
       <button className="btn btn-black btn-lg sm:col-span-2" disabled={busy}>
         {busy ? "Saving…" : editing ? "Save changes" : "Open my shop"}
       </button>

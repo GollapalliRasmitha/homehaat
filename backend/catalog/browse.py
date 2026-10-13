@@ -30,14 +30,20 @@ def _int(value, default=None):
     return number if number >= 0 else default
 
 
-def public_products() -> QuerySet:
-    """Products buyers may see: active, from a store that isn't paused."""
+def shop_products() -> QuerySet:
+    """Products with a page buyers may open: active (so not hidden or archived) and not a custom-request item.
+    Includes paused shops: "Buyers can still see your shop", they just can't order."""
     return (
         # is_custom=False: one-off custom-request products are never listed (they live in one buyer's bag)
-        Product.objects.filter(is_active=True, is_custom=False, seller__is_active=True)
+        Product.objects.filter(is_active=True, is_custom=False)
         .select_related("category", "seller")
         .prefetch_related("images")
     )
+
+
+def public_products() -> QuerySet:
+    """Products that appear in lists and search: shop_products() from shops that are taking orders."""
+    return shop_products().filter(seller__is_active=True)
 
 
 def recent_sales():
@@ -81,7 +87,8 @@ def _word_matches(word) -> Q:
 
 def find_products(params) -> QuerySet:
     """Every filter and the sort, without a limit. Used by the products list and by search pages."""
-    products = public_products()
+    # One shop's page, or the wishlist's own ids, also show paused shops' products (marked "not taking orders").
+    products = shop_products() if params.get("seller") or params.get("ids") else public_products()
 
     # Search: EVERY word must match (so "mango jayanagar" means mango pickle from Jayanagar).
     words = _words(params.get("q"))
@@ -196,19 +203,19 @@ def suggest_query(q) -> str | None:
     return suggestion if suggestion != " ".join(_words(q.lower())) else None
 
 
-def public_stores() -> QuerySet:
-    """Open stores with their live product count and real rating (None when there are no reviews)."""
-    return (
-        Seller.objects.filter(is_active=True)
-        .select_related("main_category")
-        .annotate(
-            product_count=Count(
-                "products", filter=Q(products__is_active=True, products__is_custom=False), distinct=True
-            ),
-            rating=Avg("reviews__rating"),
-            review_count=Count("reviews", distinct=True),
-        )
+def all_stores() -> QuerySet:
+    """Every store, paused or not, with its live product count and real rating (None when there are no reviews).
+    A paused store's own page still opens; it just isn't listed and doesn't take orders."""
+    return Seller.objects.select_related("main_category").annotate(
+        product_count=Count("products", filter=Q(products__is_active=True, products__is_custom=False), distinct=True),
+        rating=Avg("reviews__rating"),
+        review_count=Count("reviews", distinct=True),
     )
+
+
+def public_stores() -> QuerySet:
+    """Stores that appear in lists and search: the ones taking orders."""
+    return all_stores().filter(is_active=True)
 
 
 def search_stores(params) -> QuerySet:

@@ -12,14 +12,17 @@ import { useSession } from "@/lib/session";
 
 const TABS = [
   { href: "/seller", label: "Overview" },
-  { href: "/seller/orders", label: "Orders" },
+  { href: "/seller/orders", label: "Shop orders" }, // never just "Orders": buyers have "My orders"
   { href: "/seller/products", label: "Products" },
   { href: "/seller/requests", label: "Custom requests" },
   { href: "/seller/reviews", label: "Reviews" },
-  { href: "/seller/settings", label: "Store settings" },
+  { href: "/seller/settings", label: "Settings" },
 ];
 
-/** SellerShell: every /seller page gets the shop name, the tabs, and the shop itself (useSeller()). */
+/**
+ * SellerShell: under the black SellerBar, every /seller page gets the tabs, a "Selling · <page>" label
+ * and the shop itself (useSeller()).
+ */
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   const { user, signedOut } = useSession();
   const router = useRouter();
@@ -49,14 +52,14 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
   if (!store) return <p className="text-muted">Loading your shop…</p>;
 
   const active = (href: string) => (href === "/seller" ? pathname === "/seller" : pathname.startsWith(href));
+  const page = TABS.find((tab) => active(tab.href)) ?? TABS[0];
+  const openOrders = user?.open_orders ?? 0;
   return (
     <SellerContext.Provider value={{ store, setStore }}>
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="eyebrow">My shop</p>
-        {!store.is_active && <span className="status st-cancelled">Paused: buyers can&apos;t order</span>}
-      </div>
-      <h1 className="title mt-1">{store.name}</h1>
-      <nav aria-label="Shop dashboard" className="mb-7 mt-5 flex gap-x-6 overflow-x-auto no-scrollbar border-b border-line sm:gap-x-7">
+      <nav
+        aria-label="Selling"
+        className="-mt-2 mb-7 flex gap-x-6 overflow-x-auto no-scrollbar border-b border-line sm:-mt-6 sm:gap-x-7"
+      >
         {TABS.map((tab) => (
           <Link
             key={tab.href}
@@ -67,9 +70,19 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
             }`}
           >
             {tab.label}
+            {tab.href === "/seller/orders" && openOrders > 0 && (
+              <span className="ml-1.5 rounded-full bg-ink px-1.5 py-px text-[12px] font-bold text-white" aria-label={`, ${openOrders} open`}>
+                {openOrders}
+              </span>
+            )}
           </Link>
         ))}
       </nav>
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        {/* The page's one h1, styled as a label: "Selling · Shop orders" can't be confused with "My orders". */}
+        <h1 className="eyebrow">Selling · {page.label}</h1>
+        {!store.is_active && <span className="status st-cancelled">Paused: buyers can&apos;t order</span>}
+      </div>
       {children}
     </SellerContext.Provider>
   );

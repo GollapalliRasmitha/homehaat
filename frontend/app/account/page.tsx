@@ -8,7 +8,7 @@ import { signOut } from "@/lib/api/auth";
 import { errorMessage } from "@/lib/api/client";
 import { useSession } from "@/lib/session";
 
-// Stage 1: a minimal account page. Profile, saved addresses and "Delete my account" come later.
+// A small account page: links to buying and selling. Profile and "Delete my account" come later.
 export default function AccountPage() {
   const { user, loading, signedOut, refresh } = useSession();
   const router = useRouter();
@@ -46,8 +46,11 @@ export default function AccountPage() {
         <Link href="/orders" className="btn btn-white">
           My orders
         </Link>
+        <Link href="/account/addresses" className="btn btn-white">
+          Saved addresses
+        </Link>
         <Link href={user.store_slug ? "/seller" : "/sell"} className="btn btn-white">
-          {user.store_slug ? "My shop" : "Open your shop"}
+          {user.store_slug ? "Switch to selling" : "Sell on HomeHaat"}
         </Link>
         <button className="btn btn-white" onClick={handleSignOut}>
           Sign out

@@ -11,11 +11,13 @@ export function AddToBag({
   productName,
   stock,
   sellerSlug,
+  takingOrders = true,
 }: {
   productId: number;
   productName: string;
   stock: number;
   sellerSlug: string;
+  takingOrders?: boolean;
 }) {
   const { user, refresh } = useSession();
   const [qty, setQty] = useState(1);
@@ -75,8 +77,16 @@ export function AddToBag({
         />
       </div>
       <div className="flex flex-wrap gap-2.5">
-        <button className="btn btn-black btn-lg flex-[1_1_220px]" onClick={add} disabled={busy || stock === 0 || isMine}>
-          {isMine ? "This is your product" : stock === 0 ? "Sold out" : busy ? "Adding…" : "Add to bag"}
+        <button className="btn btn-black btn-lg flex-[1_1_220px]" onClick={add} disabled={busy || stock === 0 || isMine || !takingOrders}>
+          {isMine
+            ? "This is your product"
+            : !takingOrders
+              ? "Not taking orders right now"
+              : stock === 0
+                ? "Sold out"
+                : busy
+                  ? "Adding…"
+                  : "Add to bag"}
         </button>
         <WishlistButton productId={productId} productName={productName} variant="large" />
       </div>

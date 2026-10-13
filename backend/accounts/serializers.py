@@ -10,13 +10,28 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "email", "name", "phone", "role", "store_slug"]
+        fields = ["id", "email", "name", "phone", "role", "store_slug", "shop_name", "open_orders"]
         # role is read-only: users can never change their own role through the API.
-        read_only_fields = ["id", "email", "role", "store_slug"]
+        read_only_fields = ["id", "email", "role", "store_slug", "shop_name", "open_orders"]
+
+    shop_name = serializers.SerializerMethodField()
+    open_orders = serializers.SerializerMethodField()  # the badge on "Shop orders" in the account menu
 
     def get_store_slug(self, user):
         seller = getattr(user, "seller", None)
         return seller.slug if seller else None
+
+    def get_shop_name(self, user):
+        seller = getattr(user, "seller", None)
+        return seller.name if seller else None
+
+    def get_open_orders(self, user):
+        seller = getattr(user, "seller", None)
+        if not seller:
+            return 0
+        from orders.views import OPEN, paid_parts  # here: orders imports accounts
+
+        return paid_parts(seller).filter(status__in=OPEN).count()
 
 
 class SignUpSerializer(serializers.Serializer):

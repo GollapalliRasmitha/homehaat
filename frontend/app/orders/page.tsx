@@ -39,7 +39,8 @@ export default function OrdersPage() {
 
   return (
     <>
-      <h1 className="title">My orders</h1>
+      <p className="eyebrow">Buying · My orders</p>
+      <h1 className="title mt-1">My orders</h1>
       <div className="mt-6">
         {orders.length === 0 ? (
           <EmptyState

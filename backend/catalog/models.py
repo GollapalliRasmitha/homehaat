@@ -60,6 +60,9 @@ class Product(models.Model):
     # A one-off product made when a buyer accepts a custom-request quote. It belongs to that buyer's bag
     # only: never listed, searched or shown on the shop page or in the seller's product list.
     is_custom = models.BooleanField(default=False, db_index=True)
+    # "Deleted" by the seller, but kept because past orders point to it. Archived products are also
+    # inactive, so every buyer-side check already hides them; the seller's list leaves them out too.
+    is_archived = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:

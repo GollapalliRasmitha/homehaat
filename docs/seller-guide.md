@@ -76,13 +76,17 @@ name, a description and a category. Press **Use this** to fill them in, or **Dis
 
 ## 4. Your shop dashboard
 
-Click **My shop** at the top at any time. You'll see the tabs **Overview · Orders · Products · Custom requests ·
-Reviews · Store settings**.
+Click **Switch to selling** at the top at any time (or your name → **Seller dashboard**). The top bar turns black
+with a white **SELLING** label, so you always know you're looking at your shop, not shopping. **← Back to shopping**
+takes you back. The tabs are **Overview · Shop orders · Products · Custom requests · Reviews · Settings**.
+
+At the top of the Overview, **Taking orders** is a switch. Turn it off for holidays or busy weeks: buyers can still
+see your shop, but they can't order until you turn it back on. Orders you already have are not affected.
 
 **Overview** shows:
 - **Earned in the last 7 days**: money from paid orders, including delivery fees (cancelled orders aren't counted).
 - **Open orders**: orders you still need to prepare or deliver.
-- **Products listed**: products buyers can see right now.
+- **Products listed**: products buyers can see right now, and how many of them are out of stock.
 - **Rating**: your average review. It shows **—** until a buyer reviews you.
 
 Below that are your newest **incoming orders**.
@@ -93,7 +97,8 @@ Below that are your newest **incoming orders**.
 
 ## 5. Handling an order
 
-When a buyer pays, the order appears under **Orders** (and on the Overview). Each order shows:
+When a buyer pays, the order appears under **Shop orders** (and on the Overview). The number next to **Shop
+orders** is how many orders you still need to prepare or deliver. Each order shows:
 - the buyer's **name, phone number and address** (only you, the seller, can see these);
 - what they ordered, and any **note** they wrote (for example *"Write Happy Birthday Meera"*);
 - **You receive**: the price of the items plus your delivery fee.
@@ -125,11 +130,15 @@ Cancelling can't be undone, so please only cancel if you really can't make it.
 
 ## 6. Changing your products
 
-Open **Products**:
-- **Hide** takes a product off your shop without deleting it (for example when you're out of an ingredient).
-  **Show** puts it back.
+Open **Products**. Each product shows its price, how many are **in stock**, how many you've **sold**, and a label:
+**Live**, **Out of stock** or **Hidden**.
+- **Mark out of stock**: for when you've run out. Buyers see **Sold out** and can't add it to their bag.
+- **Back in stock**: type how many you can make and press **Put back on sale**.
+- **Hide** takes a product off your shop without deleting it. **Show** puts it back.
 - **Edit** lets you change the photos, name, description, price or how many you can make.
-- Each product shows how many you have **in stock** and how many you've **sold**.
+- **Delete** (in red) asks you to confirm first. If nobody has ordered it yet, it's deleted completely. If it's in
+  past orders, it disappears from your shop and search but stays in those orders, so your order history is complete.
+  Deleting can't be undone.
 
 ---
 
@@ -146,21 +155,20 @@ date they need it by and their budget, if they gave one.
 - **Decline**: if you can't make it. HomeHaat asks you to confirm.
 
 The buyer then accepts or declines your price. If they accept, it goes into their bag and they pay at checkout like
-any order. Once paid, it appears under **Orders** as *Custom: …*, and you handle it with the same buttons as any
+any order. Once paid, it appears under **Shop orders** as *Custom: …*, and you handle it with the same buttons as any
 other order.
 
 You can't change a price after sending it, so check it before you press **Send quote**.
 
 ---
 
-## 8. Store settings and pausing your shop
+## 8. Settings and pausing your shop
 
-Open **Store settings** to change anything from when you opened your shop: name, shop link, delivery fee and days,
+Open **Settings** to change anything from when you opened your shop: name, shop link, delivery fee and days,
 description and cover photo.
 
-Going on holiday or too busy? Tick **Pause my shop** and click **Save changes**. Buyers won't see your products and
-can't order until you untick it. Orders you already have are not affected. While paused, your dashboard shows
-**Paused: buyers can't order**.
+Going on holiday or too busy? Use the **Taking orders** switch at the top of the Overview (see section 4). While
+it's off, your dashboard shows **Paused: buyers can't order**.
 
 ---
 

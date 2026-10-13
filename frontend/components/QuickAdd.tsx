@@ -13,6 +13,7 @@ export function QuickAdd({ product }: { product: Product }) {
   const [busy, setBusy] = useState(false);
   const mine = user?.store_slug === product.seller.slug;
   const soldOut = product.stock === 0;
+  const paused = !product.seller.taking_orders;
 
   return (
     <button
@@ -22,8 +23,16 @@ export function QuickAdd({ product }: { product: Product }) {
         await addProductToBag(product, 1, "", user, refresh);
         setBusy(false);
       }}
-      disabled={busy || soldOut || mine}
-      aria-label={soldOut ? `${product.name} is sold out` : mine ? `${product.name} is your product` : `Add ${product.name} to bag`}
+      disabled={busy || soldOut || mine || paused}
+      aria-label={
+        paused
+          ? `${product.seller.name} isn't taking orders right now`
+          : soldOut
+            ? `${product.name} is sold out`
+            : mine
+              ? `${product.name} is your product`
+              : `Add ${product.name} to bag`
+      }
       title={mine ? "This is your product" : undefined}
       className="flex size-11 flex-none items-center justify-center rounded-full bg-ink text-white transition-transform hover:bg-black-2 active:scale-[0.97] disabled:opacity-30"
     >

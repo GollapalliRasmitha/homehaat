@@ -66,7 +66,13 @@ export default async function ProductPage({ params }: PageProps<"/product/[id]">
           </div>
           <p className="whitespace-pre-line text-[17px] text-muted">{product.description || "Not provided by seller"}</p>
 
-          <AddToBag productId={product.id} productName={product.name} stock={product.stock} sellerSlug={product.seller.slug} />
+          <AddToBag
+            productId={product.id}
+            productName={product.name}
+            stock={product.stock}
+            sellerSlug={product.seller.slug}
+            takingOrders={product.seller.taking_orders}
+          />
 
           <dl className="border-t border-line text-[15px]">
             {[

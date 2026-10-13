@@ -87,16 +87,17 @@ export function IncomingOrderCard({ order, onChange }: { order: IncomingOrder; o
       )}
 
       {(next || CAN_CANCEL.includes(order.status)) && (
-        <div className="mt-4 flex flex-wrap gap-2.5">
+        // Phones: each button is full width, so it's easy to tap. From 640px they sit side by side.
+        <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
           {next && (
-            <button className="btn btn-black" onClick={() => move(next.status)} disabled={busy}>
+            <button className="btn btn-black w-full sm:w-auto" onClick={() => move(next.status)} disabled={busy}>
               {busy ? "Saving…" : next.label}
             </button>
           )}
           {CAN_CANCEL.includes(order.status) && (
             <ConfirmDialog
               trigger={
-                <button className="btn btn-white" disabled={busy}>
+                <button className="btn btn-white w-full sm:w-auto" disabled={busy}>
                   Cancel order
                 </button>
               }

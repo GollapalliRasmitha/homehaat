@@ -8,11 +8,13 @@ import { LoadError } from "@/components/LoadError";
 import { listIncomingOrders } from "@/lib/api/seller";
 import type { IncomingOrder, SellerOrderStatus } from "@/lib/api/types";
 import { PHOTOS } from "@/lib/photos";
+import { useSession } from "@/lib/session";
 import { STATUS_LABEL } from "@/lib/status";
 
 const FILTERS: (SellerOrderStatus | "all")[] = ["all", "new", "preparing", "out_for_delivery", "delivered", "cancelled"];
 
 export default function SellerOrdersPage() {
+  const { refresh } = useSession();
   const [orders, setOrders] = useState<IncomingOrder[] | null>(null);
   const [filter, setFilter] = useState<SellerOrderStatus | "all">("all");
   const [loadError, setLoadError] = useState<unknown>(null);
@@ -69,7 +71,10 @@ export default function SellerOrdersPage() {
             <IncomingOrderCard
               key={order.id}
               order={order}
-              onChange={(updated) => setOrders(orders.map((o) => (o.id === updated.id ? updated : o)))}
+              onChange={(updated) => {
+                setOrders(orders.map((o) => (o.id === updated.id ? updated : o)));
+                refresh(); // the open-orders count in the tabs and the account menu
+              }}
             />
           ))}
         </div>

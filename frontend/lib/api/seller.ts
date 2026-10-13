@@ -59,6 +59,10 @@ export const addProduct = (body: ProductFields) =>
 export const updateProduct = (id: number, body: Partial<ProductFields & { is_active: boolean }>) =>
   apiFetch<SellerProduct>(`/seller/products/${id}/`, { method: "PATCH", body });
 
+/** Delete: removed completely if it was never ordered, otherwise archived (kept in order history). */
+export const deleteProduct = (id: number) =>
+  apiFetch<{ result: "deleted" | "archived"; past_orders: number }>(`/seller/products/${id}/`, { method: "DELETE" });
+
 export function uploadProductPhoto(productId: number, photo: Blob) {
   const form = new FormData();
   form.append("image", photo, "photo.jpg");

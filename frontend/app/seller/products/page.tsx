@@ -2,18 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
-import { CategoryArt, tintVar } from "@/components/CategoryArt";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadError } from "@/components/LoadError";
-import { SafeImg } from "@/components/SafeImage";
 import { listCategories } from "@/lib/api/catalog";
-import { errorMessage } from "@/lib/api/client";
-import { listMyProducts, updateProduct } from "@/lib/api/seller";
+import { listMyProducts } from "@/lib/api/seller";
 import type { Category, SellerProduct } from "@/lib/api/types";
-import { formatINR } from "@/lib/format";
 import { PHOTOS } from "@/lib/photos";
+
+import { ProductRow } from "./ProductRow";
 
 export default function SellerProductsPage() {
   const [products, setProducts] = useState<SellerProduct[] | null>(null);
@@ -39,16 +36,6 @@ export default function SellerProductsPage() {
   }
   if (!products) return <p className="text-muted">Loading your products…</p>;
 
-  async function toggle(product: SellerProduct) {
-    try {
-      const updated = await updateProduct(product.id, { is_active: !product.is_active });
-      setProducts(products!.map((p) => (p.id === updated.id ? updated : p)));
-      toast(updated.is_active ? "Product is live" : "Product hidden from buyers");
-    } catch (error) {
-      toast(`Couldn't change it. ${errorMessage(error)}`);
-    }
-  }
-
   if (products.length === 0) {
     return (
       <EmptyState
@@ -72,47 +59,15 @@ export default function SellerProductsPage() {
         </Link>
       </div>
       <div className="panel">
-        {products.map((p) => {
-          const cat = categories[p.category];
-          return (
-            <div key={p.id} className="flex flex-wrap items-center gap-3.5 border-b border-line py-3.5 last:border-0">
-              <div
-                className="flex size-[64px] flex-none items-center justify-center overflow-hidden rounded-2xl"
-                style={{ background: tintVar(cat?.tint ?? "soft") }}
-              >
-                {p.image ? (
-                  <SafeImg
-                    src={p.image}
-                    alt=""
-                    className="size-full object-cover"
-                    fallback={<CategoryArt art={cat?.art ?? "gift"} className="w-[60%]" />}
-                  />
-                ) : (
-                  <CategoryArt art={cat?.art ?? "gift"} className="w-[60%]" />
-                )}
-              </div>
-              <div className="min-w-0 flex-[1_1_200px]">
-                <b>{p.name}</b>
-                <div className="text-sm text-muted">
-                  {formatINR(p.price_paise)} · {p.stock} in stock · {p.sold} sold
-                </div>
-              </div>
-              <span className={`status ${p.is_active ? "st-delivered" : "st-cancelled"}`}>{p.is_active ? "Live" : "Hidden"}</span>
-              <button
-                className="btn btn-white h-10"
-                onClick={() => toggle(p)}
-                role="switch"
-                aria-checked={p.is_active}
-                aria-label={`Show ${p.name} to buyers`}
-              >
-                {p.is_active ? "Hide" : "Show"}
-              </button>
-              <Link href={`/seller/products/${p.id}`} className="btn btn-white h-10">
-                Edit
-              </Link>
-            </div>
-          );
-        })}
+        {products.map((p) => (
+          <ProductRow
+            key={p.id}
+            product={p}
+            category={categories[p.category]}
+            onChange={(updated) => setProducts(products.map((x) => (x.id === updated.id ? updated : x)))}
+            onRemoved={(id) => setProducts(products.filter((x) => x.id !== id))}
+          />
+        ))}
       </div>
     </>
   );

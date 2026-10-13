@@ -27,11 +27,13 @@ class PublicStoreSerializer(serializers.ModelSerializer):
     product_count = serializers.IntegerField(read_only=True)
     rating = serializers.SerializerMethodField()
     review_count = serializers.IntegerField(read_only=True)
+    taking_orders = serializers.BooleanField(source="is_active", read_only=True)  # False = paused
 
     class Meta:
         model = Seller
         fields = [
             "slug",
+            "taking_orders",
             "name",
             "kind",
             "kind_label",
@@ -55,10 +57,11 @@ class PublicStoreSerializer(serializers.ModelSerializer):
 
 class SellerSummarySerializer(serializers.ModelSerializer):
     kind_label = serializers.CharField(source="get_kind_display", read_only=True)
+    taking_orders = serializers.BooleanField(source="is_active", read_only=True)  # False = paused: no Add to bag
 
     class Meta:
         model = Seller
-        fields = ["slug", "name", "kind", "kind_label", "area", "delivery_days", "delivery_fee_paise"]
+        fields = ["slug", "name", "kind", "kind_label", "area", "delivery_days", "delivery_fee_paise", "taking_orders"]
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -153,6 +156,7 @@ class SellerProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     image = serializers.SerializerMethodField()
     sold = serializers.IntegerField(read_only=True, default=0)  # annotated in the view
+    past_orders = serializers.IntegerField(read_only=True, default=0)  # for the Delete confirmation
 
     class Meta:
         model = Product
@@ -167,6 +171,7 @@ class SellerProductSerializer(serializers.ModelSerializer):
             "images",
             "image",
             "sold",
+            "past_orders",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]

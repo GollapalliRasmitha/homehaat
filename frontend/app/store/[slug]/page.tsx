@@ -71,6 +71,12 @@ export default async function StorePage({ params }: PageProps<"/store/[slug]">) 
         )}
       </div>
 
+      {!store.taking_orders && (
+        <p className="mt-5 rounded-[14px] bg-soft px-4 py-3 text-[15px]" role="status">
+          <b>Not taking orders right now.</b> <span className="text-muted">This maker is on a break. Please check back soon.</span>
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-x-[26px] gap-y-[18px] pt-7">
         <Monogram name={store.name} slug={store.slug} size={84} />
         <div className="min-w-0 flex-[1_1_320px]">

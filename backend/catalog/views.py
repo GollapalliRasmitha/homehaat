@@ -10,7 +10,13 @@ from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 
 from accounts.models import User
-from catalog.browse import public_products, public_stores, search_page, search_products, search_stores
+from catalog.browse import (
+    all_stores,
+    search_page,
+    search_products,
+    search_stores,
+    shop_products,
+)
 from catalog.images import ImageError, clean_image
 from catalog.models import Category, Product, ProductImage, Seller
 from catalog.serializers import (
@@ -84,13 +90,13 @@ class StoreDetail(generics.RetrieveAPIView):
     lookup_field = "slug"
 
     def get_queryset(self):
-        return public_stores()  # a paused shop gives 404
+        return all_stores()  # a paused shop's page still opens ("taking_orders": false)
 
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def store_reviews(request, slug):
-    store = get_object_or_404(public_stores(), slug=slug)
+    store = get_object_or_404(all_stores(), slug=slug)
     return Response(
         [
             {
@@ -111,7 +117,7 @@ class ProductDetail(generics.RetrieveAPIView):
     serializer_class = ProductSerializer
 
     def get_queryset(self):
-        return public_products()
+        return shop_products()  # a paused shop's products keep their page; Add to bag is refused
 
 
 def unique_slug(name: str) -> str:
@@ -182,13 +188,27 @@ def my_products(user):
         .values("total")
     )
     sold = Coalesce(Subquery(sold_rows), 0)  # 0 when nothing has sold yet
-    # custom-request products aren't the seller's catalogue: they show up as orders instead
+    # custom-request products aren't the seller's catalogue: they show up as orders instead;
+    # archived ("deleted" but kept for order history) products are gone from the seller's list
     return (
-        user.seller.products.filter(is_custom=False)
+        user.seller.products.filter(is_custom=False, is_archived=False)
         .select_related("category")
         .prefetch_related("images")
-        .annotate(sold=sold)
+        .annotate(sold=sold, past_orders=past_orders_count())
     )
+
+
+def past_orders_count():
+    """How many orders (paid, or being paid right now) include this product. Failed attempts don't count."""
+    from orders.models import OrderItem
+
+    rows = (
+        OrderItem.objects.filter(product=OuterRef("pk"), seller_order__order__payment_status__in=["paid", "pending"])
+        .values("product")
+        .annotate(n=Count("seller_order__order", distinct=True))
+        .values("n")
+    )
+    return Coalesce(Subquery(rows), 0)
 
 
 class MyProductList(generics.ListCreateAPIView):
@@ -204,16 +224,34 @@ class MyProductList(generics.ListCreateAPIView):
         serializer.save(seller=self.request.user.seller)
 
 
-class MyProductDetail(generics.RetrieveUpdateAPIView):
+class MyProductDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsSeller]
     serializer_class = SellerProductSerializer
 
     def get_queryset(self):
-        return my_products(self.request.user)  # another seller's product id gives 404
+        return my_products(self.request.user)  # another seller's (or an archived) product id gives 404
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Delete. Never ordered -> removed completely (with its photos). In past orders -> archived: gone from the
+        shop, search and this list, but the orders keep pointing to it (they also keep their own snapshot).
+        """
+        product = self.get_object()
+        past = product.past_orders
+        if past:
+            product.is_archived, product.is_active = True, False
+            product.save(update_fields=["is_archived", "is_active"])
+            return Response({"result": "archived", "past_orders": past})
+        files = [img.image for img in product.images.all()]
+        product.delete()
+        for f in files:
+            f.delete(save=False)  # the photo files too: nothing else uses them
+        return Response({"result": "deleted", "past_orders": 0})
 
 
 def _my_product(request, pk) -> Product:
-    return get_object_or_404(Product, pk=pk, seller=request.user.seller, is_custom=False)  # not yours -> 404
+    # not yours, a custom-request item, or archived -> 404
+    return get_object_or_404(Product, pk=pk, seller=request.user.seller, is_custom=False, is_archived=False)
 
 
 @api_view(["POST"])

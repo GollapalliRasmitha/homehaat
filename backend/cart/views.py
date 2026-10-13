@@ -8,9 +8,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from cart.models import CartItem
+from catalog.browse import public_products, shop_products
 from catalog.models import Product
 from catalog.serializers import ProductSerializer, SellerSummarySerializer
-from catalog.views import public_products
 
 MAX_QTY = 50
 MAX_LINES = 50  # most different products one bag may hold
@@ -115,7 +115,12 @@ def cart(request):
 def add_item(request):
     data = AddItemSerializer(data=request.data)
     data.is_valid(raise_exception=True)
-    product = get_object_or_404(public_products(), pk=data.validated_data["product_id"])
+    product = get_object_or_404(shop_products(), pk=data.validated_data["product_id"])
+    if not product.seller.is_active:
+        return Response(
+            {"detail": "This maker isn't taking orders right now. Please check back soon."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     if product.seller.owner_id == request.user.id:
         return Response({"detail": "You can't buy from your own shop."}, status=status.HTTP_400_BAD_REQUEST)

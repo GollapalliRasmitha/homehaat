@@ -152,10 +152,25 @@ class PublicStoreTests(TestCase):
         self.assertIsNone(data["rating"])
         self.assertEqual(data["review_count"], 0)
 
-    def test_paused_stores_are_not_found_or_listed(self):
-        paused = make_seller(is_active=False)
-        self.assertEqual(APIClient().get(f"/api/stores/{paused.slug}/").status_code, 404)
+    def test_a_paused_store_is_still_visible_but_not_listed_or_orderable(self):
+        # "Pause for holidays or busy weeks. Buyers can still see your shop."
+        paused = make_seller(is_active=False, main_category=make_category())
+        cake = make_product(paused, name="Paused cake")
+        store = APIClient().get(f"/api/stores/{paused.slug}/")
+        self.assertEqual(store.status_code, 200)
+        self.assertFalse(store.json()["taking_orders"])
+        self.assertEqual([p["name"] for p in get(f"/api/products/?seller={paused.slug}")], ["Paused cake"])
+        product = APIClient().get(f"/api/products/{cake.id}/").json()
+        self.assertFalse(product["seller"]["taking_orders"])
+        # not in lists or search, and it can't be bought
         self.assertNotIn(paused.slug, [s["slug"] for s in get("/api/stores/")])
+        self.assertNotIn("Paused cake", names(get("/api/products/?q=cake")))
+        buyer = APIClient()
+        buyer.force_authenticate(make_user())
+        res = buyer.post("/api/cart/items/", {"product_id": cake.id, "qty": 1}, format="json")
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("isn't taking orders", res.json()["detail"])
+        self.assertTrue(get(f"/api/stores/{self.store.slug}/")["taking_orders"])
 
     def test_makers_list_and_search(self):
         make_seller(name="Grandma's Jars", area="Jayanagar")

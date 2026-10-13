@@ -190,12 +190,14 @@ def overview(request):
     )
     reviews = seller.reviews.aggregate(average=Avg("rating"), count=Count("id"))
     open_parts = parts.filter(status__in=OPEN)
+    live = seller.products.filter(is_active=True, is_custom=False, is_archived=False)  # what buyers can see
 
     return Response(
         {
             "earnings_week": earnings,  # paise: items + delivery, paid in the last 7 days, not cancelled
             "open_orders": open_parts.count(),
-            "products_listed": seller.products.filter(is_active=True, is_custom=False).count(),
+            "products_listed": live.count(),
+            "out_of_stock": live.filter(stock=0).count(),
             "open_requests": seller.custom_requests.filter(status="open").count(),
             "rating": round(reviews["average"], 1) if reviews["average"] is not None else None,
             "review_count": reviews["count"],

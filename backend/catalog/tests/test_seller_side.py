@@ -69,11 +69,14 @@ class StoreSettingsTests(TestCase):
         res = self.client.patch("/api/seller/store/", {"slug": "mine", "bio": "Hello"}, format="json")
         self.assertEqual(res.status_code, 200)
 
-    def test_a_paused_store_disappears_for_buyers(self):
+    def test_pausing_stops_orders_but_the_shop_stays_visible(self):
         self.client.post("/api/seller/store/", {"name": "Mine"}, format="json")
         product = make_product(self.user.seller)
         self.client.patch("/api/seller/store/", {"is_active": False}, format="json")
-        self.assertEqual(APIClient().get(f"/api/products/{product.id}/").status_code, 404)
+        page = APIClient().get(f"/api/products/{product.id}/")
+        self.assertEqual(page.status_code, 200)
+        self.assertFalse(page.json()["seller"]["taking_orders"])
+        self.assertEqual(APIClient().get("/api/products/").json(), [])  # not in lists or search
 
     def test_settings_cannot_change_my_role_or_owner(self):
         self.client.post("/api/seller/store/", {"name": "Mine"}, format="json")
