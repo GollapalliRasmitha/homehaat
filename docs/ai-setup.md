@@ -22,7 +22,8 @@ AI_ENABLED=true
 GEMINI_API_KEY=paste-your-key-here
 ```
 
-Leave `GEMINI_MODEL` empty to use the default (`gemini-2.5-flash`). Save, then restart the Django window
+Leave `GEMINI_MODEL` empty to use the default (`gemini-flash-lite-latest`, with `gemini-flash-latest` as the
+backup). Save, then restart the Django window
 (close it and run `.\start-homehaat.ps1` again).
 
 ## 3. Check it
@@ -35,6 +36,12 @@ Sign in as a seller → **My shop → Products → Add product** → add a photo
 
 ## Good to know
 
+- **Keys:** both the older `AIza…` keys and the newer `AQ.…` keys work (they're sent in a header).
+- **Messages sellers can see:** *"AI couldn't describe this photo. Try a plain photo of your product."* when Google
+  refuses a photo (for example a cartoon character); *"The AI helper is busy right now…"* when Google is overloaded;
+  otherwise *"Couldn't write a listing, please fill it in yourself."*
+- **If it stops working:** the Django window shows a line starting with `AI:` with Google's exact reason (the key is
+  never printed). If Google retires a model name, the next one in the list is tried automatically.
 - **Limits:** each seller can use it 10 times per hour (`ai_listing` in `settings.py`). Google's free tier also
   has its own daily limit for the whole key.
 - **What is sent to Google:** only the photo (already shrunk, with its location data removed) and the product name

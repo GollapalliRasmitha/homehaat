@@ -4,6 +4,7 @@ import io
 import json
 from unittest import mock
 
+import requests
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -11,8 +12,7 @@ from PIL import Image
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from ai.gemini_client import GeminiError
-from ai.listing import FAILED, ListingError, validate_listing
+from ai.listing import BLOCKED, BUSY, FAILED, ListingError, validate_listing
 from catalog.models import ProductImage
 from core.tests.factories import make_category, make_product, make_seller, make_user
 
@@ -125,6 +125,13 @@ def gemini_reply(payload, status=200):
     return response
 
 
+def google_error(status, message):
+    """A fake error answer shaped like Google's: {"error": {"code", "message", "status"}}."""
+    response = mock.Mock(status_code=status)
+    response.json.return_value = {"error": {"code": status, "message": message, "status": "ERROR"}}
+    return response
+
+
 GOOD = {
     "title": "Chocolate drip cake",
     "description": "A round chocolate cake with a glossy drip.",
@@ -132,7 +139,7 @@ GOOD = {
 }
 
 
-@override_settings(AI_ENABLED=True, GEMINI_API_KEY="test-key-not-real", GEMINI_MODEL="gemini-test")
+@override_settings(AI_ENABLED=True, GEMINI_API_KEY="test-key-not-real", GEMINI_MODELS=["gemini-test", "gemini-backup"])
 class ListingApiTests(TestCase):
     url = "/api/seller/ai/listing/"
 
@@ -187,14 +194,61 @@ class ListingApiTests(TestCase):
     @mock.patch("ai.gemini_client.requests.post")
     def test_when_gemini_fails_the_seller_gets_the_plain_message(self, post):
         for failure in (
-            mock.Mock(side_effect=GeminiError("timeout")),
-            mock.Mock(return_value=mock.Mock(status_code=429, json=mock.Mock(return_value={}))),  # free limit used up
+            mock.Mock(return_value=google_error(401, "API key not valid")),  # a key problem: no other model tried
+            mock.Mock(return_value=google_error(400, "Bad request")),
             mock.Mock(return_value=gemini_reply({"title": "", "description": ""})),  # nothing usable
         ):
+            post.reset_mock()
             post.side_effect, post.return_value = failure.side_effect, failure.return_value
             response = self.post()
             self.assertEqual(response.status_code, 503)
             self.assertEqual(response.json()["detail"], FAILED)
+            self.assertEqual(post.call_count, 1)
+
+    @mock.patch("ai.gemini_client.requests.post")
+    def test_a_retired_or_busy_model_falls_back_to_the_next_one(self, post):
+        for first in (
+            google_error(404, "This model is no longer available to new users."),
+            google_error(503, "This model is currently experiencing high demand."),
+            google_error(429, "Quota exceeded for this model."),
+            requests.Timeout("read timed out"),
+        ):
+            post.reset_mock()
+            post.side_effect = [first, gemini_reply(GOOD)]
+            response = self.post()
+            self.assertEqual(response.status_code, 200, repr(first))
+            self.assertEqual(response.json(), GOOD)
+            models = [c.args[0].split("/models/")[1].split(":")[0] for c in post.call_args_list]
+            self.assertEqual(models, ["gemini-test", "gemini-backup"])
+
+    @mock.patch("ai.gemini_client.requests.post")
+    def test_every_model_busy_says_try_again_later(self, post):
+        post.side_effect = [google_error(503, "high demand"), requests.ConnectionError("down")]
+        response = self.post()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"], BUSY)
+
+    @mock.patch("ai.gemini_client.requests.post")
+    def test_a_photo_google_wont_describe_gets_a_clear_message(self, post):
+        blocked_prompt = mock.Mock(status_code=200)
+        blocked_prompt.json.return_value = {"promptFeedback": {"blockReason": "PROHIBITED_CONTENT"}}
+        blocked_answer = mock.Mock(status_code=200)
+        blocked_answer.json.return_value = {"candidates": [{"finishReason": "IMAGE_SAFETY"}]}
+        for reply in (blocked_prompt, blocked_answer):
+            post.reset_mock()
+            post.side_effect, post.return_value = None, reply
+            response = self.post()
+            self.assertEqual(response.status_code, 422)
+            self.assertEqual(response.json()["detail"], BLOCKED)
+            self.assertEqual(post.call_count, 1)  # the same photo isn't sent to another model
+
+    @mock.patch("ai.gemini_client.requests.post")
+    def test_the_key_is_never_logged(self, post):
+        post.return_value = google_error(400, "API key test-key-not-real is not valid")
+        with self.assertLogs("homehaat.ai", level="WARNING") as logs:
+            self.post()
+        self.assertNotIn("test-key-not-real", str(logs.output))
+        self.assertIn("400", str(logs.output))
 
     @mock.patch("ai.gemini_client.requests.post")
     def test_rate_limited_per_seller(self, post):

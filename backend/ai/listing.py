@@ -13,6 +13,8 @@ import re
 from ai import gemini_client
 
 FAILED = "Couldn't write a listing, please fill it in yourself."
+BUSY = "The AI helper is busy right now. Please try again in a minute, or fill it in yourself."
+BLOCKED = "AI couldn't describe this photo. Try a plain photo of your product."
 MAX_TITLE = 80
 MAX_DESCRIPTION = 1000
 
@@ -46,7 +48,11 @@ def schema(category_slugs) -> dict:
 
 
 class ListingError(Exception):
-    pass
+    """`message` is what the seller sees: FAILED, BUSY or BLOCKED."""
+
+    def __init__(self, reason, message=FAILED):
+        super().__init__(reason)
+        self.message = message
 
 
 # --- What a suggestion may not contain -------------------------------------------------------------
@@ -146,11 +152,13 @@ def validate_listing(data, category_slugs, hint: str = "") -> dict:
 
 
 def write_listing(image: bytes, mime_type: str, category_slugs, hint: str = "") -> dict:
-    """Ask Gemini, then validate. Any failure becomes ListingError (the view shows FAILED)."""
+    """Ask Gemini, then validate. Any failure becomes ListingError with the message to show the seller."""
     hint_line = f'- The seller calls this product: "{hint[:120]}". Keep their words for the title.' if hint else ""
     prompt = PROMPT.format(categories=", ".join(sorted(category_slugs)), hint=hint_line)
     try:
         answer = gemini_client.generate_json(prompt, image, mime_type, schema(category_slugs))
+    except gemini_client.GeminiBlocked as exc:
+        raise ListingError(str(exc), BLOCKED) from exc  # e.g. a cartoon character or other protected content
     except gemini_client.GeminiError as exc:
-        raise ListingError(str(exc)) from exc
+        raise ListingError(str(exc), BUSY if exc.busy else FAILED) from exc
     return validate_listing(answer, category_slugs, hint)

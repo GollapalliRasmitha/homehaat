@@ -7,7 +7,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
-from ai.listing import FAILED, ListingError, write_listing
+from ai.listing import BLOCKED, FAILED, ListingError, write_listing
 from catalog.images import ImageError, clean_image
 from catalog.models import Category, ProductImage
 from catalog.views import IsSeller
@@ -57,5 +57,6 @@ def listing(request):
         suggestion = write_listing(photo, mime, slugs, hint=str(request.data.get("name", "")).strip())
     except ListingError as exc:
         log.warning("AI listing failed for seller %s: %s", request.user.seller.pk, exc)
-        return Response({"detail": FAILED}, status=503)
+        # 422: Google refused this photo (try another); 503: AI unavailable right now.
+        return Response({"detail": exc.message}, status=422 if exc.message == BLOCKED else 503)
     return Response(suggestion)

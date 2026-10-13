@@ -240,11 +240,20 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
   filters. Stage 7 can move this to Postgres `pg_trgm` if the catalogue grows.
 - **Pages**: Explore shows 24 per page with the real total (`/api/search/`); `/api/products/` keeps its old shape
   (home page, store page, wishlist). Every sort ends with `-id`, so pages never overlap or skip.
-- **AI listing helper**: Gemini `gemini-2.5-flash` (change with `GEMINI_MODEL`) through its REST API with `requests`
+- **AI listing helper**: Gemini `gemini-flash-lite-latest`, then `gemini-flash-latest` (`settings.GEMINI_MODELS`; `GEMINI_MODEL`
+  puts a model first) through its REST API with `requests`
   (already installed). Key sent in the `x-goog-api-key` header, never the URL. The photo goes through `clean_image`
   first (EXIF/GPS removed). Off unless `AI_ENABLED=true` **and** a key is set; the button is hidden otherwise
   (`GET seller/ai/listing`). 10 per hour per seller (DRF throttle `ai_listing`). It never saves anything. Setup:
   `docs/ai-setup.md`. Custom request photos are never sent to AI.
+- **Gemini models and errors** (`ai/gemini_client.py`): Google closed `gemini-2.5-flash` to new keys (404) and full
+  Flash is often overloaded (503) or slow, so models are tried in order: a 404/429/5xx/timeout moves to the next
+  (15 s read timeout, 30 s in total); a 400/401/403 (key or request problem) stops at once. Flash-Lite is first: it
+  answers in ~2 s and a short photo description is an easy task. Every failure is logged as `AI: <model>: <status>:
+  <Google's message>` with the key removed. Google refusing a photo (`promptFeedback.blockReason`, or a
+  `finishReason` like `SAFETY`/`IMAGE_SAFETY`/`PROHIBITED_CONTENT`) → 422 "AI couldn't describe this photo. Try a
+  plain photo of your product." (not retried on another model); all models busy → 503 "The AI helper is busy right
+  now…". New `AQ.` keys work the same as `AIza` keys (header `x-goog-api-key`).
 - The AI suggestion is shown in a panel first; **Use this** fills name, description and category (never price or
   stock) and focuses the name, so the seller edits before saving.
 - Throttle counts live in Django's default cache (in memory, per server process): fine for one server; noted for
@@ -616,8 +625,9 @@ sees it in a panel and chooses **Use this** or **Dismiss**. The AI saves nothing
 3. `write_listing` builds the prompt (describe only what's visible; no price, size, ingredients or materials) and a
    **JSON schema** with exactly three fields: `title`, `description`, `category` (an `enum` of our category slugs).
    There is no price field, so the model has nowhere to put one.
-4. `gemini_client.generate_json` sends it (key in a header, 25-second timeout). No answer, a 429 (free limit used
-   up), or something that isn't JSON → `GeminiError`.
+4. `gemini_client.generate_json` sends it (key in a header) to each model in `GEMINI_MODELS` until one answers:
+   retired, busy, over its limit or too slow → next model; Google refusing the photo → `GeminiBlocked` (the seller is
+   told to try a plain photo); anything else, or not JSON → `GeminiError`.
 5. **`validate_listing` never trusts the answer:**
    - it must be an object with text `title` and `description`, or it's refused;
    - emoji and hashtags are removed; prices are cut out of the title;

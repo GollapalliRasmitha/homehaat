@@ -163,7 +163,18 @@ ORDER_HOLD_MINUTES = 15
 # --- AI listing helper (Stage 6) ---
 AI_ENABLED = env_bool("AI_ENABLED", False)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")  # HomeHaat's own key, never Oppora's
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "") or "gemini-2.5-flash"
+# Tried in order. Google retires model names (gemini-2.5-flash is closed to new keys) and busy models
+# answer 503, so we use Google's "-latest" aliases, which it keeps pointing at a current model.
+# Flash-Lite first: a short description of a photo is an easy task, and it answers in ~2 s; full Flash is
+# the backup. GEMINI_MODEL in .env can put a specific model first.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "").strip() or "gemini-flash-lite-latest"
+GEMINI_MODELS = list(
+    dict.fromkeys(  # no duplicates, order kept
+        [GEMINI_MODEL]
+        + [m.strip() for m in os.getenv("GEMINI_FALLBACK_MODELS", "").split(",") if m.strip()]
+        + ["gemini-flash-lite-latest", "gemini-flash-latest"]
+    )
+)
 
 LOGGING = {
     "version": 1,
