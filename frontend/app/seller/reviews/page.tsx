@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { Stars } from "@/components/Stars";
 import { LoadError } from "@/components/LoadError";
 import { getMyReviews } from "@/lib/api/seller";
 import type { SellerReviews } from "@/lib/api/types";
@@ -40,13 +41,15 @@ export default function SellerReviewsPage() {
   return (
     <>
       <p className="mb-5 text-lg">
-        <b>{data.average} ★</b> <span className="text-muted">average from {data.count} {data.count === 1 ? "review" : "reviews"}</span>
+        <b>{data.average}</b> <Stars rating={data.average ?? 0} /> <span className="text-muted">average from {data.count} {data.count === 1 ? "review" : "reviews"}</span>
       </p>
       <div className="flex flex-col gap-3">
         {data.reviews.map((r) => (
           <div key={r.id} className="panel">
-            <b aria-label={`${r.rating} out of 5 stars`}>{"★".repeat(r.rating) + "☆".repeat(5 - r.rating)}</b>{" "}
-            <span className="text-muted">· {r.buyer_name}</span>
+            <Stars rating={r.rating} className="font-semibold" />{" "}
+            <span className="text-muted">
+              · {r.buyer_name} · {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+            </span>
             {r.comment && <p className="mt-1.5">{r.comment}</p>}
           </div>
         ))}

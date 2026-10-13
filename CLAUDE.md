@@ -4,7 +4,8 @@ A multi-seller marketplace for home businesses (bakers, pickle makers, artists, 
 Buyers fill one bag, pay once, and the order is split per seller. Full brief: `PROMPT.md`. Design brief: `UI-UX.md`.
 Visual reference: `design/HomeHaat-demo-empty.html` (copy its look, never its data). `design/_old-styles/` is NOT used.
 
-**Current stage: 5 of 8 — custom requests (done, waiting for "continue"). Deploy after Stage 6, with Cloudinary pulled forward.**
+**Current stage: 6 of 8 — reviews, search and the AI listing helper (done, waiting for "continue"). Next: deploy, with
+Cloudinary pulled forward.** Stage 7 must-do: custom request photos visible only to that buyer and that seller.
 
 ---
 
@@ -41,17 +42,18 @@ homehaat/
     config/               settings.py (reads ../.env), urls.py (all /api/ routes in one list)
     accounts/             User (email login, role), Address, sign-up/in/out, /auth/me
     catalog/              Category, Seller, Product, ProductImage; public products; seller store/products/photos
-                          images.py (check + clean uploads); browse.py (search, filters, sort, trending,
-                          public stores); management/commands/seed_categories.py
+                          images.py (check + clean uploads); browse.py (full-text search, filters, sort, pages,
+                          "Did you mean", trending, public stores); management/commands/seed_categories.py
     cart/                 CartItem; /api/cart/ grouped by seller, guest preview + merge (totals from DB prices)
     orders/               Order, SellerOrder, OrderItem; services.py + status.py [KEY LOGIC]; checkout, order,
                           seller-order and overview views
                           management/commands/expire_orders.py
     payments/             webhook.py [KEY LOGIC]; razorpay_client.py (only file that calls Razorpay); views.py
-    reviews/              Review model; seller's read-only reviews list (writing reviews: Stage 6)
+    reviews/              Review model; services.py write_review [KEY LOGIC] (only after delivery); views
     custom_requests/      CustomRequest + images; services.py [KEY LOGIC] (rules + accept -> bag); buyer and
                           seller views
-    ai/                   empty until Stage 6
+    ai/                   listing.py [KEY LOGIC] (prompt, schema, validate_listing); gemini_client.py (only file
+                          that calls Gemini); views.py (seller/ai/listing)
     core/tests/factories.py   test-only helpers (never used by the running site)
   frontend/               Next.js 16 (App Router) + TypeScript + Tailwind v4 + lucide-react + sonner
     app/                  pages (see "Pages" below)
@@ -59,7 +61,8 @@ homehaat/
                           PasswordInput, BagLine, OrderTimeline, LoadError, ServerStatus, StatCard,
                           ConfirmDialog (Radix), PhotoPicker, StoreForm, ProductForm, IncomingOrderCard,
                           HeroSearch, ShowcaseCard, CategoryTile(+Grid), ProductGrid, QuickAdd, WishlistButton,
-                          MakerCard(+Grid), Monogram, SectionHead, ShareButton, SafeImage/SafeImg, RequestCard
+                          MakerCard(+Grid), Monogram, SectionHead, ShareButton, SafeImage/SafeImg, RequestCard,
+                          ItemThumb, Stars (+StarInput), ReviewForm
     lib/api/*.ts          the ONLY way components get data (client.ts is the only fetch call)
     lib/format.ts         formatINR, rupeesToPaise, deliveryText (+ format.test.ts)
     lib/guest-bag.ts      signed-out bag in localStorage: ids + qty only, never prices (+ guest-bag.test.ts)
@@ -118,7 +121,7 @@ Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference
 | URL | What |
 |---|---|
 | `/` | hero + pill search · 3 showcase cards · Browse by *category* · Trending *nearby* (hidden until real orders) · Fresh *this week* (or "Newest *finds*" if nothing is from this week) · black custom-order banner · Makers *near you* |
-| `/explore` | search & category: title, search box, sort, In stock only, price range, category chips (all in the URL); matching makers above the grid |
+| `/explore` | search & category: title, search box, sort, In stock only, price range, category chips, page (all in the URL); real total, "Did you mean …?", Previous/Next (24 per page); matching makers above the grid |
 | `/categories` | 8 tiles with live product counts |
 | `/makers` | all open shops |
 | `/store/[slug]` | cover (upload, else the main category photo), monogram, name, kind · area, bio, facts, Request a custom order / Manage my shop, Share, ARIA tabs per category + Reviews |
@@ -129,22 +132,23 @@ Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference
 | `/checkout` | Address → Review (grouped) → Pay; sold-out list with "Remove them from my bag" |
 | `/checkout/confirming/[orderId]` | "Confirming payment…" — verifies, then polls the order |
 | `/orders` | my orders (failed attempts hidden), each maker's status |
-| `/orders/[id]` | one block per seller order with OrderTimeline; `?placed=1` shows "Order placed" |
+| `/orders/[id]` | one block per seller order with OrderTimeline; `?placed=1` shows "Order placed"; delivered → **Write a review** / Your review + Edit |
 | `/signin`, `/signup`, `/account` | email + password |
 | `/sell` | Open your shop (StoreForm: link auto from name and editable, cover photo) → then Add a product |
 | `/seller` | SellerShell (`app/seller/layout.tsx`: shop name, Paused badge, tabs) → **Overview**: greeting, 4 StatCards, open orders |
 | `/seller/orders` | status filter chips with counts; next-step button; Cancel with confirmation |
 | `/seller/products` | list with photo, price, stock, sold, Live/Hidden switch, Edit |
-| `/seller/products/new`, `/seller/products/[id]` | ProductForm with up to 5 photos |
+| `/seller/products/new`, `/seller/products/[id]` | ProductForm with up to 5 photos; **Write listing with AI** (only when AI is on) → suggestion with Use this / Dismiss |
 | `/seller/requests` | filter chips with counts; Send quote (₹ + note) / Decline with confirm; the Overview shows "N requests waiting for your price" |
-| `/seller/reviews` | read-only reviews + average (empty until Stage 6 lets buyers review) |
+| `/seller/reviews` | read-only reviews (stars, first name, date) + average |
 | `/seller/settings` | StoreForm + Pause my shop |
 
 ## API (all under `/api/`, proxied by Next.js)
 
 `auth/csrf` · `auth/signup` · `auth/signin` · `auth/signout` · `auth/me` (GET/PATCH) · `addresses` ·
 `categories` (with live `product_count`) · `products` (`?q= category= seller= min_price= max_price=` (paise)
-`in_stock=1 sort=relevance|newest|price_asc|price_desc|rating|trending ids= limit=`) · `products/<id>` · `stores`
+`in_stock=1 sort=relevance|newest|price_asc|price_desc|rating|trending ids= limit=`) · `search` (same filters + `page=` →
+`{count, page, pages, page_size, results, suggestion}`) · `products/<id>` · `stores`
 (`?q= limit=`) · `stores/<slug>` · `stores/<slug>/reviews` · `cart` · `cart/items` · `cart/items/<id>` · `cart/preview` (guest,
 no sign-in) · `cart/merge` · `checkout` ·
 `orders` · `orders/<id>` · `payments/verify` · `payments/webhook` · `seller/overview` · `seller/store` (GET/POST/
@@ -153,7 +157,8 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 (DELETE) · `seller/orders` (`?status=`) · `seller/orders/<id>/status` (POST `{status}`) · `seller/reviews` ·
 `seller/requests` · `seller/requests/<id>/quote` (POST `{quote_paise, note}`) · `seller/requests/<id>/decline` ·
 `requests` (GET mine / POST new, 10 per hour) · `requests/<id>` · `requests/<id>/images` (≤3, while open) ·
-`requests/<id>/accept` · `requests/<id>/decline` · `requests/<id>/add-to-bag`
+`requests/<id>/accept` · `requests/<id>/decline` · `requests/<id>/add-to-bag` · `reviews` (POST `{seller, rating, comment}`) ·
+`seller/ai/listing` (GET `{enabled}` / POST photo `image` or `image_id` + `name` → `{title, description, category}`, 10/hour)
 
 ## Decisions and assumptions
 
@@ -210,8 +215,26 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - **Shop link (slug)**: made from the name, editable at Open your shop and in Store settings; lowercase letters,
   numbers and dashes; unique (keeping your own is fine).
 - **Pause store** = `Seller.is_active=False`: products disappear for buyers and checkout refuses that seller.
-- **Reviews**: the seller's read-only list exists now; *writing* reviews (and the Section 8 test "a buyer can't
-  review without a delivered order") is Stage 6, where the review endpoint is built.
+- **Reviews**: one per buyer per maker (the existing unique constraint), so writing again **edits** it; allowed only
+  after a delivered, paid seller order from that maker; not for your own shop. Buyers see "Write a review" on the
+  delivered block of their order page. Shown with first name only. Sellers can't edit or remove reviews. Each block
+  of a buyer's order carries `can_review` / `my_review` (the buyer's reviews are loaded in one query per request).
+- **Search** uses Postgres full-text search (`django.contrib.postgres.search`, part of Django and Postgres, nothing
+  to install) together with the old "part of a word" match, and also searches the maker's area.
+- **"Did you mean"** uses Python's own `difflib` against words from live product names, categories and shop names
+  (first 3,000 products). Only offered when nothing matched and the suggestion really has results with the same
+  filters. Stage 7 can move this to Postgres `pg_trgm` if the catalogue grows.
+- **Pages**: Explore shows 24 per page with the real total (`/api/search/`); `/api/products/` keeps its old shape
+  (home page, store page, wishlist). Every sort ends with `-id`, so pages never overlap or skip.
+- **AI listing helper**: Gemini `gemini-2.5-flash` (change with `GEMINI_MODEL`) through its REST API with `requests`
+  (already installed). Key sent in the `x-goog-api-key` header, never the URL. The photo goes through `clean_image`
+  first (EXIF/GPS removed). Off unless `AI_ENABLED=true` **and** a key is set; the button is hidden otherwise
+  (`GET seller/ai/listing`). 10 per hour per seller (DRF throttle `ai_listing`). It never saves anything. Setup:
+  `docs/ai-setup.md`. Custom request photos are never sent to AI.
+- The AI suggestion is shown in a panel first; **Use this** fills name, description and category (never price or
+  stock) and focuses the name, so the seller edits before saving.
+- Throttle counts live in Django's default cache (in memory, per server process): fine for one server; noted for
+  deploy.
 - **Overview "earnings this week"** = paid in the last 7 days, items + delivery, cancelled parts excluded.
 - **Test copy media**: `MEDIA_ROOT` can be set by env; the throwaway e2e copy uses its own folder, so it never
   touches real uploads.
@@ -528,6 +551,77 @@ stock hold, payment checks and seller order flow all apply unchanged.
 > declines. Accepting creates a private one-off product at the quoted price and puts it in the buyer's bag, so it
 > goes through the same checkout, stock and payment code as everything else."
 
+### 12. Reviews — `write_review(user, seller, rating, comment)` in `backend/reviews/services.py` [KEY LOGIC]
+
+**What it does:** saves a buyer's 1–5 star review of a maker, but only if they really received something from them.
+
+**Step by step:**
+1. Your own shop → refused ("You can't review your own shop.").
+2. The rating must be a whole number from 1 to 5. `True` is refused too: in Python `True == 1`, so we check for it.
+3. The comment is trimmed and at most 1,000 characters.
+4. **The rule:** `has_delivered_order` looks for a `SellerOrder` from *this* seller, in an order *this* buyer paid
+   for, whose status is `delivered`. Not paid, still preparing, out for delivery, cancelled, or delivered by another
+   maker → refused with "You can review a maker once one of their orders has been delivered to you."
+5. `update_or_create(seller, buyer)`: the database allows one review per buyer per maker, so a second review
+   edits the first instead of adding another (nobody can stuff the average).
+
+**Why it's safe:** the buyer is always `request.user` (a test sends `buyer: <someone else>` and proves it's
+ignored); the delivered check runs on the server even though the page also hides the button; and the average shown
+everywhere is computed from the reviews table (`Avg("rating")`).
+
+> *Say it:* "A buyer can review a maker only after one of that maker's orders was delivered to them. The server
+> checks that with one query, keeps one review per buyer per maker so a second one edits the first, and the
+> average is always computed from the table."
+
+### 13. Full search — `find_products` / `search_page` in `backend/catalog/browse.py`
+
+- **Matching:** every word must match. A word matches if it's *part of* the name, description, shop name, area or
+  category (`icontains`, so "choco" finds chocolate), **or** Postgres full-text search says it's the same word
+  (`SearchVector` + `SearchQuery` with the `english` config, which reduces words to their stem: "cakes" → "cake",
+  "pickles" → "pickl").
+- **Ranking ("Best match"):** first, how many search words are in the product *name*; then `SearchRank` with
+  weights (name A, shop and category B, description and area C); then newest.
+- **Pages:** `count()` gives the real total, `pages` is rounded up, and a bad or too-big `?page=` becomes a page
+  that exists. The frontend keeps `page` in the URL (`lib/explore.ts`), and any filter change goes back to page 1.
+- **Did you mean:** if nothing matched, `suggest_query` swaps each unknown word for the closest real word from the
+  listings (`difflib.get_close_matches`, 75% similar), and we only show it if that search has results.
+
+> *Say it:* "Search combines substring matching with Postgres full-text search, so partial words and plurals both
+> work. It ranks name matches first, pages with a real total, and suggests a spelling fix only when that fix has
+> results."
+
+### 14. The AI listing helper — `backend/ai/listing.py` [KEY LOGIC]
+
+**What it does:** from the seller's first photo, Gemini suggests a title, a description and a category. The seller
+sees it in a panel and chooses **Use this** or **Dismiss**. The AI saves nothing.
+
+**Step by step (`POST /api/seller/ai/listing/`):**
+1. Sellers only; AI must be switched on with a key (otherwise 503 with the plain message); 10 per hour per seller.
+2. The photo is either a new upload (checked and cleaned by `clean_image`, so no GPS location goes to Google) or the
+   `image_id` of a photo on *one of my own* products (another seller's photo → 404).
+3. `write_listing` builds the prompt (describe only what's visible; no price, size, ingredients or materials) and a
+   **JSON schema** with exactly three fields: `title`, `description`, `category` (an `enum` of our category slugs).
+   There is no price field, so the model has nowhere to put one.
+4. `gemini_client.generate_json` sends it (key in a header, 25-second timeout). No answer, a 429 (free limit used
+   up), or something that isn't JSON → `GeminiError`.
+5. **`validate_listing` never trusts the answer:**
+   - it must be an object with text `title` and `description`, or it's refused;
+   - emoji and hashtags are removed; prices are cut out of the title;
+   - the description is split into sentences, and a sentence is **dropped** if it mentions a price (₹, Rs, INR,
+     price, cost) or a link, a size/weight/quantity ("1 kg", "serves 10"), or an ingredient/material claim ("made
+     with…", "silk", "eggless"), **unless the seller wrote those words themselves** in the product name (so "1 kg"
+     stays for "Chocolate cake (1 kg)");
+   - text is cut to 80 / 1,000 characters at a word or sentence; an unknown category becomes `null`.
+6. Any failure → 503 with "Couldn't write a listing, please fill it in yourself." The form works as before.
+
+**Why it's safe:** the rules are enforced three times (prompt, schema, our own validation); the AI can't save
+anything; the key never reaches the browser; and the whole feature switches off with `AI_ENABLED=false`. Tests fake
+Gemini (`mock.patch`), so they never call the internet.
+
+> *Say it:* "The AI helper asks Gemini for strict JSON with a schema that has no price field, then validates the
+> answer itself: the wrong shape is rejected, and any sentence with a price, a size or an ingredient claim the seller
+> didn't write is removed. The seller always reviews it, and the app works fully with AI switched off."
+
 ---
 
 ## Interview notes
@@ -585,6 +679,17 @@ stock hold, payment checks and seller order flow all apply unchanged.
    the price comes from the quote saved by the seller. A test sends `quote_paise: 100` with the accept and checks
    the bag still has the real quote.
 
+### Stage 6
+1. **How do you make sure reviews are real?** A buyer can review a maker only after one of that maker's orders was
+   delivered to them, checked on the server; the buyer is always the signed-in user, and there's one review per
+   buyer per maker, so a second review edits the first. The average is computed from the table.
+2. **How does your search handle plurals and typos?** Postgres full-text search stems words ("cakes" → "cake")
+   alongside substring matching for partial words, results are ranked with name matches first, and when nothing
+   matches, `difflib` suggests the closest real word, shown only if it has results.
+3. **How do you stop an AI from inventing facts in a listing?** Three layers: the prompt says not to, the JSON schema
+   has no price field, and `validate_listing` drops any sentence with a price, size or ingredient/material claim the
+   seller didn't write. The seller reviews the suggestion before anything is saved, and the app works with AI off.
+
 ## Stage log
 
 - **Stage 1** — monorepo, Docker Postgres (5433), `start-homehaat.ps1`, Django + Next.js via `/api` proxy, email
@@ -605,3 +710,7 @@ stock hold, payment checks and seller order flow all apply unchanged.
   buyer Accept and add to bag / Decline / Add to bag again; accept creates a private one-off product at the quoted
   price that goes through normal checkout; rules in one table (`apply_action`); rate limit 10 requests/hour;
   Overview nudge for open requests.
+- **Stage 6**: reviews after delivery (`write_review`, one per buyer per maker, editable) on the order page, store
+  page and seller dashboard; full search (Postgres full-text + substring, area, ranking, 24 per page with real totals,
+  "Did you mean"); AI listing helper (Gemini free tier, strict schema, `validate_listing`, 10/hour, off by default,
+  `docs/ai-setup.md`); seller guide updated.

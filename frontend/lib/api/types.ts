@@ -139,6 +139,8 @@ export interface SellerOrder {
   status: SellerOrderStatus;
   refund_needed: boolean;
   items: OrderItem[];
+  can_review: boolean; // delivered: the buyer may review this maker (the server checks again)
+  my_review: { rating: number; comment: string } | null; // the buyer's review of this maker, if any
 }
 
 export type ShipTo = Omit<NewAddress, "label">;
@@ -255,4 +257,28 @@ export interface CustomRequest {
   ordered: boolean;
   created_at: string;
   responded_at: string | null;
+}
+
+/** One page of Explore results, with the real total and an optional "Did you mean…?". */
+export interface SearchPage {
+  count: number;
+  page: number;
+  pages: number;
+  page_size: number;
+  results: Product[];
+  suggestion: string | null;
+}
+
+export interface MyReview {
+  id: number;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
+/** The AI listing helper's suggestion. Never a price. category is null when it couldn't pick a known one. */
+export interface ListingSuggestion {
+  title: string;
+  description: string;
+  category: string | null;
 }

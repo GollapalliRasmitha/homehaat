@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 from accounts import views as accounts
+from ai import views as ai
 from cart import views as cart
 from catalog import views as catalog
 from custom_requests import views as custom_requests
@@ -23,6 +24,7 @@ api = [
     path("categories/", catalog.CategoryList.as_view()),
     path("products/", catalog.ProductList.as_view()),
     path("products/<int:pk>/", catalog.ProductDetail.as_view()),
+    path("search/", catalog.search),
     path("stores/", catalog.StoreList.as_view()),
     path("stores/<slug:slug>/", catalog.StoreDetail.as_view()),
     path("stores/<slug:slug>/reviews/", catalog.store_reviews),
@@ -50,9 +52,12 @@ api = [
     path("seller/orders/", orders.IncomingOrderList.as_view()),
     path("seller/orders/<int:pk>/status/", orders.change_status),
     path("seller/reviews/", reviews.my_reviews),
+    path("seller/ai/listing/", ai.listing),
     path("seller/requests/", custom_requests.shop_requests),
     path("seller/requests/<int:pk>/quote/", custom_requests.send_quote),
     path("seller/requests/<int:pk>/decline/", custom_requests.seller_decline),
+    # reviews (buyer, after delivery)
+    path("reviews/", reviews.write),
     # custom requests (buyer)
     path("requests/", custom_requests.my_requests),
     path("requests/<int:pk>/", custom_requests.my_request),

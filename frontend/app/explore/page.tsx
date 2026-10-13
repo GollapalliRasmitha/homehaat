@@ -3,10 +3,10 @@ import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
 import { MakerCard } from "@/components/MakerCard";
 import { ProductGrid } from "@/components/ProductCard";
-import { listCategories, listProducts, listStores } from "@/lib/api/catalog";
+import { listCategories, listStores, searchProducts } from "@/lib/api/catalog";
 import { errorMessage } from "@/lib/api/client";
-import type { Category, Product, PublicStore } from "@/lib/api/types";
-import { filtersToApi, readFilters } from "@/lib/explore";
+import type { Category, PublicStore, SearchPage } from "@/lib/api/types";
+import { filtersToApi, filtersToQuery, readFilters } from "@/lib/explore";
 import { PHOTOS } from "@/lib/photos";
 
 import { ExploreControls } from "./ExploreControls";
@@ -19,13 +19,13 @@ export default async function ExplorePage({ searchParams }: PageProps<"/explore"
   );
   const filters = readFilters(params);
 
-  let products: Product[] = [];
+  let found: SearchPage | null = null;
   let categories: Category[] = [];
   let makers: PublicStore[] = [];
   let loadError: unknown = null;
   try {
-    [products, categories, makers] = await Promise.all([
-      listProducts(filtersToApi(filters)),
+    [found, categories, makers] = await Promise.all([
+      searchProducts(filtersToApi(filters)),
       listCategories(),
       filters.q ? listStores({ q: filters.q, limit: 4 }) : Promise.resolve([]), // "products and sellers"
     ]);
@@ -33,6 +33,8 @@ export default async function ExplorePage({ searchParams }: PageProps<"/explore"
     loadError = error;
   }
 
+  const products = found?.results ?? [];
+  const count = found?.count ?? 0;
   const category = categories.find((c) => c.slug === filters.category);
   const anyFilter = filters.q || filters.category || filters.inStock || filters.minRupees || filters.maxRupees;
 
@@ -57,10 +59,19 @@ export default async function ExplorePage({ searchParams }: PageProps<"/explore"
           </>
         )}
       </h1>
-      {!loadError && (
+      {found && (
         <p className="mt-1.5 text-muted" aria-live="polite">
-          {products.length} {products.length === 1 ? "product" : "products"}
-          {products.length === 60 && " (showing the first 60)"}
+          {count} {count === 1 ? "product" : "products"}
+          {found.pages > 1 && ` · page ${found.page} of ${found.pages}`}
+        </p>
+      )}
+      {found?.suggestion && (
+        <p className="mt-2 text-[17px]">
+          Did you mean{" "}
+          <Link href={`/explore${filtersToQuery({ ...filters, q: found.suggestion, page: 1 })}`} className="font-semibold underline">
+            {found.suggestion}
+          </Link>
+          ?
         </p>
       )}
 
@@ -90,7 +101,34 @@ export default async function ExplorePage({ searchParams }: PageProps<"/explore"
           }
         />
       ) : products.length > 0 ? (
-        <ProductGrid products={products} />
+        <>
+          <ProductGrid products={products} />
+          {found && found.pages > 1 && (
+            <nav aria-label="Pages of results" className="mt-10 flex items-center justify-center gap-3">
+              {found.page > 1 ? (
+                <Link href={`/explore${filtersToQuery({ ...filters, page: found.page - 1 })}`} className="btn btn-white" rel="prev">
+                  Previous
+                </Link>
+              ) : (
+                <span className="btn btn-white pointer-events-none opacity-40" aria-hidden>
+                  Previous
+                </span>
+              )}
+              <span className="text-[15px] text-muted" aria-current="page">
+                Page {found.page} of {found.pages}
+              </span>
+              {found.page < found.pages ? (
+                <Link href={`/explore${filtersToQuery({ ...filters, page: found.page + 1 })}`} className="btn btn-white" rel="next">
+                  Next
+                </Link>
+              ) : (
+                <span className="btn btn-white pointer-events-none opacity-40" aria-hidden>
+                  Next
+                </span>
+              )}
+            </nav>
+          )}
+        </>
       ) : anyFilter ? (
         <EmptyState
           title="No products match"

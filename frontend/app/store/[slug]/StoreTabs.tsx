@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ProductGrid } from "@/components/ProductCard";
+import { Stars } from "@/components/Stars";
 import type { Product, StoreReview } from "@/lib/api/types";
 import { PHOTOS } from "@/lib/photos";
 import { useSession } from "@/lib/session";
@@ -66,8 +67,10 @@ export function StoreTabs({ products, reviews, storeSlug }: { products: Product[
             <div className="flex flex-col gap-3">
               {reviews.map((r) => (
                 <div key={r.id} className="panel">
-                  <b aria-label={`${r.rating} out of 5 stars`}>{"★".repeat(r.rating) + "☆".repeat(5 - r.rating)}</b>{" "}
-                  <span className="text-muted">· {r.buyer_name}</span>
+                  <Stars rating={r.rating} className="font-semibold" />{" "}
+                  <span className="text-muted">
+                    · {r.buyer_name} · {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                  </span>
                   {r.comment && <p className="mt-1.5">{r.comment}</p>}
                 </div>
               ))}

@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { OrderItemThumb } from "@/components/ItemThumb";
 import { LoadError } from "@/components/LoadError";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { ReviewForm } from "@/components/ReviewForm";
 import { ApiError } from "@/lib/api/client";
 import { getOrder } from "@/lib/api/orders";
 import type { Order } from "@/lib/api/types";
@@ -113,6 +114,22 @@ function OrderDetail() {
             <span>Subtotal</span>
             <span>{formatINR(part.subtotal + part.delivery_fee)}</span>
           </div>
+          {paid && part.can_review && (
+            <ReviewForm
+              sellerSlug={part.seller.slug}
+              sellerName={part.seller.name}
+              review={part.my_review}
+              onSaved={(review) =>
+                // One review per maker: every block from this maker shows the new one.
+                setOrder((o) =>
+                  o && {
+                    ...o,
+                    seller_orders: o.seller_orders.map((p) => (p.seller.slug === part.seller.slug ? { ...p, my_review: review } : p)),
+                  },
+                )
+              }
+            />
+          )}
         </section>
       ))}
 

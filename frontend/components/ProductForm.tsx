@@ -1,8 +1,9 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { listCategories } from "@/lib/api/catalog";
@@ -10,11 +11,13 @@ import { ApiError, errorMessage } from "@/lib/api/client";
 import {
   addProduct,
   deleteProductPhoto,
+  getAiStatus,
   orderProductPhotos,
   updateProduct,
   uploadProductPhoto,
+  writeListingWithAI,
 } from "@/lib/api/seller";
-import type { Category, SellerProduct } from "@/lib/api/types";
+import type { Category, ListingSuggestion, SellerProduct } from "@/lib/api/types";
 import { formatINR, rupeesToPaise } from "@/lib/format";
 import { useSeller } from "@/lib/seller-context";
 
@@ -33,12 +36,23 @@ export function ProductForm({ product }: { product?: SellerProduct }) {
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [suggestion, setSuggestion] = useState<ListingSuggestion | null>(null);
 
   useEffect(() => {
     listCategories()
       .then(setCategories)
       .catch(setLoadError);
   }, [attempt]);
+
+  useEffect(() => {
+    // Only show the AI button when the server has AI switched on. Any problem: no button, the form still works.
+    getAiStatus()
+      .then((s) => setAiEnabled(s.enabled))
+      .catch(() => setAiEnabled(false));
+  }, []);
 
   if (loadError) {
     const retry = () => {
@@ -109,16 +123,91 @@ export function ProductForm({ product }: { product?: SellerProduct }) {
     router.push("/seller/products");
   }
 
+  const field = (name: string) =>
+    formRef.current?.elements.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
+
+  /** Ask the AI helper about the first photo. Nothing is filled in until the seller presses "Use this". */
+  async function askAI() {
+    const first = photos[0];
+    if (!first) return;
+    setAiBusy(true);
+    setSuggestion(null);
+    try {
+      setSuggestion(await writeListingWithAI({ blob: first.blob, id: first.id }, field("name")?.value.trim() ?? ""));
+    } catch (error) {
+      toast(errorMessage(error)); // e.g. "Couldn't write a listing, please fill it in yourself."
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  function applySuggestion(s: ListingSuggestion) {
+    const set = (name: string, value: string) => {
+      const el = field(name);
+      if (el) el.value = value;
+    };
+    set("name", s.title);
+    if (s.description) set("description", s.description);
+    if (s.category) set("category", s.category);
+    setSuggestion(null);
+    field("name")?.focus();
+    toast("Filled in. Check it, and add the price and details yourself.");
+  }
+
   const err = (key: string) => errors[key] && <p className="field-error">{errors[key]}</p>;
   const rupees = (paise: number) => formatINR(paise).replace("₹", "");
 
   return (
-    <form onSubmit={submit} noValidate className="panel mx-auto flex max-w-[760px] flex-col gap-5">
+    <form ref={formRef} onSubmit={submit} noValidate className="panel mx-auto flex max-w-[760px] flex-col gap-5">
       <h2 className="text-[26px]">{product ? "Edit product" : "Add a product"}</h2>
       <PhotoPicker photos={photos} onChange={setPhotos} />
       <p className="-mt-2 text-[13px] text-muted">
         No photo yet? Buyers will see a simple drawing of the category until you add one.
       </p>
+
+      {aiEnabled && (
+        <div className="flex flex-col gap-3 rounded-[18px] bg-soft p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="btn btn-white"
+              onClick={askAI}
+              disabled={aiBusy || photos.length === 0}
+              aria-describedby="ai-help"
+            >
+              <Sparkles size={17} aria-hidden />
+              {aiBusy ? "Writing…" : "Write listing with AI"}
+            </button>
+            <p id="ai-help" className="min-w-0 flex-1 text-[13px] text-muted">
+              {photos.length === 0
+                ? "Add a photo first."
+                : "Uses your first photo to suggest a name, description and category. Never a price."}
+            </p>
+          </div>
+          {suggestion && (
+            <div className="rounded-[14px] border border-line bg-white p-4" aria-live="polite">
+              <p className="eyebrow mb-1.5">Suggestion</p>
+              <b className="block text-[17px]">{suggestion.title}</b>
+              {suggestion.description && <p className="mt-1 text-[15px] text-muted">{suggestion.description}</p>}
+              <p className="mt-1 text-[13px] text-muted">
+                Category:{" "}
+                {categories.find((c) => c.slug === suggestion.category)?.name ?? "not sure, choose it yourself"}
+              </p>
+              <p className="mt-2 text-[13px] text-muted">
+                Written by AI from your photo. Please check it, and add sizes, ingredients or materials yourself.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2.5">
+                <button type="button" className="btn btn-black" onClick={() => applySuggestion(suggestion)}>
+                  Use this
+                </button>
+                <button type="button" className="btn btn-white" onClick={() => setSuggestion(null)}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-3.5 sm:grid-cols-2">
         <div className="sm:col-span-2">

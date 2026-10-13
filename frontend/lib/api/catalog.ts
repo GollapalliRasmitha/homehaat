@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import type { Category, Product, PublicStore, StoreReview } from "./types";
+import type { Category, Product, PublicStore, SearchPage, StoreReview } from "./types";
 
 const query = (params: Record<string, string | number | undefined>) => {
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== "") as [string, string][];
@@ -11,6 +11,10 @@ export const listCategories = () => apiFetch<Category[]>("/categories/");
 /** Search and browse. Filters: q, category, seller, min_price/max_price (paise), in_stock, sort, ids, limit. */
 export const listProducts = (params: Record<string, string | number | undefined> = {}) =>
   apiFetch<Product[]>(`/products/${query(params)}`);
+
+/** The Explore page: the same filters plus page, with the total and "Did you mean…?". */
+export const searchProducts = (params: Record<string, string | number | undefined> = {}) =>
+  apiFetch<SearchPage>(`/search/${query(params)}`);
 
 export const getProduct = (id: number | string) => apiFetch<Product>(`/products/${id}/`);
 

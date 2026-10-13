@@ -62,6 +62,16 @@ Click **Save and show in my shop**. Your product is now live for buyers.
 
 **Tip:** a clear photo in daylight, on a plain background, sells best.
 
+### Let AI write the first draft (if it's switched on)
+
+After adding a photo, you may see **Write listing with AI**. It looks at your first photo and suggests a
+name, a description and a category. Press **Use this** to fill them in, or **Dismiss**.
+
+- It never suggests a price, and it leaves out sizes, weights, ingredients and materials, because it can't know
+  them from a photo. Please add those yourself.
+- Always read it before saving: you know your product best.
+- If it says *"Couldn't write a listing, please fill it in yourself"*, just type the details as usual.
+
 ---
 
 ## 4. Your shop dashboard
@@ -162,7 +172,9 @@ order.
 **Can I buy from my own shop?** No. HomeHaat stops you, so test orders need a second account (a family member's
 email works).
 
-**Reviews?** Coming soon: buyers will be able to review your shop after delivery.
+**Reviews?** When you mark an order **Delivered**, the buyer can give your shop 1 to 5 stars and a few words. Reviews
+appear on your shop page (with the buyer's first name only) and under **Reviews** in your dashboard, with your
+average. One review per buyer: if they order again, they can update it. You can't edit or remove reviews.
 
 **Something didn't work?** Please send Rasmitha a message with what you clicked and what you saw. A phone photo of
 the screen is perfect.

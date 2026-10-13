@@ -25,6 +25,7 @@ from orders.services import (
 )
 from orders.status import NotYourOrderError, StatusError, advance_status
 from payments import razorpay_client
+from reviews.models import Review
 
 log = logging.getLogger("homehaat.orders")
 
@@ -90,7 +91,16 @@ def orders_with_details():
     )
 
 
-class MyOrderList(generics.ListAPIView):
+class BuyerOrderView:
+    """Adds the buyer's own reviews (one query), so each seller block can show "Your review"."""
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["my_reviews"] = {r.seller_id: r for r in Review.objects.filter(buyer=self.request.user)}
+        return context
+
+
+class MyOrderList(BuyerOrderView, generics.ListAPIView):
     serializer_class = OrderSerializer
     pagination_class = None
 
@@ -100,7 +110,7 @@ class MyOrderList(generics.ListAPIView):
         return mine.exclude(payment_status=Order.PaymentStatus.FAILED)
 
 
-class MyOrderDetail(generics.RetrieveAPIView):
+class MyOrderDetail(BuyerOrderView, generics.RetrieveAPIView):
     serializer_class = OrderSerializer
 
     def get_queryset(self):

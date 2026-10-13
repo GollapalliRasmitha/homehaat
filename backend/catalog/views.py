@@ -10,7 +10,7 @@ from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 
 from accounts.models import User
-from catalog.browse import public_products, public_stores, search_products, search_stores
+from catalog.browse import public_products, public_stores, search_page, search_products, search_stores
 from catalog.images import ImageError, clean_image
 from catalog.models import Category, Product, ProductImage, Seller
 from catalog.serializers import (
@@ -55,6 +55,15 @@ class ProductList(generics.ListAPIView):
 
     def get_queryset(self):
         return search_products(self.request.query_params)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def search(request):
+    """The Explore page: same filters as /products/, plus ?page=, the real total and "Did you mean…?"."""
+    page = search_page(request.query_params)
+    page["results"] = ProductSerializer(page["results"], many=True, context={"request": request}).data
+    return Response(page)
 
 
 class StoreList(generics.ListAPIView):

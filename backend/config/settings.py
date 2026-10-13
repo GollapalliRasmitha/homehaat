@@ -145,6 +145,7 @@ REST_FRAMEWORK = {
         "auth": "10/min",
         "checkout": "10/min",
         "custom_requests": "10/hour",
+        "ai_listing": "10/hour",  # per seller; keeps everyone inside Gemini's free daily limit
     },
 }
 
@@ -161,7 +162,8 @@ ORDER_HOLD_MINUTES = 15
 
 # --- AI listing helper (Stage 6) ---
 AI_ENABLED = env_bool("AI_ENABLED", False)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")  # HomeHaat's own key, never Oppora's
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "") or "gemini-2.5-flash"
 
 LOGGING = {
     "version": 1,

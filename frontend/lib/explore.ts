@@ -21,9 +21,15 @@ export interface ExploreFilters {
   inStock: boolean;
   minRupees: string; // as typed, e.g. "200"
   maxRupees: string;
+  page: number; // 1, 2, 3… (each page shows 24)
 }
 
 const isSort = (value: string | null): value is Sort => SORTS.some(([v]) => v === value);
+
+/** "3" -> 3. Anything that isn't a whole number from 1 up is page 1. */
+function readPage(value: string | null): number {
+  return value && /^\d+$/.test(value) && Number(value) >= 1 ? Number(value) : 1;
+}
 
 /** URL search params -> filters. Unknown values fall back to safe defaults. */
 export function readFilters(params: URLSearchParams): ExploreFilters {
@@ -36,6 +42,7 @@ export function readFilters(params: URLSearchParams): ExploreFilters {
     inStock: params.get("in_stock") === "1",
     minRupees: params.get("min") ?? "",
     maxRupees: params.get("max") ?? "",
+    page: readPage(params.get("page")),
   };
 }
 
@@ -49,6 +56,7 @@ export function filtersToQuery(f: ExploreFilters): string {
   if (f.inStock) params.set("in_stock", "1");
   if (f.minRupees) params.set("min", f.minRupees);
   if (f.maxRupees) params.set("max", f.maxRupees);
+  if (f.page > 1) params.set("page", String(f.page));
   const query = params.toString();
   return query ? `?${query}` : "";
 }
@@ -56,6 +64,7 @@ export function filtersToQuery(f: ExploreFilters): string {
 /** Filters -> the query for the products API. Prices go to the API in paise; invalid prices are dropped. */
 export function filtersToApi(f: ExploreFilters): Record<string, string> {
   const api: Record<string, string> = { sort: f.sort };
+  api.page = String(f.page);
   if (f.q) api.q = f.q;
   if (f.category) api.category = f.category;
   if (f.inStock) api.in_stock = "1";

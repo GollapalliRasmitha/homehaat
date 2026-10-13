@@ -32,10 +32,31 @@ class SellerOrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SellerOrder
-        fields = ["id", "seller", "subtotal", "delivery_fee", "status", "refund_needed", "items"]
+        fields = [
+            "id",
+            "seller",
+            "subtotal",
+            "delivery_fee",
+            "status",
+            "refund_needed",
+            "items",
+            "can_review",
+            "my_review",
+        ]
+
+    can_review = serializers.SerializerMethodField()
+    my_review = serializers.SerializerMethodField()
 
     def get_seller(self, seller_order):
         return {"slug": seller_order.seller.slug, "name": seller_order.seller.name}
+
+    def get_can_review(self, seller_order):
+        return seller_order.status == SellerOrder.Status.DELIVERED  # write_review checks this again on the server
+
+    def get_my_review(self, seller_order):
+        # The buyer's reviews, loaded once per request by the view (seller id -> review).
+        review = self.context.get("my_reviews", {}).get(seller_order.seller_id)
+        return {"rating": review.rating, "comment": review.comment} if review else None
 
 
 class OrderSerializer(serializers.ModelSerializer):

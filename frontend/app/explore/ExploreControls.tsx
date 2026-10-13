@@ -35,6 +35,7 @@ export function ExploreControls({ filters, categories }: { filters: ExploreFilte
     setMax(filters.maxRupees);
   }
 
+  // Any change of search or filter starts again at page 1.
   const go = (change: Partial<ExploreFilters>) => {
     if (change.q !== undefined) {
       setTypedQ(change.q);
@@ -42,7 +43,7 @@ export function ExploreControls({ filters, categories }: { filters: ExploreFilte
       const wasDefault = filters.sort === (filters.q ? "relevance" : "newest");
       if (wasDefault && change.sort === undefined) change = { ...change, sort: change.q ? "relevance" : "newest" };
     }
-    startTransition(() => router.replace(`${pathname}${filtersToQuery({ ...filters, ...change })}`, { scroll: false }));
+    startTransition(() => router.replace(`${pathname}${filtersToQuery({ ...filters, page: 1, ...change })}`, { scroll: false }));
   };
 
   // Typing searches after a short pause, instead of on every key press.

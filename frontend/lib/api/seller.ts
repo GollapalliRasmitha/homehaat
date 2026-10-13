@@ -1,6 +1,7 @@
 import { apiFetch } from "./client";
 import type {
   IncomingOrder,
+  ListingSuggestion,
   ProductPhoto,
   SellerOrderStatus,
   SellerOverview,
@@ -69,3 +70,17 @@ export const deleteProductPhoto = (productId: number, photoId: number) =>
 
 export const orderProductPhotos = (productId: number, ids: number[]) =>
   apiFetch<ProductPhoto[]>(`/seller/products/${productId}/images/order/`, { method: "POST", body: { ids } });
+
+// --- AI listing helper ---
+
+/** Whether "Write listing with AI" can work (AI switched on and a key set on the server). */
+export const getAiStatus = () => apiFetch<{ enabled: boolean }>("/seller/ai/listing/");
+
+/** Suggest a title, description and category from a photo: a new one (blob) or one already saved (id). */
+export function writeListingWithAI(photo: { blob?: Blob; id?: number }, name: string) {
+  const form = new FormData();
+  if (photo.blob) form.append("image", photo.blob, "photo.jpg");
+  else if (photo.id) form.append("image_id", String(photo.id));
+  form.append("name", name);
+  return apiFetch<ListingSuggestion>("/seller/ai/listing/", { method: "POST", form });
+}
