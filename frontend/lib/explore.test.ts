@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { filtersToApi, filtersToQuery, readFilters } from "./explore.ts";
+import { filtersToApi, filtersToQuery, priceRangeError, readFilters } from "./explore.ts";
 
 test("reads filters from the URL with safe defaults", () => {
   const f = readFilters(new URLSearchParams("q=cake&category=cakes&in_stock=1&min=200&sort=nonsense"));
@@ -28,4 +28,13 @@ test("the page number is in the URL, and bad page numbers become page 1", () => 
   assert.equal(filtersToApi(f).page, "3");
   for (const bad of ["0", "-2", "abc", "1.5", ""]) assert.equal(readFilters(new URLSearchParams(`page=${bad}`)).page, 1);
   assert.equal(filtersToQuery({ ...f, page: 1 }), "?q=candle"); // page 1 is the default, left out
+});
+
+test("a price range with min above max is refused with a message", () => {
+  assert.equal(priceRangeError("600", "200"), "The lowest price must be less than the highest.");
+  assert.equal(priceRangeError("abc", ""), "Enter prices in rupees, like 200.");
+  assert.equal(priceRangeError("100", "500"), null);
+  assert.equal(priceRangeError("", "500"), null); // one side only is fine
+  assert.equal(priceRangeError("", ""), null); // clearing is fine
+  assert.equal(priceRangeError("300", "300"), null);
 });

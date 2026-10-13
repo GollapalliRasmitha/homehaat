@@ -4,6 +4,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from cart.models import CartItem
 from catalog.models import Product
 from core.tests.factories import add_to_cart, make_category, make_paid_order, make_product, make_seller, make_user
 
@@ -88,9 +89,10 @@ class DeleteTests(TestCase):
         # but the past order still shows it
         order = client_for(part.order.buyer).get(f"/api/orders/{part.order_id}/").json()
         self.assertEqual(order["seller_orders"][0]["items"][0]["name"], "Plum cake")
-        # a bag that still has it is flagged at checkout
+        # and it's taken out of other buyers' bags (it can never be bought again)
         cart = client_for(other_buyer).get("/api/cart/").json()
-        self.assertEqual(cart["groups"][0]["items"][0]["problem"], "unavailable")
+        self.assertEqual(cart["groups"], [])
+        self.assertFalse(CartItem.objects.filter(product=product).exists())
 
     def test_overview_does_not_count_archived_products(self):
         product = make_product(self.seller)

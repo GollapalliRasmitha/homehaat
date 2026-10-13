@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 
 from accounts.models import User
+from cart.models import CartItem
 from catalog.browse import (
     all_stores,
     search_page,
@@ -241,6 +242,8 @@ class MyProductDetail(generics.RetrieveUpdateDestroyAPIView):
         if past:
             product.is_archived, product.is_active = True, False
             product.save(update_fields=["is_archived", "is_active"])
+            # It can never be bought again, so take it out of everyone's bag (orders keep their own snapshot).
+            CartItem.objects.filter(product=product).delete()
             return Response({"result": "archived", "past_orders": past})
         files = [img.image for img in product.images.all()]
         product.delete()

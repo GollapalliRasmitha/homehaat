@@ -74,3 +74,12 @@ export function filtersToApi(f: ExploreFilters): Record<string, string> {
   if (max !== null) api.max_price = String(max);
   return api;
 }
+
+/** The price boxes before Apply: null if fine, else a message. Min above max is refused (it can't match anything). */
+export function priceRangeError(minRupees: string, maxRupees: string): string | null {
+  const min = minRupees.trim() ? rupeesToPaise(minRupees) : null;
+  const max = maxRupees.trim() ? rupeesToPaise(maxRupees) : null;
+  if ((minRupees.trim() && min === null) || (maxRupees.trim() && max === null)) return "Enter prices in rupees, like 200.";
+  if (min !== null && max !== null && min > max) return "The lowest price must be less than the highest.";
+  return null;
+}

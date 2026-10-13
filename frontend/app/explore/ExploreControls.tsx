@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 
 import type { Category } from "@/lib/api/types";
-import { type ExploreFilters, filtersToQuery, SORTS } from "@/lib/explore";
+import { type ExploreFilters, filtersToQuery, priceRangeError, SORTS } from "@/lib/explore";
 
 const chip = (on: boolean) =>
   `h-[42px] rounded-full border px-[18px] text-[15px] font-medium whitespace-nowrap ${
@@ -20,6 +20,7 @@ export function ExploreControls({ filters, categories }: { filters: ExploreFilte
   const [q, setQ] = useState(filters.q);
   const [min, setMin] = useState(filters.minRupees);
   const [max, setMax] = useState(filters.maxRupees);
+  const [priceError, setPriceError] = useState<string | null>(null);
   const [typedQ, setTypedQ] = useState(filters.q); // the last search WE sent from this box
   const [seen, setSeen] = useState(filters); // the filters from the URL we last showed
 
@@ -92,20 +93,51 @@ export function ExploreControls({ filters, categories }: { filters: ExploreFilte
         className="flex flex-wrap items-center gap-2 text-[15px]"
         onSubmit={(e) => {
           e.preventDefault();
-          go({ minRupees: min.trim(), maxRupees: max.trim() });
+          const problem = priceRangeError(min, max);
+          setPriceError(problem);
+          if (!problem) go({ minRupees: min.trim(), maxRupees: max.trim() });
         }}
       >
         <span className="font-medium">Price (₹)</span>
         <label className="sr-only" htmlFor="min">
           Lowest price in rupees
         </label>
-        <input id="min" inputMode="numeric" placeholder="Min" value={min} onChange={(e) => setMin(e.target.value)} className="input h-[42px] w-24 rounded-full px-4" />
+        <input
+          id="min"
+          inputMode="numeric"
+          placeholder="Min"
+          value={min}
+          onChange={(e) => {
+            setMin(e.target.value);
+            setPriceError(null);
+          }}
+          aria-invalid={priceError ? true : undefined}
+          aria-describedby={priceError ? "price-error" : undefined}
+          className="input h-[42px] w-24 rounded-full px-4"
+        />
         <span aria-hidden="true">–</span>
         <label className="sr-only" htmlFor="max">
           Highest price in rupees
         </label>
-        <input id="max" inputMode="numeric" placeholder="Max" value={max} onChange={(e) => setMax(e.target.value)} className="input h-[42px] w-24 rounded-full px-4" />
+        <input
+          id="max"
+          inputMode="numeric"
+          placeholder="Max"
+          value={max}
+          onChange={(e) => {
+            setMax(e.target.value);
+            setPriceError(null);
+          }}
+          aria-invalid={priceError ? true : undefined}
+          aria-describedby={priceError ? "price-error" : undefined}
+          className="input h-[42px] w-24 rounded-full px-4"
+        />
         <button className="btn btn-white h-[42px] px-[18px]">Apply</button>
+        {priceError && (
+          <p id="price-error" className="field-error mt-0 w-full" role="alert">
+            {priceError}
+          </p>
+        )}
       </form>
 
       {/* Category chips scroll sideways on a phone instead of making the page wider. */}

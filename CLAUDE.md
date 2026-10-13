@@ -251,8 +251,8 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - **Delete a product** (`DELETE seller/products/<id>`): never in a paid or pending order → deleted completely, with
   its photo files. In past orders → **archived** (`Product.is_archived=True` and `is_active=False`, an additive
   field, migration `catalog.0003`): gone from the shop, search and the seller's list, can't be edited back
-  (404), still shown in those orders (they keep their snapshot), and any bag line with it is flagged
-  `unavailable`. `past_orders` on each seller product feeds the confirmation text. Failed attempts don't count.
+  (404), still shown in those orders (they keep their snapshot), and it is **removed from every bag** (it can never
+  be bought again; migration `cart.0002` cleaned up products archived before this fix). Guest bags drop it too. `past_orders` on each seller product feeds the confirmation text. Failed attempts don't count.
 - **Owner only:** every product/order change goes through `my_products(user)` / `user.seller`, so another seller
   gets 404 and a buyer 403 (`catalog/tests/test_product_controls.py`).
 - **Reviews**: one per buyer per maker (the existing unique constraint), so writing again **edits** it; allowed only
@@ -264,6 +264,8 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - **"Did you mean"** uses Python's own `difflib` against words from live product names, categories and shop names
   (first 3,000 products). Only offered when nothing matched and the suggestion really has results with the same
   filters. Stage 7 can move this to Postgres `pg_trgm` if the catalogue grows.
+- **Price range check** (`priceRangeError` in `lib/explore.ts`): Explore refuses min above max and non-numbers
+  with a message under the boxes instead of applying a filter that can't match anything.
 - **Pages**: Explore shows 24 per page with the real total (`/api/search/`); `/api/products/` keeps its old shape
   (home page, store page, wishlist). Every sort ends with `-id`, so pages never overlap or skip.
 - **AI listing helper**: Gemini `gemini-flash-lite-latest`, then `gemini-flash-latest` (`settings.GEMINI_MODELS`; `GEMINI_MODEL`
@@ -739,6 +741,14 @@ Gemini (`mock.patch`), so they never call the internet.
 3. **How do you stop an AI from inventing facts in a listing?** Three layers: the prompt says not to, the JSON schema
    has no price field, and `validate_listing` drops any sentence with a price, size or ingredient/material claim the
    seller didn't write. The seller reviews the suggestion before anything is saved, and the app works with AI off.
+
+## QA log
+
+- **13 Oct 2026, full checklist (sections 1–9) on a throwaway copy:** two items failed and were fixed with tests:
+  2.5 (min > max wasn't refused) and 5.8 (an archived product stayed in other buyers' bags). The real Gemini
+  suggestion couldn't be tested (Google busy on both models for both tries); everything else passed. Section 10
+  items confirmed still pending. Likely cause of 10.2 (art shop showing a cake cover): Open your shop defaults
+  "Main category" to the first category (Cakes), so a shop that doesn't change it gets the cake photo.
 
 ## Stage log
 
