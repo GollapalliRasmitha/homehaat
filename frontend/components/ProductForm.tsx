@@ -161,9 +161,11 @@ export function ProductForm({ product }: { product?: SellerProduct }) {
     <form ref={formRef} onSubmit={submit} noValidate className="panel mx-auto flex max-w-[760px] flex-col gap-5">
       <h2 className="text-[26px]">{product ? "Edit product" : "Add a product"}</h2>
       <PhotoPicker photos={photos} onChange={setPhotos} />
-      <p className="-mt-2 text-[13px] text-muted">
-        No photo yet? Buyers will see a simple drawing of the category until you add one.
-      </p>
+      {photos.length === 0 && (
+        <p className="-mt-2 text-[13px] text-muted">
+          No photo yet? Buyers will see a simple drawing of the category until you add one.
+        </p>
+      )}
 
       {aiEnabled && (
         <div className="flex flex-col gap-3 rounded-[18px] bg-soft p-4">
