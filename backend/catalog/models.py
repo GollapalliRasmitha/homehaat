@@ -57,6 +57,9 @@ class Product(models.Model):
     price_paise = models.PositiveIntegerField(validators=[MinValueValidator(100)])  # at least ₹1
     stock = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True, db_index=True)
+    # A one-off product made when a buyer accepts a custom-request quote. It belongs to that buyer's bag
+    # only: never listed, searched or shown on the shop page or in the seller's product list.
+    is_custom = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:

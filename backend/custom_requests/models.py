@@ -19,7 +19,12 @@ class CustomRequest(models.Model):
     quote_paise = models.PositiveIntegerField(null=True, blank=True)
     seller_note = models.CharField(max_length=300, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN, db_index=True)
+    # Made when the buyer accepts the quote: the one-off product (price = quote) that goes into their bag.
+    product = models.OneToOneField(
+        "catalog.Product", null=True, blank=True, on_delete=models.SET_NULL, related_name="custom_request"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)  # last quote / accept / decline
 
     class Meta:
         ordering = ["-created_at"]

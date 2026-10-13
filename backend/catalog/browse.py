@@ -28,7 +28,8 @@ def _int(value, default=None):
 def public_products() -> QuerySet:
     """Products buyers may see: active, from a store that isn't paused."""
     return (
-        Product.objects.filter(is_active=True, seller__is_active=True)
+        # is_custom=False: one-off custom-request products are never listed (they live in one buyer's bag)
+        Product.objects.filter(is_active=True, is_custom=False, seller__is_active=True)
         .select_related("category", "seller")
         .prefetch_related("images")
     )
@@ -113,7 +114,9 @@ def public_stores() -> QuerySet:
         Seller.objects.filter(is_active=True)
         .select_related("main_category")
         .annotate(
-            product_count=Count("products", filter=Q(products__is_active=True), distinct=True),
+            product_count=Count(
+                "products", filter=Q(products__is_active=True, products__is_custom=False), distinct=True
+            ),
             rating=Avg("reviews__rating"),
             review_count=Count("reviews", distinct=True),
         )

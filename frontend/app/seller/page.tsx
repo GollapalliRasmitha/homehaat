@@ -56,6 +56,20 @@ export default function OverviewPage() {
         />
       </div>
 
+      {data.open_requests > 0 && (
+        <Link
+          href="/seller/requests"
+          className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-line px-5 py-4 no-underline hover:border-ink"
+        >
+          <span>
+            <b>
+              {data.open_requests} custom {data.open_requests === 1 ? "request is" : "requests are"} waiting for your price
+            </b>
+          </span>
+          <span className="font-medium underline underline-offset-4">Reply</span>
+        </Link>
+      )}
+
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <h3 className="text-[24px]">Incoming orders</h3>
         {data.incoming.length > 0 && <Link href="/seller/orders">See all orders</Link>}

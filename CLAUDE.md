@@ -4,7 +4,7 @@ A multi-seller marketplace for home businesses (bakers, pickle makers, artists, 
 Buyers fill one bag, pay once, and the order is split per seller. Full brief: `PROMPT.md`. Design brief: `UI-UX.md`.
 Visual reference: `design/HomeHaat-demo-empty.html` (copy its look, never its data). `design/_old-styles/` is NOT used.
 
-**Current stage: 4 of 8 — design system and polish (done, waiting for "continue").**
+**Current stage: 5 of 8 — custom requests (done, waiting for "continue"). Deploy after Stage 6, with Cloudinary pulled forward.**
 
 ---
 
@@ -49,7 +49,8 @@ homehaat/
                           management/commands/expire_orders.py
     payments/             webhook.py [KEY LOGIC]; razorpay_client.py (only file that calls Razorpay); views.py
     reviews/              Review model; seller's read-only reviews list (writing reviews: Stage 6)
-    custom_requests/      models only for now (Stage 5)
+    custom_requests/      CustomRequest + images; services.py [KEY LOGIC] (rules + accept -> bag); buyer and
+                          seller views
     ai/                   empty until Stage 6
     core/tests/factories.py   test-only helpers (never used by the running site)
   frontend/               Next.js 16 (App Router) + TypeScript + Tailwind v4 + lucide-react + sonner
@@ -58,7 +59,7 @@ homehaat/
                           PasswordInput, BagLine, OrderTimeline, LoadError, ServerStatus, StatCard,
                           ConfirmDialog (Radix), PhotoPicker, StoreForm, ProductForm, IncomingOrderCard,
                           HeroSearch, ShowcaseCard, CategoryTile(+Grid), ProductGrid, QuickAdd, WishlistButton,
-                          MakerCard(+Grid), Monogram, SectionHead, ShareButton
+                          MakerCard(+Grid), Monogram, SectionHead, ShareButton, SafeImage/SafeImg, RequestCard
     lib/api/*.ts          the ONLY way components get data (client.ts is the only fetch call)
     lib/format.ts         formatINR, rupeesToPaise, deliveryText (+ format.test.ts)
     lib/guest-bag.ts      signed-out bag in localStorage: ids + qty only, never prices (+ guest-bag.test.ts)
@@ -122,7 +123,7 @@ Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference
 | `/makers` | all open shops |
 | `/store/[slug]` | cover (upload, else the main category photo), monogram, name, kind · area, bio, facts, Request a custom order / Manage my shop, Share, ARIA tabs per category + Reviews |
 | `/wishlist` | saved products (from this browser) |
-| `/custom` | explainer + "opens soon" (built in Stage 5) |
+| `/custom` | request form (maker, description, up to 3 photos, needed-by, budget; `?maker=` preselects) + Your requests (Accept and add to bag / Decline / Add to bag again) |
 | `/product/[id]` | gallery (up to 5), maker link, price + stock pill, description, quantity, note, Add to bag, Save, delivery rows, More from this seller |
 | `/cart` | the bag grouped by maker (guest or signed in), sold-out flags, "split into N seller orders" |
 | `/checkout` | Address → Review (grouped) → Pay; sold-out list with "Remove them from my bag" |
@@ -135,7 +136,7 @@ Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference
 | `/seller/orders` | status filter chips with counts; next-step button; Cancel with confirmation |
 | `/seller/products` | list with photo, price, stock, sold, Live/Hidden switch, Edit |
 | `/seller/products/new`, `/seller/products/[id]` | ProductForm with up to 5 photos |
-| `/seller/requests` | empty state (custom requests: Stage 5) |
+| `/seller/requests` | filter chips with counts; Send quote (₹ + note) / Decline with confirm; the Overview shows "N requests waiting for your price" |
 | `/seller/reviews` | read-only reviews + average (empty until Stage 6 lets buyers review) |
 | `/seller/settings` | StoreForm + Pause my shop |
 
@@ -149,7 +150,10 @@ no sign-in) · `cart/merge` · `checkout` ·
 `orders` · `orders/<id>` · `payments/verify` · `payments/webhook` · `seller/overview` · `seller/store` (GET/POST/
 PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/products/<id>` ·
 `seller/products/<id>/images` (POST) · `seller/products/<id>/images/order` · `seller/products/<id>/images/<img>`
-(DELETE) · `seller/orders` (`?status=`) · `seller/orders/<id>/status` (POST `{status}`) · `seller/reviews`
+(DELETE) · `seller/orders` (`?status=`) · `seller/orders/<id>/status` (POST `{status}`) · `seller/reviews` ·
+`seller/requests` · `seller/requests/<id>/quote` (POST `{quote_paise, note}`) · `seller/requests/<id>/decline` ·
+`requests` (GET mine / POST new, 10 per hour) · `requests/<id>` · `requests/<id>/images` (≤3, while open) ·
+`requests/<id>/accept` · `requests/<id>/decline` · `requests/<id>/add-to-bag`
 
 ## Decisions and assumptions
 
@@ -241,6 +245,16 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - **Images never show a broken icon:** use `SafeImage` (next/image, Unsplash) or `SafeImg` (seller uploads) from
   `components/SafeImage.tsx`, never `<Image>`/`<img>` directly. On failure they disappear, showing the tint behind
   (or a `fallback`, e.g. the category drawing). A ref check also catches images that failed before React started.
+- **Accepted quote → a private one-off product** (`Product.is_custom=True`, price = quote, stock 1, linked as
+  `CustomRequest.product`) in the buyer's bag, so bag, stock hold, checkout, payment and seller orders work
+  unchanged. `is_custom` products are excluded everywhere products are listed or counted (`browse.public_products`,
+  store counts, category counts, the seller's product list, Overview "products listed", product photo endpoints).
+  New fields `Product.is_custom` and `CustomRequest.product` / `responded_at` are additive (nothing earlier breaks).
+- **Request rules**: description 20+ characters, needed-by today or later, budget optional; not to your own shop or a
+  paused one; up to 3 reference photos (same cleaning as product photos, no EXIF/GPS), only while open; the seller
+  sees the buyer's first name only.
+- Known limit: request photos are served from `/media/requests/` like product photos (unguessable file names, but
+  not access-checked); Stage 7 can move them behind a signed URL if needed.
 - Known limit: while an item is held, its product page shows the reduced stock ("Sold out" for the last one) until
   the hold is paid or released. That's the honest answer, since another buyer is paying for it right now.
 - Products without a photo show the **fine black line drawing** of their category (UI-UX.md §7), not a "3D-style"
@@ -471,6 +485,42 @@ server inside a locked transaction; ownership is checked before anything else.
 > seller owns this part and the order is paid, rejects any move that isn't in the table, and saves only the status
 > fields, so a seller can never change amounts or skip steps."
 
+### 11. Custom requests — `backend/custom_requests/services.py` [KEY LOGIC]
+
+**The rules are one table**, `RULES`: (current status, action) → (who may do it, new status).
+
+| From | Action | Who | To |
+|---|---|---|---|
+| open | quote | seller | quoted |
+| open | decline | seller | declined |
+| quoted | accept | buyer | accepted |
+| quoted | decline | buyer | declined |
+
+**`apply_action(request, user, action, quote_paise, note)` step by step:**
+1. Lock the request row (`select_for_update`), so a double tap, or buyer and seller at the same moment, run one
+   after the other.
+2. **Who are you?** The request's buyer → "buyer"; the shop's owner → "seller"; anyone else →
+   `NotYourRequestError` (the API answers 404, like a missing request).
+3. **Is the move in the table, and is it your move?** If not → `RequestError` with a sentence people can read
+   ("Only the buyer can accept a quote."). Accepted and declined have no rows, so they're final.
+4. **quote:** the price must be at least ₹1 (integer paise); it's saved with the note.
+   **accept:** the shop must be open; then `_make_one_off_product` creates a private product: name "Custom: …",
+   **price = the saved quote** (never a number from the request), stock 1, `is_custom=True`, and a `CartItem` for the
+   buyer linked to the request.
+5. Save the new status and `responded_at`.
+
+`add_quote_to_bag` puts an accepted request back in the bag if the buyer removed it: `get_or_create`, so never a
+second line, and refused once it's bought (stock 0).
+
+**Why it's safe:** one table of allowed moves; who-may-act checked before anything else; the price comes from the
+database; the private product can't be found or bought by anyone else (tests check the product page, search, the
+shop page, another buyer's bag, and the seller's product list). From there it's an ordinary item, so the 15-minute
+stock hold, payment checks and seller order flow all apply unchanged.
+
+> *Say it:* "Custom requests follow a small state table: the seller quotes or declines, then the buyer accepts or
+> declines. Accepting creates a private one-off product at the quoted price and puts it in the buyer's bag, so it
+> goes through the same checkout, stock and payment code as everything else."
+
 ---
 
 ## Interview notes
@@ -517,6 +567,17 @@ server inside a locked transaction; ownership is checked before anything else.
    computed from the database; sections with no data are hidden or show a designed empty state, ratings show
    "No reviews yet", and "Fresh this week" is only used when a listing really is from this week.
 
+### Stage 5
+1. **How do you model a workflow like quote → accept?** With a table of allowed transitions (status + action →
+   who may do it + next status) checked in one locked function, so every rule lives in one place and anything else
+   is refused. Tests try each wrong side and each wrong step.
+2. **How does an accepted quote get paid for without a special checkout?** Accepting creates a private one-off
+   product priced at the quote, with stock 1, and adds it to the buyer's bag. Checkout, the stock hold and payment
+   then work exactly as for any product, and the product is hidden from everyone else.
+3. **How do you stop a buyer changing the price when accepting?** The accept endpoint reads nothing from the body:
+   the price comes from the quote saved by the seller. A test sends `quote_paise: 100` with the accept and checks
+   the bag still has the real quote.
+
 ## Stage log
 
 - **Stage 1** — monorepo, Docker Postgres (5433), `start-homehaat.ps1`, Django + Next.js via `/api` proxy, email
@@ -533,3 +594,7 @@ server inside a locked transaction; ownership is checked before anything else.
   home page, Explore, Categories, Makers, store page (tabs, share), product gallery, wishlist (browser), header and
   footer per UI-UX; product card with heart and quick +; optimistic bag quantities; phone/tablet/desktop audit of
   every page (no sideways scroll, alt text, labels, one h1).
+- **Stage 5**: custom requests: buyer form with up to 3 photos, needed-by and budget; seller Send quote / Decline;
+  buyer Accept and add to bag / Decline / Add to bag again; accept creates a private one-off product at the quoted
+  price that goes through normal checkout; rules in one table (`apply_action`); rate limit 10 requests/hour;
+  Overview nudge for open requests.

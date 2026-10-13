@@ -40,7 +40,7 @@ class CategoryList(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        live = Q(products__is_active=True, products__seller__is_active=True)
+        live = Q(products__is_active=True, products__is_custom=False, products__seller__is_active=True)
         # order_by is needed: Django drops Meta.ordering in GROUP BY (counting) queries
         return Category.objects.annotate(product_count=Count("products", filter=live)).order_by("position")
 
@@ -173,7 +173,13 @@ def my_products(user):
         .values("total")
     )
     sold = Coalesce(Subquery(sold_rows), 0)  # 0 when nothing has sold yet
-    return user.seller.products.select_related("category").prefetch_related("images").annotate(sold=sold)
+    # custom-request products aren't the seller's catalogue: they show up as orders instead
+    return (
+        user.seller.products.filter(is_custom=False)
+        .select_related("category")
+        .prefetch_related("images")
+        .annotate(sold=sold)
+    )
 
 
 class MyProductList(generics.ListCreateAPIView):
@@ -198,7 +204,7 @@ class MyProductDetail(generics.RetrieveUpdateAPIView):
 
 
 def _my_product(request, pk) -> Product:
-    return get_object_or_404(Product, pk=pk, seller=request.user.seller)  # someone else's product -> 404
+    return get_object_or_404(Product, pk=pk, seller=request.user.seller, is_custom=False)  # not yours -> 404
 
 
 @api_view(["POST"])

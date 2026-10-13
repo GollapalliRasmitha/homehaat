@@ -224,6 +224,7 @@ export interface SellerOverview {
   products_listed: number;
   rating: number | null; // null = no reviews yet
   review_count: number;
+  open_requests: number; // custom requests waiting for a quote
   incoming: IncomingOrder[];
 }
 
@@ -231,4 +232,24 @@ export interface SellerReviews {
   average: number | null;
   count: number;
   reviews: { id: number; rating: number; comment: string; buyer_name: string; created_at: string }[];
+}
+
+export type RequestStatus = "open" | "quoted" | "accepted" | "declined";
+
+/** A custom request ("photo cake for Saturday"), as its buyer or its seller sees it. Money in paise. */
+export interface CustomRequest {
+  id: number;
+  seller: SellerSummary;
+  buyer_name: string; // first name only
+  description: string;
+  needed_by: string | null; // "2026-10-18"
+  budget_paise: number | null;
+  quote_paise: number | null;
+  seller_note: string;
+  status: RequestStatus;
+  images: string[];
+  in_bag: boolean;
+  ordered: boolean;
+  created_at: string;
+  responded_at: string | null;
 }

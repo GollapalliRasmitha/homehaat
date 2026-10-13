@@ -16,6 +16,21 @@ export function formatINR(paise: number): string {
   return `${sign}₹${grouping.format(rupees)}${decimals}`;
 }
 
+/**
+ * "2026-10-18" -> "Sun, 18 Oct". Read as a local calendar date (not UTC midnight),
+ * so it can't shift by a day in a different time zone.
+ */
+export function formatDay(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+}
+
+/** Today as "YYYY-MM-DD" in the buyer's own time zone (for <input type="date" min=…>). */
+export function todayISO(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 /** 0 -> "Delivers today", 1 -> "Delivers tomorrow", 3 -> "Delivers in 3 days" */
 export function deliveryText(days: number): string {
   if (days === 0) return "Delivers today";

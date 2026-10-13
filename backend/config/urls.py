@@ -6,6 +6,7 @@ from django.urls import include, path
 from accounts import views as accounts
 from cart import views as cart
 from catalog import views as catalog
+from custom_requests import views as custom_requests
 from orders import views as orders
 from payments import views as payments
 from reviews import views as reviews
@@ -49,6 +50,16 @@ api = [
     path("seller/orders/", orders.IncomingOrderList.as_view()),
     path("seller/orders/<int:pk>/status/", orders.change_status),
     path("seller/reviews/", reviews.my_reviews),
+    path("seller/requests/", custom_requests.shop_requests),
+    path("seller/requests/<int:pk>/quote/", custom_requests.send_quote),
+    path("seller/requests/<int:pk>/decline/", custom_requests.seller_decline),
+    # custom requests (buyer)
+    path("requests/", custom_requests.my_requests),
+    path("requests/<int:pk>/", custom_requests.my_request),
+    path("requests/<int:pk>/images/", custom_requests.request_images),
+    path("requests/<int:pk>/accept/", custom_requests.accept),
+    path("requests/<int:pk>/decline/", custom_requests.decline),
+    path("requests/<int:pk>/add-to-bag/", custom_requests.add_to_bag),
 ]
 
 urlpatterns = [

@@ -144,6 +144,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "auth": "10/min",
         "checkout": "10/min",
+        "custom_requests": "10/hour",
     },
 }
 

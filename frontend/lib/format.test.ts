@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { formatINR, rupeesToPaise } from "./format.ts";
+import { formatDay, formatINR, rupeesToPaise, todayISO } from "./format.ts";
 
 test("formatINR shows whole rupees without decimals", () => {
   assert.equal(formatINR(45000), "₹450");
@@ -37,4 +37,13 @@ test("rupeesToPaise rejects nonsense", () => {
   for (const bad of ["", "abc", "-5", "1.234", "1e3", "12.", "."]) {
     assert.equal(rupeesToPaise(bad), null, bad);
   }
+});
+
+test("formatDay shows a calendar date without time-zone shifts", () => {
+  assert.equal(formatDay("2026-10-18"), "Sun, 18 Oct");
+  assert.equal(formatDay("2026-01-01"), "Thu, 1 Jan");
+});
+
+test("todayISO pads months and days", () => {
+  assert.equal(todayISO(new Date(2026, 0, 5)), "2026-01-05");
 });

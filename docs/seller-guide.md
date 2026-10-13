@@ -123,7 +123,27 @@ Open **Products**:
 
 ---
 
-## 7. Store settings and pausing your shop
+## 7. Custom requests ("can you make…?")
+
+Buyers can ask you to make something special, for example *a photo cake for Saturday*, from your shop page.
+When someone does, your **Overview** shows "1 custom request is waiting for your price".
+
+Open **Custom requests**. Each request shows what they want, any reference photos (tap to see them bigger), the
+date they need it by and their budget, if they gave one.
+
+- **Send quote**: type your price in rupees and, if you like, a short note (*"Includes the edible photo. Ready
+  Saturday 4 pm."*). Your delivery fee is added at checkout, so don't include it.
+- **Decline**: if you can't make it. HomeHaat asks you to confirm.
+
+The buyer then accepts or declines your price. If they accept, it goes into their bag and they pay at checkout like
+any order. Once paid, it appears under **Orders** as *Custom: …*, and you handle it with the same buttons as any
+other order.
+
+You can't change a price after sending it, so check it before you press **Send quote**.
+
+---
+
+## 8. Store settings and pausing your shop
 
 Open **Store settings** to change anything from when you opened your shop: name, shop link, delivery fee and days,
 description and cover photo.
@@ -142,8 +162,7 @@ order.
 **Can I buy from my own shop?** No. HomeHaat stops you, so test orders need a second account (a family member's
 email works).
 
-**Custom requests and reviews?** Coming soon: buyers will be able to ask you for something special, and review your
-shop after delivery.
+**Reviews?** Coming soon: buyers will be able to review your shop after delivery.
 
 **Something didn't work?** Please send Rasmitha a message with what you clicked and what you saw. A phone photo of
 the screen is perfect.

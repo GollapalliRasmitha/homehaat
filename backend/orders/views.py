@@ -167,7 +167,8 @@ def overview(request):
         {
             "earnings_week": earnings,  # paise: items + delivery, paid in the last 7 days, not cancelled
             "open_orders": open_parts.count(),
-            "products_listed": seller.products.filter(is_active=True).count(),
+            "products_listed": seller.products.filter(is_active=True, is_custom=False).count(),
+            "open_requests": seller.custom_requests.filter(status="open").count(),
             "rating": round(reviews["average"], 1) if reviews["average"] is not None else None,
             "review_count": reviews["count"],
             "incoming": IncomingOrderSerializer(open_parts.order_by("order__paid_at")[:5], many=True).data,
