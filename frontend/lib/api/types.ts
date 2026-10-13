@@ -126,6 +126,9 @@ export interface OrderItem {
   qty: number;
   note: string;
   line_total: number;
+  image: string | null; // the product's first photo (for a custom request: the buyer's reference photo)
+  tint: string; // category tint + drawing, shown when there's no photo
+  art: string;
 }
 
 export interface SellerOrder {

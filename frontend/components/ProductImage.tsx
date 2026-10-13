@@ -10,7 +10,7 @@ export function ProductImage({
   className = "",
   zoomOnHover = false,
 }: {
-  product: Pick<Product, "name" | "image" | "category">;
+  product: Pick<Product, "name" | "image"> & { category: Pick<Product["category"], "tint" | "art"> };
   src?: string | null; // a specific photo (the gallery); defaults to the main one
   className?: string;
   zoomOnHover?: boolean; // used inside a `group` (the product card)

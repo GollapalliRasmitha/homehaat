@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { OrderItemThumb } from "@/components/ItemThumb";
 import { LoadError } from "@/components/LoadError";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { ApiError } from "@/lib/api/client";
@@ -96,8 +97,9 @@ function OrderDetail() {
             </p>
           )}
           {part.items.map((item) => (
-            <div key={item.id} className="mt-2 flex justify-between text-[15px] text-muted">
-              <span>
+            <div key={item.id} className="mt-2.5 flex items-center gap-3 text-[15px] text-muted">
+              <OrderItemThumb item={item} />
+              <span className="min-w-0 flex-1">
                 {item.qty} × {item.name}
               </span>
               <span>{formatINR(item.line_total)}</span>

@@ -83,7 +83,11 @@ def checkout(request):
 
 
 def orders_with_details():
-    return Order.objects.prefetch_related("seller_orders__seller", "seller_orders__items")
+    return Order.objects.prefetch_related(
+        "seller_orders__seller",
+        "seller_orders__items__product__category",
+        "seller_orders__items__product__images",
+    )
 
 
 class MyOrderList(generics.ListAPIView):
@@ -121,7 +125,7 @@ def paid_parts(seller):
     return (
         SellerOrder.objects.filter(seller=seller, order__payment_status=Order.PaymentStatus.PAID)
         .select_related("order")
-        .prefetch_related("items")
+        .prefetch_related("items__product__category", "items__product__images")
     )
 
 

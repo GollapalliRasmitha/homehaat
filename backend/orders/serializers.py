@@ -5,9 +5,25 @@ from orders.services import hold_expires_at
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    # The item's picture (its product's first photo) and its category's drawing + tint for when there's none.
+    # Order endpoints are already limited to that order's buyer and its sellers.
+    image = serializers.SerializerMethodField()
+    tint = serializers.SerializerMethodField()
+    art = serializers.SerializerMethodField()
+
     class Meta:
         model = OrderItem
-        fields = ["id", "product_id", "name", "unit_price", "qty", "note", "line_total"]
+        fields = ["id", "product_id", "name", "unit_price", "qty", "note", "line_total", "image", "tint", "art"]
+
+    def get_image(self, item):
+        first = next(iter(item.product.images.all()), None) if item.product else None  # prefetched
+        return first.image.url if first else None
+
+    def get_tint(self, item):
+        return item.product.category.tint if item.product else "soft"  # product deleted later: neutral
+
+    def get_art(self, item):
+        return item.product.category.art if item.product else "gift"
 
 
 class SellerOrderSerializer(serializers.ModelSerializer):

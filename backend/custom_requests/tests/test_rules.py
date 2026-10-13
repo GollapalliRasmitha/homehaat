@@ -170,3 +170,88 @@ class CustomRequestRuleTests(TestCase):
         CartItem.objects.filter(user=self.buyer).delete()
         with self.assertRaises(RequestError):
             add_quote_to_bag(self.req, self.buyer)
+
+
+class ReferencePhotoAsItemImageTests(TestCase):
+    """The buyer's first reference photo becomes the one-off item's picture (bag, checkout, orders)."""
+
+    def setUp(self):
+        import tempfile
+
+        self.media = tempfile.mkdtemp(prefix="homehaat-test-refphoto-")
+        self.override = self.settings(MEDIA_ROOT=self.media)
+        self.override.enable()
+        self.seller = make_seller(main_category=make_category("cakes"))
+        self.buyer = make_user()
+        self.req = CustomRequest.objects.create(
+            buyer=self.buyer, seller=self.seller, description="A cake shaped like our house, for Sunday lunch"
+        )
+
+    def tearDown(self):
+        import shutil
+
+        self.override.disable()
+        shutil.rmtree(self.media, ignore_errors=True)
+
+    def add_photo(self, position):
+        import io
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        from catalog.images import clean_image
+        from custom_requests.models import CustomRequestImage
+
+        buf = io.BytesIO()
+        Image.new("RGB", (200, 200), (10 * position, 80, 60)).save(buf, "JPEG")
+        upload = SimpleUploadedFile("ref.jpg", buf.getvalue(), content_type="image/jpeg")
+        return CustomRequestImage.objects.create(request=self.req, image=clean_image(upload), position=position)
+
+    def accept(self):
+        apply_action(self.req, self.seller.owner, "quote", quote_paise=150000)
+        apply_action(self.req, self.buyer, "accept")
+        self.req.refresh_from_db()
+
+    def test_first_reference_photo_becomes_the_items_image(self):
+        second = self.add_photo(1)
+        first = self.add_photo(0)
+        self.accept()
+
+        self.assertEqual(self.req.product.images.count(), 1)
+        self.assertEqual(self.req.product.images.get().image.name, first.image.name)  # position 0, not upload order
+        self.assertNotEqual(first.image.name, second.image.name)
+
+        client = APIClient()
+        client.force_authenticate(self.buyer)
+        line = client.get("/api/cart/").data["groups"][0]["items"][0]
+        self.assertEqual(line["product"]["image"], first.image.url)  # bag (and checkout, which uses the bag)
+
+    def test_no_reference_photo_means_no_image_so_the_drawing_shows(self):
+        self.accept()
+        self.assertEqual(self.req.product.images.count(), 0)
+
+    def test_orders_show_it_to_that_buyer_and_that_seller_only(self):
+        first = self.add_photo(0)
+        self.accept()
+        order = create_order_from_cart(self.buyer, make_address(self.buyer))
+        from payments.webhook import mark_order_paid
+
+        mark_order_paid(order, "pay_ref", order.grand_total)
+
+        buyer = APIClient()
+        buyer.force_authenticate(self.buyer)
+        item = buyer.get(f"/api/orders/{order.id}/").data["seller_orders"][0]["items"][0]
+        self.assertEqual(item["image"], first.image.url)
+        self.assertEqual((item["tint"], item["art"]), ("blush", "cake"))  # fallback drawing info
+
+        seller = APIClient()
+        seller.force_authenticate(self.seller.owner)
+        self.assertEqual(seller.get("/api/seller/orders/").data[0]["items"][0]["image"], first.image.url)
+
+        stranger = APIClient()
+        stranger.force_authenticate(make_user())
+        self.assertEqual(stranger.get(f"/api/orders/{order.id}/").status_code, 404)
+        other_seller = APIClient()
+        other_seller.force_authenticate(make_seller().owner)
+        self.assertEqual(other_seller.get("/api/seller/orders/").data, [])
+        self.assertEqual(APIClient().get(f"/api/products/{self.req.product.id}/").status_code, 404)

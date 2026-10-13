@@ -250,6 +250,13 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
   unchanged. `is_custom` products are excluded everywhere products are listed or counted (`browse.public_products`,
   store counts, category counts, the seller's product list, Overview "products listed", product photo endpoints).
   New fields `Product.is_custom` and `CustomRequest.product` / `responded_at` are additive (nothing earlier breaks).
+- **Custom item picture**: on accept, the buyer's first reference photo becomes the one-off product's photo
+  (`use_reference_photo`: a `ProductImage` pointing at the same cleaned file, no copy). So the bag, checkout and
+  orders show it, and only that buyer and that seller can ever see it (the product is private; order endpoints are
+  buyer/seller-only). No reference photo → no picture → the category line drawing. Migration
+  `custom_requests.0003` filled this in for requests accepted earlier.
+- **Item thumbnails** (`components/ItemThumb.tsx`) in the checkout review, the buyer's order page and the seller's
+  order cards. Order items now carry `image`, `tint` and `art` (prefetched, no extra queries per item).
 - **Request rules**: description 20+ characters, needed-by today or later, budget optional; not to your own shop or a
   paused one; up to 3 reference photos (same cleaning as product photos, no EXIF/GPS), only while open; the seller
   sees the buyer's first name only.

@@ -10,6 +10,7 @@ import { formatINR } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/status";
 
 import { ConfirmDialog } from "./ConfirmDialog";
+import { OrderItemThumb } from "./ItemThumb";
 
 /** The one next step for each status, and its button label. Delivered/cancelled have none. */
 export const NEXT_STEP: Partial<Record<SellerOrderStatus, { status: SellerOrderStatus; label: string }>> = {
@@ -59,8 +60,9 @@ export function IncomingOrderCard({ order, onChange }: { order: IncomingOrder; o
 
       <div className="mt-3">
         {order.items.map((item) => (
-          <div key={item.id} className="mt-1.5 flex justify-between gap-3 text-[15px]">
-            <span>
+          <div key={item.id} className="mt-2.5 flex items-center gap-3 text-[15px]">
+            <OrderItemThumb item={item} />
+            <span className="min-w-0 flex-1">
               {item.qty} × {item.name}
               {item.note && <span className="block text-sm text-muted">Note: {item.note}</span>}
             </span>

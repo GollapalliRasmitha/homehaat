@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { problemText } from "@/components/BagLine";
 import { EmptyState } from "@/components/EmptyState";
+import { ItemThumb } from "@/components/ItemThumb";
 import { LoadError } from "@/components/LoadError";
 import { addAddress, listAddresses } from "@/lib/api/auth";
 import { ApiError, errorMessage } from "@/lib/api/client";
@@ -196,8 +197,9 @@ export default function CheckoutPage() {
             <div key={group.seller.slug} className="border-t border-line py-3">
               <b>{group.seller.name}</b> <span className="text-muted">· {deliveryText(group.seller.delivery_days)}</span>
               {group.items.map((line) => (
-                <div key={line.product.id} className="mt-1.5 flex justify-between text-[15px] text-muted">
-                  <span>
+                <div key={line.product.id} className="mt-2.5 flex items-center gap-3 text-[15px] text-muted">
+                  <ItemThumb name={line.product.name} image={line.product.image} tint={line.product.category.tint} art={line.product.category.art} size={48} />
+                  <span className="min-w-0 flex-1">
                     {line.qty} × {line.product.name}
                     {line.problem && <span className="ml-2 font-semibold text-error">{problemText(line)}</span>}
                   </span>

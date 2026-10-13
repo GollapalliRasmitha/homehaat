@@ -13,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from cart.models import CartItem
-from catalog.models import Category, Product
+from catalog.models import Category, Product, ProductImage
 from custom_requests.models import CustomRequest
 
 R = CustomRequest.Status
@@ -89,7 +89,7 @@ def _make_one_off_product(req: CustomRequest) -> Product:
         raise RequestError("The shop isn't set up yet. Please try again later.")
     words = req.description.split()
     short = " ".join(words[:8]) + ("…" if len(words) > 8 else "")
-    return Product.objects.create(
+    product = Product.objects.create(
         seller=req.seller,
         category=category,
         name=f"Custom: {short}"[:120],
@@ -98,6 +98,19 @@ def _make_one_off_product(req: CustomRequest) -> Product:
         stock=1,
         is_custom=True,
     )
+    use_reference_photo(req, product)
+    return product
+
+
+def use_reference_photo(req: CustomRequest, product: Product) -> None:
+    """
+    The buyer's first reference photo becomes the item's picture in the bag, checkout and orders.
+    It points at the same (already cleaned) file, no copy. The product is private, so only this buyer
+    and this seller ever see it. No reference photo -> no picture, and the category drawing shows instead.
+    """
+    first = req.images.order_by("position").first()
+    if first and not product.images.exists():
+        ProductImage.objects.create(product=product, image=first.image.name, position=0)
 
 
 @transaction.atomic
