@@ -20,6 +20,7 @@ api = [
     path("auth/signout/", accounts.signout),
     path("auth/me/", accounts.me),
     path("addresses/", accounts.AddressList.as_view()),
+    path("addresses/<int:pk>/", accounts.AddressDetail.as_view()),
     # catalog (public)
     path("categories/", catalog.CategoryList.as_view()),
     path("products/", catalog.ProductList.as_view()),

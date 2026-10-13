@@ -93,3 +93,12 @@ class AddressList(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class AddressDetail(generics.RetrieveUpdateAPIView):
+    """Edit one of my addresses (e.g. one saved before the address rules). Someone else's id gives 404."""
+
+    serializer_class = AddressSerializer
+
+    def get_queryset(self):
+        return self.request.user.addresses.all()

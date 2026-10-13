@@ -9,7 +9,8 @@ import { problemText } from "@/components/BagLine";
 import { EmptyState } from "@/components/EmptyState";
 import { ItemThumb } from "@/components/ItemThumb";
 import { LoadError } from "@/components/LoadError";
-import { addAddress, listAddresses } from "@/lib/api/auth";
+import { AddressForm } from "@/components/AddressForm";
+import { listAddresses } from "@/lib/api/auth";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import { startCheckout } from "@/lib/api/orders";
 import type { Address, SoldOutItem } from "@/lib/api/types";
@@ -19,6 +20,16 @@ import { payWithRazorpay, RazorpayLoadError, rememberPayment } from "@/lib/razor
 import { useSession } from "@/lib/session";
 
 type Step = "address" | "review";
+
+/** For "Please update this address (mobile number, pincode)". The exact messages show in the form. */
+const FIELD_NAMES = {
+  name: "name",
+  phone: "mobile number",
+  line1: "address",
+  line2: "address line 2",
+  city: "city",
+  pincode: "pincode",
+};
 
 export default function CheckoutPage() {
   const { user, signedOut } = useSession();
@@ -32,6 +43,7 @@ export default function CheckoutPage() {
   const [paying, setPaying] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [soldOut, setSoldOut] = useState<SoldOutItem[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null); // an old address being updated
 
   useEffect(() => {
     if (signedOut) router.replace("/signin?next=/checkout");
@@ -69,6 +81,8 @@ export default function CheckoutPage() {
   }
 
   const address = addresses.find((a) => a.id === addressId);
+  const needsUpdate = (a: Address) => Object.keys(a.problems).length > 0;
+  const replaceAddress = (saved: Address) => setAddresses(addresses.map((a) => (a.id === saved.id ? saved : a)));
   const makers = cart.groups.length;
 
   async function pay() {
@@ -90,7 +104,12 @@ export default function CheckoutPage() {
       if (outcome.kind === "failed") setFailure("Your payment didn't go through. You haven't been charged.");
       else toast("Payment cancelled. You haven't been charged.");
     } catch (error) {
-      if (error instanceof ApiError && Array.isArray(error.data.sold_out)) {
+      if (error instanceof ApiError && error.data.address_problems && address) {
+        // The server found something wrong with this address: show what to fix, back on the address step.
+        replaceAddress({ ...address, problems: error.data.address_problems as Address["problems"] });
+        setStep("address");
+        setEditingId(address.id);
+      } else if (error instanceof ApiError && Array.isArray(error.data.sold_out)) {
         setSoldOut(error.data.sold_out as SoldOutItem[]);
         await reload();
       } else {
@@ -154,24 +173,58 @@ export default function CheckoutPage() {
       {step === "address" ? (
         <div className="panel">
           <h2 className="mb-3.5 text-[22px]">Deliver to</h2>
-          {addresses.map((a) => (
-            <label
-              key={a.id}
-              className={`mb-2.5 flex cursor-pointer items-start gap-3 rounded-2xl border p-3.5 ${
-                addressId === a.id ? "border-ink" : "border-line"
-              }`}
-            >
-              <input type="radio" name="address" checked={addressId === a.id} onChange={() => setAddressId(a.id)} className="mt-1.5" />
-              <span>
-                <b>{a.name}</b> · {a.phone}
-                <br />
-                <span className="text-muted">
-                  {a.line1}
-                  {a.line2 && `, ${a.line2}`}, {a.city} {a.pincode}
-                </span>
-              </span>
-            </label>
-          ))}
+          {addresses.map((a) =>
+            editingId === a.id ? (
+              <div key={a.id} className="mb-2.5 rounded-2xl border border-ink p-3.5">
+                <AddressForm
+                  address={a}
+                  onSaved={(saved) => {
+                    replaceAddress(saved);
+                    setAddressId(saved.id);
+                    setEditingId(null);
+                  }}
+                  onCancel={() => setEditingId(null)}
+                />
+              </div>
+            ) : (
+              <div
+                key={a.id}
+                className={`mb-2.5 rounded-2xl border p-3.5 ${addressId === a.id ? "border-ink" : "border-line"}`}
+              >
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input type="radio" name="address" checked={addressId === a.id} onChange={() => setAddressId(a.id)} className="mt-1.5" />
+                  <span className="min-w-0">
+                    <b>{a.name}</b> · {a.phone}
+                    <br />
+                    <span className="text-muted">
+                      {a.line1}
+                      {a.line2 && `, ${a.line2}`}, {a.city} {a.pincode}
+                    </span>
+                  </span>
+                </label>
+                {needsUpdate(a) && (
+                  <div className="mt-3 flex flex-col items-start gap-2.5 rounded-[14px] bg-soft px-3.5 py-3" role="status">
+                    <p className="text-sm">
+                      <b>Please update this address</b>{" "}
+                      <span className="text-muted">
+                        ({(Object.keys(a.problems) as (keyof typeof FIELD_NAMES)[]).map((k) => FIELD_NAMES[k]).join(", ")}).
+                      </span>
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-black"
+                      onClick={() => {
+                        setAddressId(a.id);
+                        setEditingId(a.id);
+                      }}
+                    >
+                      Update address
+                    </button>
+                  </div>
+                )}
+              </div>
+            ),
+          )}
           {addresses.length === 0 && (
             <AddressForm
               defaultName={user?.name ?? ""}
@@ -181,7 +234,14 @@ export default function CheckoutPage() {
               }}
             />
           )}
-          <button className="btn btn-black btn-lg mt-4" disabled={!addressId} onClick={() => setStep("review")}>
+          {address && needsUpdate(address) && editingId === null && (
+            <p className="field-error">Update the selected address to continue.</p>
+          )}
+          <button
+            className="btn btn-black btn-lg mt-4"
+            disabled={!address || needsUpdate(address) || editingId !== null}
+            onClick={() => setStep("review")}
+          >
             Continue to review
           </button>
         </div>
@@ -232,78 +292,5 @@ export default function CheckoutPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function AddressForm({ defaultName, onSaved }: { defaultName: string; onSaved: (a: Address) => void }) {
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const f = new FormData(event.currentTarget);
-    const value = (k: string) => String(f.get(k) ?? "").trim();
-    const data = {
-      label: "",
-      name: value("name"),
-      phone: value("phone"),
-      line1: value("line1"),
-      line2: value("line2"),
-      city: value("city"),
-      pincode: value("pincode"),
-    };
-    // Quick checks in the browser; the server checks again (it never trusts the browser).
-    const found: Record<string, string> = {};
-    if (!data.name) found.name = "Please enter a name.";
-    if (!/^\d{10}$/.test(data.phone)) found.phone = "Enter a 10-digit phone number.";
-    if (!data.line1) found.line1 = "Please enter your address.";
-    if (!data.city) found.city = "Please enter your city.";
-    if (!/^\d{6}$/.test(data.pincode)) found.pincode = "Enter a 6-digit pincode.";
-    setErrors(found);
-    if (Object.keys(found).length) return;
-
-    setBusy(true);
-    try {
-      onSaved(await addAddress(data));
-      toast("Address saved");
-    } catch (error) {
-      if (error instanceof ApiError) {
-        setErrors(Object.fromEntries(Object.keys(data).map((k) => [k, error.fieldError(k) ?? ""]).filter(([, v]) => v)));
-      }
-      toast(`Couldn't save the address. ${errorMessage(error)}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const field = (name: string, label: string, props: React.InputHTMLAttributes<HTMLInputElement> = {}, full = false) => (
-    <div className={full ? "sm:col-span-2" : ""}>
-      <label className="field-label" htmlFor={`a-${name}`}>
-        {label}
-      </label>
-      <input id={`a-${name}`} name={name} className="input" aria-describedby={errors[name] ? `a-${name}-err` : undefined} {...props} />
-      {errors[name] && (
-        <p id={`a-${name}-err`} className="field-error">
-          {errors[name]}
-        </p>
-      )}
-    </div>
-  );
-
-  return (
-    <form onSubmit={submit} noValidate className="grid gap-3.5 sm:grid-cols-2">
-      <p className="text-muted sm:col-span-2">Add the address where you want your order delivered.</p>
-      {field("name", "Name", { defaultValue: defaultName, autoComplete: "name" })}
-      {field("phone", "Phone", { inputMode: "numeric", maxLength: 10, autoComplete: "tel-national" })}
-      {field("line1", "Address", { autoComplete: "address-line1" }, true)}
-      {field("line2", "Address line 2 (optional)", { autoComplete: "address-line2" }, true)}
-      {field("city", "City", { autoComplete: "address-level2" })}
-      {field("pincode", "Pincode", { inputMode: "numeric", maxLength: 6, autoComplete: "postal-code" })}
-      <div className="sm:col-span-2">
-        <button className="btn btn-white" disabled={busy}>
-          {busy ? "Saving…" : "Save address"}
-        </button>
-      </div>
-    </form>
   );
 }

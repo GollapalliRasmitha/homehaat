@@ -1,6 +1,7 @@
 from django.contrib.auth import password_validation
 from rest_framework import serializers
 
+from accounts.address_rules import MESSAGES, address_problems, normalize_phone
 from accounts.models import Address, User
 
 
@@ -44,9 +45,26 @@ class SignInSerializer(serializers.Serializer):
 
 
 class AddressSerializer(serializers.ModelSerializer):
-    phone = serializers.RegexField(r"^\d{10}$", error_messages={"invalid": "Enter a 10-digit phone number."})
-    pincode = serializers.RegexField(r"^\d{6}$", error_messages={"invalid": "Enter a 6-digit pincode."})
+    # The rules live in accounts/address_rules.py. Each broken rule gets its own message next to its field.
+    problems = serializers.SerializerMethodField()  # for addresses saved before the rules: what to update
 
     class Meta:
         model = Address
-        fields = ["id", "label", "name", "phone", "line1", "line2", "city", "pincode"]
+        fields = ["id", "label", "name", "phone", "line1", "line2", "city", "pincode", "problems"]
+        extra_kwargs = {"phone": {"max_length": 20}}  # "+91 98765 43210" is accepted, then saved as 10 digits
+
+    def get_problems(self, address):
+        return address_problems(address.__dict__)
+
+    def validate(self, attrs):
+        if "phone" in attrs:
+            attrs["phone"] = normalize_phone(attrs["phone"])
+        for key in ("name", "line1", "line2", "city", "pincode"):
+            if key in attrs:
+                attrs[key] = attrs[key].strip()
+        # When editing, check the whole address as it will be saved (old values + the changes).
+        current = {f: getattr(self.instance, f) for f in MESSAGES} if self.instance else {}
+        problems = address_problems(current | attrs)
+        if problems:
+            raise serializers.ValidationError({field: [message] for field, message in problems.items()})
+        return attrs

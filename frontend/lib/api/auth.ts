@@ -14,3 +14,7 @@ export const signOut = () => apiFetch<{ ok: true }>("/auth/signout/", { method: 
 export const listAddresses = () => apiFetch<Address[]>("/addresses/");
 
 export const addAddress = (body: NewAddress) => apiFetch<Address>("/addresses/", { method: "POST", body });
+
+/** Edit one of my addresses (e.g. one saved before the address rules). The server checks it again. */
+export const updateAddress = (id: number, body: Partial<NewAddress>) =>
+  apiFetch<Address>(`/addresses/${id}/`, { method: "PATCH", body });

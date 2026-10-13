@@ -11,6 +11,7 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
+from accounts.address_rules import address_problems
 from accounts.models import Address
 from catalog.views import IsSeller
 from orders.models import Order, SellerOrder
@@ -46,6 +47,13 @@ def checkout(request):
     data = CheckoutSerializer(data=request.data)
     data.is_valid(raise_exception=True)
     address = get_object_or_404(Address, pk=data.validated_data["address_id"], user=request.user)
+    # An address saved before the address rules may be wrong (e.g. no real phone): ask for an update first,
+    # before any order is created or stock is held.
+    if problems := address_problems(address.__dict__):
+        return Response(
+            {"detail": "Please update this delivery address before paying.", "address_problems": problems},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Free anything whose 15-minute hold has run out, so this buyer can have it
     # even if the scheduled expire_orders job hasn't run yet.
@@ -76,7 +84,13 @@ def checkout(request):
             "amount": order.grand_total,
             "currency": "INR",
             "key_id": settings.RAZORPAY_KEY_ID,
-            "prefill": {"name": request.user.name, "email": request.user.email, "contact": address.phone},
+            # Always the delivery address's phone (checked above), in Razorpay's +91 format, so Razorpay
+            # doesn't ask the buyer for contact details again.
+            "prefill": {
+                "name": address.name or request.user.name,
+                "email": request.user.email,
+                "contact": f"+91{address.phone}",
+            },
             "hold_expires_at": hold_expires_at(order),  # Checkout.js closes itself at this time
         },
         status=status.HTTP_201_CREATED,

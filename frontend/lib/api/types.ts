@@ -111,9 +111,10 @@ export interface Address {
   line2: string;
   city: string;
   pincode: string;
+  problems: Partial<Record<"name" | "phone" | "line1" | "line2" | "city" | "pincode", string>>; // {} = fine
 }
 
-export type NewAddress = Omit<Address, "id">;
+export type NewAddress = Omit<Address, "id" | "problems">;
 
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 export type SellerOrderStatus = "new" | "preparing" | "out_for_delivery" | "delivered" | "cancelled";

@@ -40,7 +40,8 @@ Ports: Postgres **5433** (Oppora uses 5432), Django **8000**, Next.js **3000** (
 homehaat/
   backend/                Django + DRF (Python 3.14, Django 5.2 LTS)
     config/               settings.py (reads ../.env), urls.py (all /api/ routes in one list)
-    accounts/             User (email login, role), Address, sign-up/in/out, /auth/me
+    accounts/             User (email login, role), Address, sign-up/in/out, /auth/me; address_rules.py (Indian
+                          pincode/mobile, real letters)
     catalog/              Category, Seller, Product, ProductImage; public products; seller store/products/photos
                           images.py (check + clean uploads); browse.py (full-text search, filters, sort, pages,
                           "Did you mean", trending, public stores); management/commands/seed_categories.py
@@ -62,9 +63,10 @@ homehaat/
                           ConfirmDialog (Radix), PhotoPicker, StoreForm, ProductForm, IncomingOrderCard,
                           HeroSearch, ShowcaseCard, CategoryTile(+Grid), ProductGrid, QuickAdd, WishlistButton,
                           MakerCard(+Grid), Monogram, SectionHead, ShareButton, SafeImage/SafeImg, RequestCard,
-                          ItemThumb, Stars (+StarInput), ReviewForm
+                          ItemThumb, Stars (+StarInput), ReviewForm, AddressForm (add + update)
     lib/api/*.ts          the ONLY way components get data (client.ts is the only fetch call)
     lib/format.ts         formatINR, rupeesToPaise, deliveryText (+ format.test.ts)
+    lib/address-rules.ts  the same address rules as the server, for messages next to each field (+ test)
     lib/guest-bag.ts      signed-out bag in localStorage: ids + qty only, never prices (+ guest-bag.test.ts)
     lib/bag.ts            useBag(): one bag API for pages, signed in or guest
     lib/compress-image.ts shrinks photos in the browser before upload (+ test)
@@ -145,7 +147,8 @@ Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference
 
 ## API (all under `/api/`, proxied by Next.js)
 
-`auth/csrf` · `auth/signup` · `auth/signin` · `auth/signout` · `auth/me` (GET/PATCH) · `addresses` ·
+`auth/csrf` · `auth/signup` · `auth/signin` · `auth/signout` · `auth/me` (GET/PATCH) · `addresses` (each with
+`problems`) · `addresses/<id>` (GET/PATCH, mine only) ·
 `categories` (with live `product_count`) · `products` (`?q= category= seller= min_price= max_price=` (paise)
 `in_stock=1 sort=relevance|newest|price_asc|price_desc|rating|trending ids= limit=`) · `search` (same filters + `page=` →
 `{count, page, pages, page_size, results, suggestion}`) · `products/<id>` · `stores`
@@ -195,6 +198,17 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - `CustomRequest.images` is a separate `CustomRequestImage` table (up to 3), like `ProductImage`.
 - `mark_order_paid(order, payment_id, amount_paise)` takes the amount too, so the webhook and verify paths share one
   amount check.
+- **Address rules** (`accounts/address_rules.py`, mirrored in `frontend/lib/address-rules.ts`): pincode = 6 digits
+  starting 1–9; phone = Indian mobile, 10 digits starting 6–9 (typed "+91 98765 43210" / "098765-43210" is accepted
+  and saved as `9876543210`; all-same digits refused); name 2+ letters; address line and city 3+ letters (any
+  script, so "बेंगलुरु" counts; only symbols or digits is refused); line 2 optional but not only symbols. Each
+  broken rule has its own message under its field (shown when leaving the field and on Save).
+- **Old addresses** saved before the rules aren't changed: every address in the API carries `problems`
+  ({} = fine). Checkout shows "Please update this address (mobile number, pincode)" with **Update address**
+  (`PATCH addresses/<id>`) and won't continue until it's fixed, and `POST checkout` refuses such an address
+  (400 `address_problems`) before creating any order or holding stock.
+- **Razorpay contact** is always the delivery address's phone, sent as `+91XXXXXXXXXX` (Razorpay's format), with
+  the account email and the address name, so Razorpay doesn't ask for contact details. Never the profile phone.
 - **Errors never crash a page.** Rules for every page:
   - every API call has a `.catch`/`try`; loading failures render `<LoadError error onRetry>` (reason + Try again);
   - action failures show a toast built from `errorMessage(error)`;
