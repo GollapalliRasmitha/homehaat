@@ -7,10 +7,16 @@
  * On the server (server components), we call Django directly.
  */
 
+/** The free server sleeps when nobody uses it; while it starts, the hosting sends one of these (no details). */
+export const WAKING_UP = [502, 503, 504];
+export const SERVER_WAKING =
+  "HomeHaat's server is just waking up (it rests when the site is quiet). Please try again in a minute.";
+
 /** Turns any failed API reply into one short sentence a buyer or seller can understand. */
 export function friendlyMessage(status: number, data: Record<string, unknown>): string {
   if (typeof data.detail === "string") return data.detail; // Django already wrote a message for people
   if (status === 0) return "Can't reach HomeHaat right now. Check your internet connection and try again.";
+  if (WAKING_UP.includes(status)) return SERVER_WAKING;
   if (status >= 500) return "Our server had a problem. Please try again in a moment.";
   if (status === 404) return "We couldn't find that. It may have been removed.";
   if (status === 429) return "Too many tries. Please wait a minute and try again.";
@@ -47,7 +53,7 @@ export function errorMessage(error: unknown): string {
 }
 
 const isServer = typeof window === "undefined";
-const BASE = isServer ? (process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8000") : "";
+const BASE = isServer ? (process.env.API_INTERNAL_URL || "http://127.0.0.1:8000").replace(/\/+$/, "") : "";
 
 function readCookie(name: string): string | undefined {
   if (isServer) return undefined;
@@ -77,12 +83,44 @@ async function ensureCsrf() {
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
 
-/** body = JSON data; form = a file upload (FormData). Send one or the other. */
+/** Waits before trying again, while the free server wakes up (about a minute at most). */
+export const RETRY_DELAYS_MS = [1500, 4000, 8000];
+
+/**
+ * Worth asking again? No reply at all, or the hosting's "starting up" answer (which has no message from Django).
+ * Never a real refusal (4xx), and never an error Django explained itself.
+ */
+export function shouldRetry(error: ApiError, attempt: number): boolean {
+  if (attempt >= RETRY_DELAYS_MS.length || typeof error.data.detail === "string") return false;
+  return error.status === 0 || WAKING_UP.includes(error.status);
+}
+
+/**
+ * body = JSON data; form = a file upload (FormData). Send one or the other.
+ * retry: ask again if the server is waking up. On by default only for GET (reading is always safe to repeat);
+ * a POST opts in only when doing it twice is harmless (e.g. payments/verify, which is idempotent).
+ */
 export async function apiFetch<T>(
   path: string,
-  options: { method?: Method; body?: unknown; form?: FormData } = {},
+  options: { method?: Method; body?: unknown; form?: FormData; retry?: boolean } = {},
 ): Promise<T> {
   const method = options.method ?? "GET";
+  const retry = options.retry ?? method === "GET";
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await apiFetchOnce<T>(path, method, options);
+    } catch (error) {
+      if (!retry || !(error instanceof ApiError) || !shouldRetry(error, attempt)) throw error;
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
+async function apiFetchOnce<T>(
+  path: string,
+  method: Method,
+  options: { body?: unknown; form?: FormData },
+): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
 
   if (method !== "GET") {

@@ -14,9 +14,9 @@ public_url() is the ONE place a photo URL is made: serializers call it instead o
 
 import mimetypes
 import re
-from pathlib import Path
 
 from django.conf import settings
+from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.views.static import serve
@@ -53,10 +53,12 @@ def private_request_photo(request, name):
     )
     if not allowed.exists():
         raise Http404
-    path = Path(settings.MEDIA_ROOT) / "requests" / name
-    if not path.is_file():
-        raise Http404
-    response = FileResponse(path.open("rb"), content_type=mimetypes.guess_type(name)[0] or "image/jpeg")
+    try:
+        # The configured storage: MEDIA_ROOT locally, Cloudinary's authenticated photos in production (core/storage.py).
+        photo = default_storage.open(PRIVATE_PREFIX + name)
+    except OSError:  # FileNotFoundError included
+        raise Http404 from None
+    response = FileResponse(photo, content_type=mimetypes.guess_type(name)[0] or "image/jpeg")
     response["Cache-Control"] = "private, max-age=300"  # this person's browser only; never a shared cache
     response["X-Content-Type-Options"] = "nosniff"
     return response

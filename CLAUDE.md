@@ -4,8 +4,8 @@ A multi-seller marketplace for home businesses (bakers, pickle makers, artists, 
 Buyers fill one bag, pay once, and the order is split per seller. Full brief: `PROMPT.md`. Design brief: `UI-UX.md`.
 Visual reference: `design/HomeHaat-demo-empty.html` (copy its look, never its data). `design/_old-styles/` is NOT used.
 
-**Current stage: 6 of 8 — reviews, search and the AI listing helper (done, waiting for "continue"). Next: deploy, with
-Cloudinary pulled forward.** Stage 7 must-do: custom request photos visible only to that buyer and that seller.
+**Current stage: 8 of 8 — deployment prepared (code, config and `docs/deploy.md` done). Next: Rasmitha follows
+`docs/deploy.md` (Neon, Cloudinary, Render, Vercel, GitHub, Razorpay webhooks); nothing is online until she does.**
 
 ---
 
@@ -61,7 +61,12 @@ homehaat/
     ai/                   listing.py [KEY LOGIC] (prompt, schema, validate_listing); gemini_client.py (only file
                           that calls Gemini); views.py (seller/ai/listing)
     core/                 safety.py (+ throwaway_check command), media.py (public + private photo serving),
-                          client_ip.py (visitor IP behind the proxy); tests/factories.py (test-only helpers)
+                          client_ip.py (visitor IP behind the proxy); storage.py (Cloudinary, the only file that
+                          calls it); jobs.py [KEY LOGIC] (scheduled jobs endpoint + lazy expiry) + middleware.py;
+                          views.py (health); checks.py (production warning); tests/factories.py (test-only helpers)
+    config/database.py    DATABASE_URL (Neon) -> DATABASES, standard library only
+    accounts/management/commands/ensure_admin.py   admin account from env vars (Render free has no shell)
+    build.sh  .python-version   Render build (install, collectstatic, migrate, seed, admin, deploy check); 3.14.0
   frontend/               Next.js 16 (App Router) + TypeScript + Tailwind v4 + lucide-react + sonner
     app/                  pages (see "Pages" below)
     components/           Header, Footer, ProductCard, ProductImage, CategoryArt, EmptyState, AuthForm,
@@ -86,7 +91,11 @@ homehaat/
     lib/razorpay.ts       loads Checkout.js, opens the payment window (closes when the hold ends)
     lib/session.tsx       who is signed in + bag count; signedIn() merges the guest bag
     lib/refunds.ts        refundText(): plain words for a refund, buyer or seller (+ test)
+    lib/api/wake.ts       wakeServer(): GET /api/health/ until the sleeping free server answers (+ test)
   frontend/proxy.ts       Next.js 16 proxy: passes the visitor IP to Django with PROXY_SECRET
+  frontend/.env.example   the website's variable names (API_INTERNAL_URL, PROXY_SECRET)
+  render.yaml             Render Blueprint (free web service, env var names; secrets are "sync: false")
+  .github/workflows/scheduled-jobs.yml   hourly POST /api/jobs/run/ (free scheduler)
   design/  docs/  docker-compose.yml  start-homehaat.ps1  "Start HomeHaat.bat" (double-click)  .env.example
 ```
 
@@ -175,7 +184,8 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 `seller/requests` · `seller/requests/<id>/quote` (POST `{quote_paise, note}`) · `seller/requests/<id>/decline` ·
 `requests` (GET mine / POST new, 10 per hour) · `requests/<id>` · `requests/<id>/images` (≤3, while open) ·
 `requests/<id>/accept` · `requests/<id>/decline` · `requests/<id>/add-to-bag` · `reviews` (POST `{seller, rating, comment}`) ·
-`seller/ai/listing` (GET `{enabled}` / POST photo `image` or `image_id` + `name` → `{title, description, category}`, 10/hour)
+`seller/ai/listing` (GET `{enabled}` / POST photo `image` or `image_id` + `name` → `{title, description, category}`, 10/hour) ·
+`health` (GET, no database) · `jobs/run` (POST, header `X-HomeHaat-Jobs-Secret`, `?jobs=expire,refunds`)
 
 ## Decisions and assumptions
 
@@ -188,12 +198,12 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
   reads the name in `lib/api/client.ts` (`CSRF_COOKIE`); keep it in sync with `settings.CSRF_COOKIE_NAME`.
 - **Roles:** set only by the server. `role` is read-only in the API; opening a shop makes you a seller.
 - **Next.js 16 `cacheComponents` is off** to keep the data model simple: every API call is `cache: "no-store"`.
-  Caching for public pages comes in Stage 7.
+  Public pages aren't cached (not done yet): every visit asks Django.
 - **Stock is held at checkout for 15 minutes** (Rasmitha's decision, Stage 2; PROMPT.md said 30 min for
   `expire_orders`, 15 wins). `Product.stock` therefore means *available* stock. `settings.ORDER_HOLD_MINUTES = 15`.
 - **`Order.stock_held`** says whether an order has stock off the shelf. Release gives stock back only if it's True,
   so Stage 1 orders (which never held stock) can't inflate stock when they expire.
-- **Holds are released** by `expire_orders` (start script, and a GitHub Actions schedule in Stage 8), **and lazily at
+- **Holds are released** by `expire_orders` (start script; online an hourly GitHub Actions schedule, How it works 16), **and lazily at
   the start of every checkout**, so an expired hold never blocks the next buyer even if the job hasn't run. A buyer
   pressing Pay again also releases their own earlier unpaid attempt. Razorpay Checkout gets a `timeout` so the
   window closes when the hold ends.
@@ -206,7 +216,7 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - `next.config.ts` reads an optional `NEXT_DIST_DIR`, only so a throwaway end-to-end copy can run beside your
   normal one (ports 3001/8001, database `homehaat_e2e`). Normal runs use `.next`.
 - **Local payments** use the signed `/api/payments/verify/` backup (cloudflared tunnel skipped by choice). The webhook
-  code is built and tested and goes live in Stage 8.
+  code is built and tested and goes live with the deploy (docs/deploy.md step 7).
 - `Seller.main_category` (nullable) was added to the Section 6 model: it's the default product category and the
   second cover fallback. **Open your shop** has no pre-selected category any more (it's required; the server refuses
   a new shop without one): the old default (Cakes) gave an art shop a cake cover. **Cover fallback**
@@ -241,7 +251,7 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - **Photos** (`catalog/images.py`): the browser shrinks them to 1600 px JPEG first (`compress-image.ts`); the server
   still opens and decodes every file, accepts only JPEG/PNG/WebP up to 5 MB, turns it upright, shrinks it to
   1600 px and **re-saves it without EXIF** (no GPS location of the seller's home). Max 5 per product; order is
-  `ProductImage.position`. The "resized copy for cards" and Cloudinary are Stage 7.
+  `ProductImage.position`. Online they are stored on Cloudinary (How it works 17); a resized card copy is not done yet.
 - **Cancelling** (buyer, seller or system) always goes through `orders/cancel.py`: status, stock back and one `Refund`
   row (items + that maker's delivery fee) in one transaction; the Razorpay refund is sent on commit (section 15).
   Buyer: New → cancel at once (custom items too); Preparing → "Ask to cancel" (not for custom items), the seller
@@ -249,7 +259,7 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - **Refunds** (`orders.Refund`, one-to-one with SellerOrder; statuses pending / processed / failed, Razorpay refund id,
   attempts, last error). Shown to the buyer ("Refund of ₹740 started. It usually takes 5–7 days to reach you.") and the
   seller (card + "N refunds are delayed" on the Overview). Failed ones are retried by `manage.py retry_refunds`
-  (start script; a GitHub Actions schedule in Stage 8) and from Django admin (Refunds → Retry); the same command also
+  (start script; online the hourly GitHub schedule) and from Django admin (Refunds → Retry); the same command also
   checks pending ones with Razorpay, because webhooks can't reach localhost. `refund.processed` / `refund.failed`
   webhooks update them in production. Test mode only, like payments. `Order.payment_status` stays "paid" (refunds are
   per part).
@@ -311,8 +321,39 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
   plain photo of your product." (not retried on another model). New `AQ.` keys work the same as `AIza` keys (header `x-goog-api-key`).
 - The AI suggestion is shown in a panel first; **Use this** fills name, description and category (never price or
   stock) and focuses the name, so the seller edits before saving.
-- Throttle counts live in Django's default cache (in memory, per server process): fine for one server; noted for
-  deploy.
+- Throttle counts live in Django's default cache (in memory, per server process). Render runs **one** gunicorn
+  process with 8 threads (`render.yaml`), so the counts are shared and exact. More processes would need a shared
+  cache.
+- **Deployment (Stage 8)** — free only: Neon (Postgres), Cloudinary (photos), Render free web service (Django),
+  Vercel Hobby (Next.js), GitHub Actions (schedule). Guide: `docs/deploy.md`.
+  - **Settings from env** (`config/settings.py`): an empty variable counts as unset (`env()`), so `.env.example` lists
+    names only and local defaults still apply; `start-homehaat.ps1` fills in a random `DJANGO_SECRET_KEY` and
+    `DJANGO_DEBUG=true` when it creates `.env`. `DATABASE_URL` set → Neon via `config/database.py` (sslmode forced to
+    `require` or stronger for any non-local host, `CONN_MAX_AGE=60` + health checks because Neon sleeps, no
+    server-side cursors on a `-pooler` host); unset → the Docker database exactly as before.
+  - **DEBUG off** (default): `SECURE_PROXY_SSL_HEADER` (Render ends HTTPS), SSL redirect (except `/api/health/`,
+    for Render's internal health check), HSTS 30 days without subdomains/preload (onrender.com isn't ours; those two
+    deploy-check warnings are silenced on purpose), secure cookies (names unchanged). Django errors are logged to the
+    console (Render Logs).
+  - **No CORS**: the browser only talks to the Vercel site, which rewrites `/api/*` to Render (Vercel's external
+    rewrites wait up to 120 s, enough for a cold start). Django sees the Render host; the Vercel origin is in
+    `CSRF_TRUSTED_ORIGINS` via `FRONTEND_ORIGIN` (its host is also added to `ALLOWED_HOSTS`, harmless either way).
+    `RENDER_EXTERNAL_HOSTNAME` is added to `ALLOWED_HOSTS` automatically. `next.config.ts` refuses to build on
+    Vercel without `API_INTERNAL_URL`.
+  - **Static files**: WhiteNoise (`CompressedManifestStaticFilesStorage` when DEBUG is off), only for the admin.
+  - **Photos**: `STORAGES["default"]` = `core.storage.CloudinaryStorage` when `CLOUDINARY_URL` is set (never in tests),
+    else the file system. A system check (`homehaat.W001`) warns in the build log if production has no Cloudinary
+    (Render's disk is wiped at restart).
+  - **Admin online**: `manage.py ensure_admin` in the build creates the admin from `DJANGO_ADMIN_EMAIL` /
+    `DJANGO_ADMIN_PASSWORD` if no account has that email; never changes a password; never promotes an existing
+    ordinary account (no email verification, so a stranger could have signed up with that address first); a weak
+    password fails the build.
+  - **Python 3.14.0** pinned (`PYTHON_VERSION` in `render.yaml` + `backend/.python-version`); new packages
+    `gunicorn`, `whitenoise`, `cloudinary` (approved by the Stage 8 brief, which named these services).
+  - **Region**: Render Singapore; Neon should be AWS Singapore too.
+  - **Scheduled jobs are hourly**, not every 5/30 minutes: the repo is private (2,000 free Actions minutes a month;
+    each run bills at least 1 minute; every 5 minutes = 8,640). Correctness doesn't depend on it (see How it works 16).
+    Public repo → the cron can become `*/5`.
 - **Visitor IP behind the proxy** (`core/client_ip.py` + `frontend/proxy.ts`): the Next.js proxy forwards no client
   IP, so Django saw everyone as the Next.js server and the sign-in limit (10/min) would have been shared by all
   visitors. The proxy now sends `X-HomeHaat-Client-IP` plus `X-HomeHaat-Proxy-Secret` = `PROXY_SECRET` (same value in
@@ -541,7 +582,7 @@ might start checkout and then walk away, so the hold must end:
   (`stock = F("stock") + qty`, only if `stock_held` is True), sets `failed`, and sets `stock_held=False`. For a paid
   or already-failed order it does nothing, so it's safe to call twice.
 - **`expire_unpaid_orders()`** releases every pending order older than `ORDER_HOLD_MINUTES` (15). It runs from
-  `python manage.py expire_orders` (start script now, a schedule in Stage 8) **and at the start of every checkout**,
+  `python manage.py expire_orders` (start script; online an hourly schedule, section 16) **and at the start of every checkout**,
   so an abandoned hold never blocks the next buyer.
 - When Razorpay can't be reached at checkout, the new order is released immediately.
 - Razorpay's window gets a `timeout`, so it closes when the hold ends. If money still arrives late, section 4
@@ -769,6 +810,67 @@ the same instant and gets one refund and one Razorpay call.
 > refund for that part's items plus its delivery fee. It's idempotent: the row is unique per part, the sender locks it
 > and won't send twice, and a retry looks for a refund Razorpay already made before sending a new one."
 
+### 16. Scheduled jobs for free — `core/jobs.py` [KEY LOGIC]
+
+**What it does:** two jobs must run regularly: **expire** (give back stock held by checkouts unpaid for 15 minutes)
+and **refunds** (resend failed refunds, check pending ones). Render's cron jobs are paid, so they run three free ways:
+
+1. **GitHub Actions** (`.github/workflows/scheduled-jobs.yml`), every hour: first `GET /api/health/` with retries
+   (wakes the sleeping server), then `POST /api/jobs/run/?jobs=expire,refunds` with the header
+   `X-HomeHaat-Jobs-Secret`.
+2. **When pages load**: `LazyJobsMiddleware` runs **expire** at most once a minute per server process
+   (`cache.add` only succeeds for the first request in each minute). It skips `/api/health/`, `/api/jobs/` and the
+   Razorpay webhook, and a failure is logged, never shown to the visitor.
+3. **At every checkout** (since Stage 2): expired holds are released first, so nobody is ever blocked by an abandoned
+   checkout even if no schedule has run.
+
+**`run_jobs_view` step by step:**
+1. POST only (GET → 405); no session, no CSRF (it's a machine calling), trust comes from the secret.
+2. `JOBS_SECRET` empty → 503 "switched off". Never "empty means anyone may".
+3. The header is compared with `hmac.compare_digest` (constant time, like the payment signatures). Wrong or missing
+   → 403 and nothing runs.
+4. `?jobs=` must name known jobs only (else 400). Each job runs separately: one failing is logged and reported
+   (`"refunds": "failed"`, status 500 so GitHub shows a red run) while the other still runs.
+
+**Why it's safe to run any time, any number of times:** `expire_unpaid_orders` locks each order and only releases
+pending ones older than the hold (`release_hold` does nothing twice); `retry_refunds` uses the refund row lock and the
+"look before you refund again" check from section 15. So the schedule, the page-load check and checkout can overlap
+without doing anything twice.
+
+**Why hourly is enough:** the repo is private (2,000 free Actions minutes a month, at least 1 minute per run). The
+stock hold doesn't wait for the schedule: while people use the site, holds are released within a minute, and checkout
+always releases them first. When nobody is using the site, a held item blocks nobody.
+
+> *Say it:* "Render's cron is paid, so a GitHub Actions schedule calls a secret-protected endpoint, compared in
+> constant time. The jobs are idempotent, and they also run lazily: expired holds are released when pages load and at
+> every checkout, so correctness never depends on the schedule."
+
+### 17. Production settings, photos on Cloudinary and the sleeping server
+
+- **One codebase, two setups.** Every setting comes from environment variables; when `DATABASE_URL` or
+  `CLOUDINARY_URL` are empty, it runs exactly as before on the laptop (Docker Postgres, `backend/media`). DEBUG is off
+  unless switched on, and with DEBUG off Django forces HTTPS, sends HSTS, and marks cookies Secure.
+- **Private photos stay private on Cloudinary** (`core/storage.py`): the stored name is the same as on disk
+  (`requests/<uuid>.jpg`). Names starting `requests/` are uploaded as Cloudinary **authenticated** images, which
+  Cloudinary refuses to deliver without a signature, original or resized. `storage.url()` for them is Django's own
+  checked route `/api/private-media/requests/<file>`, never a Cloudinary link. When the buyer or that seller asks,
+  `private_request_photo` checks who they are, then reads the photo through `default_storage.open()`, which on
+  Cloudinary builds a **signed** URL on the server, downloads the bytes and passes them on with
+  `Cache-Control: private`. The signed link never leaves the server. Product photos and covers are public `upload`
+  images with `f_auto,q_auto` (WebP/AVIF where the browser supports it).
+- **The sleeping server** (Render free sleeps after 15 idle minutes; waking takes up to ~1 minute; Vercel's proxy
+  waits up to 120 s): `apiFetch` asks again (1.5 s, 4 s, 8 s) when there's no reply or a 502/503/504 **without** a
+  Django message, but only for GET and for POSTs that are safe to repeat (`payments/verify`, idempotent). The message
+  is "HomeHaat's server is just waking up…", not "server problem". **Pay** first calls `wakeServer()` (GET
+  `/api/health/`, which never touches the database, until it answers, up to 100 s) and shows "Waking up the server…";
+  only then is the order created, so a half-started server never gets the checkout. The checkout page also wakes it
+  quietly when it opens. The "Confirming payment…" page already polls for 90 s, and Razorpay retries webhooks.
+
+> *Say it:* "Settings come from the environment with safe defaults, so the same code runs locally and on Render.
+> Public photos are on Cloudinary's CDN; private request photos are Cloudinary authenticated assets that only our
+> server can read with a signed URL after checking the user. And because the free server sleeps, reads retry,
+> and Pay wakes the server with a health check before creating the order."
+
 ---
 
 ## Interview notes
@@ -850,6 +952,18 @@ the same instant and gets one refund and one Razorpay call.
    user is that request's buyer or that shop's owner and answers 404 to everyone else, the same as a missing file, so
    nobody even learns it exists. One helper builds every photo URL, so every page follows the same rule.
 
+### Stage 8
+1. **How do you run scheduled jobs without paying for a scheduler?** A GitHub Actions schedule calls a POST endpoint
+   protected by a shared secret (constant-time compare, empty secret = off). The jobs are idempotent and also run
+   lazily (on page loads at most once a minute, and at every checkout), so a late or missed run never breaks anything.
+2. **How do you keep private photos private on a public CDN?** They're uploaded as Cloudinary authenticated assets, so
+   unsigned URLs are refused. The browser only ever gets our own URL; Django checks the user is that buyer or seller,
+   then fetches the photo server-side with a signed URL and streams it back with `Cache-Control: private`.
+3. **Your free server sleeps. How does checkout not break?** Reads retry automatically on "waking up" errors, and the
+   Pay button first wakes the server with a health check that doesn't touch the database, showing "Waking up the
+   server…". The order is only created once the server answers, the stock hold starts then, and payment confirmation
+   is idempotent and retried.
+
 ## QA log
 
 - **13 Oct 2026, full checklist (sections 1–9) on a throwaway copy:** two items failed and were fixed with tests:
@@ -885,3 +999,10 @@ the same instant and gets one refund and one Razorpay call.
 - **After Stage 6**: stricter Indian address checks + Razorpay contact prefill; Gemini model fallback; shopping vs
   selling separation (account menu, black seller bar, "Selling · …" labels), Taking orders switch (paused shops stay
   visible), product controls (out of stock / back in stock / delete or archive).
+- **Stage 7 part 1**: buyer cancellation (cancel / ask to cancel) with Razorpay partial refunds (`orders/cancel.py`,
+  `payments/refunds.py`, retry command), store cover fallback, private custom request photos, visitor IP behind the
+  proxy, the delete safety rule (`throwaway_check`), double-click starter.
+- **Stage 8 (deploy prep)**: env-based settings (Neon `DATABASE_URL`, DEBUG off by default, HTTPS/HSTS), WhiteNoise,
+  gunicorn, Python 3.14.0 pinned, Cloudinary storage (request photos authenticated), `render.yaml` + `build.sh`,
+  `ensure_admin`, `/api/health/`, scheduled jobs endpoint + hourly GitHub Actions + lazy expiry, frontend retries and
+  wake-up before Pay, names-only `.env.example` files, `docs/deploy.md`.

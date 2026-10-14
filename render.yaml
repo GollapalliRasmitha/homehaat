@@ -1,0 +1,48 @@
+# Render Blueprint: Render reads this file to create the HomeHaat API (Django) on the FREE plan.
+# Secrets are never written here: "sync: false" makes Render ask for each one in its dashboard (docs/deploy.md).
+services:
+  - type: web
+    name: homehaat-api
+    runtime: python
+    plan: free
+    region: singapore          # closest free region to India
+    rootDir: backend
+    buildCommand: bash build.sh
+    # One process with 8 threads: the rate-limit counts live in that process's memory, so they stay exact.
+    # --timeout 75: the AI helper may take up to 50 s when Google is busy.
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 75
+    healthCheckPath: /api/health/
+    autoDeploy: true           # every push to main deploys
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.0
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true    # Render makes a long random one
+      - key: DATABASE_URL      # Neon connection string
+        sync: false
+      - key: FRONTEND_ORIGIN   # e.g. https://homehaat.vercel.app (no slash at the end)
+        sync: false
+      - key: DJANGO_ALLOWED_HOSTS  # the onrender.com address is added automatically; this can stay as is
+        value: localhost
+      - key: PROXY_SECRET      # same value as in Vercel
+        sync: false
+      - key: JOBS_SECRET       # same value as the GitHub secret HOMEHAAT_JOBS_SECRET
+        sync: false
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: AI_ENABLED
+        value: "false"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DJANGO_ADMIN_EMAIL
+        sync: false
+      - key: DJANGO_ADMIN_PASSWORD  # delete it after the first deploy (the account stays)
+        sync: false

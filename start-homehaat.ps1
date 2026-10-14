@@ -50,7 +50,8 @@ Step "Checking .env"
 $envFile = Join-Path $root ".env"
 if (-not (Test-Path $envFile)) {
     $secret = -join ((48..57) + (97..122) | Get-Random -Count 50 | ForEach-Object { [char]$_ })
-    $text = (Get-Content (Join-Path $root ".env.example") -Raw) -replace "change-me-to-a-long-random-string", $secret
+    # .env.example has names only: fill in the two values a local run needs (a random key, debug on).
+    $text = (Get-Content (Join-Path $root ".env.example") -Raw) -replace "(?m)^DJANGO_SECRET_KEY=\r?$", "DJANGO_SECRET_KEY=$secret" -replace "(?m)^DJANGO_DEBUG=\r?$", "DJANGO_DEBUG=true"
     [System.IO.File]::WriteAllText($envFile, $text)  # UTF-8 without BOM
     Write-Host "Created .env from .env.example. Add your Razorpay test keys to it (see docs\razorpay-setup.md)."
 } else {

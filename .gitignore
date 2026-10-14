@@ -15,6 +15,7 @@ backend/staticfiles/
 frontend/node_modules/
 frontend/.next/
 frontend/.next-e2e/
+frontend/.next-build/
 frontend/out/
 *.tsbuildinfo
 frontend/next-env.d.ts

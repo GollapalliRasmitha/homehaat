@@ -13,6 +13,7 @@ import { AddressForm } from "@/components/AddressForm";
 import { listAddresses } from "@/lib/api/auth";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import { startCheckout } from "@/lib/api/orders";
+import { wakeServer } from "@/lib/api/wake";
 import type { Address, SoldOutItem } from "@/lib/api/types";
 import { useBag } from "@/lib/bag";
 import { deliveryText, formatINR } from "@/lib/format";
@@ -41,9 +42,15 @@ export default function CheckoutPage() {
   const [addressId, setAddressId] = useState<number | null>(null);
   const [step, setStep] = useState<Step>("address");
   const [paying, setPaying] = useState(false);
+  const [waking, setWaking] = useState(false); // the free server is starting up (lib/api/wake.ts)
   const [failure, setFailure] = useState<string | null>(null);
   const [soldOut, setSoldOut] = useState<SoldOutItem[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null); // an old address being updated
+
+  // Warm the server up quietly while the buyer looks at their order, so Pay is quick.
+  useEffect(() => {
+    wakeServer();
+  }, []);
 
   useEffect(() => {
     if (signedOut) router.replace("/signin?next=/checkout");
@@ -91,6 +98,15 @@ export default function CheckoutPage() {
     setFailure(null);
     setSoldOut([]);
     try {
+      // 0. If the free server fell asleep while the buyer was reading, wake it first (a harmless GET), so the
+      //    order isn't sent to a server that's still starting. Nothing is created until it answers.
+      const awake = await wakeServer({ onSlow: () => setWaking(true) });
+      setWaking(false);
+      if (!awake) {
+        setFailure("HomeHaat's server didn't wake up in time. Please try again in a minute. You haven't been charged.");
+        setPaying(false);
+        return;
+      }
       // 1. The server creates the order, splits it per seller, holds the stock and computes the total.
       const session = await startCheckout(addressId);
       // 2. The buyer pays in Razorpay's own window (it closes itself when the 15-minute hold ends).
@@ -285,9 +301,15 @@ export default function CheckoutPage() {
               Back
             </button>
             <button className="btn btn-black btn-lg" onClick={pay} disabled={paying || cart.has_problems}>
-              {paying ? "Opening payment…" : `Pay ${formatINR(cart.grand_total)}`}
+              {waking ? "Waking up the server…" : paying ? "Opening payment…" : `Pay ${formatINR(cart.grand_total)}`}
             </button>
             <span className="testpill">Test mode, no real money</span>
+            {waking && (
+              <p className="w-full text-sm text-muted" role="status">
+                Our free server rests when the site is quiet. Waking it can take up to a minute. Nothing is charged
+                until you pay.
+              </p>
+            )}
           </div>
         </div>
       )}

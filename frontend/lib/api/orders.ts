@@ -5,9 +5,16 @@ import type { CheckoutSession, Order, RazorpaySuccess } from "./types";
 export const startCheckout = (addressId: number) =>
   apiFetch<CheckoutSession>("/checkout/", { method: "POST", body: { address_id: addressId } });
 
-/** Local backup for the webhook: forwards Razorpay's signed response for the server to check. */
+/**
+ * Backup for the webhook: forwards Razorpay's signed response for the server to check. Safe to send twice
+ * (mark_order_paid is idempotent), so it asks again if the server is waking up.
+ */
 export const verifyPayment = (response: RazorpaySuccess) =>
-  apiFetch<{ order_id: number; payment_status: string }>("/payments/verify/", { method: "POST", body: response });
+  apiFetch<{ order_id: number; payment_status: string }>("/payments/verify/", {
+    method: "POST",
+    body: response,
+    retry: true,
+  });
 
 export const getOrder = (id: number | string) => apiFetch<Order>(`/orders/${id}/`);
 

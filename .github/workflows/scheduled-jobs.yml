@@ -1,0 +1,45 @@
+# HomeHaat's scheduled jobs, for free (Render's own cron jobs are paid). See backend/core/jobs.py.
+# Every hour GitHub calls the live API, which releases expired stock holds and retries refunds.
+# Between runs the same work also happens when people use the site (page loads and checkout).
+#
+# Needs two settings in GitHub -> Settings -> Secrets and variables -> Actions (docs/deploy.md, step 6):
+#   variable HOMEHAAT_API_URL      e.g. https://homehaat-api.onrender.com
+#   secret   HOMEHAAT_JOBS_SECRET  the same value as JOBS_SECRET on Render
+#
+# Why hourly: this repository is private, and private repositories get 2,000 free Actions minutes a month. Each run
+# counts as at least 1 minute, so every 5 minutes (8,640 runs) would run out; hourly is about 720-1,440 minutes.
+# If the repository is ever made public (unlimited minutes), "*/5 * * * *" can be used instead.
+name: Scheduled jobs
+
+on:
+  schedule:
+    - cron: "17 * * * *"   # every hour at :17 (GitHub is busiest on the hour, and may start a few minutes late)
+  workflow_dispatch: {}     # "Run workflow" button, for trying it by hand
+
+permissions: {}             # this job needs no access to the code
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      API: ${{ vars.HOMEHAAT_API_URL }}
+      SECRET: ${{ secrets.HOMEHAAT_JOBS_SECRET }}
+    steps:
+      - name: Check the settings are there
+        id: setup
+        run: |
+          if [ -z "$API" ] || [ -z "$SECRET" ]; then
+            echo "::notice::HOMEHAAT_API_URL or HOMEHAAT_JOBS_SECRET isn't set yet, so nothing was run (docs/deploy.md, step 6)."
+            echo "ready=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=yes" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Wake the server (free Render servers sleep after 15 idle minutes)
+        if: steps.setup.outputs.ready == 'yes'
+        run: curl --silent --show-error --fail --retry 6 --retry-delay 10 --retry-all-errors --max-time 60 "$API/api/health/"
+      - name: Release expired holds and retry refunds
+        if: steps.setup.outputs.ready == 'yes'
+        run: |
+          curl --silent --show-error --fail-with-body --max-time 90 -X POST \
+            -H "X-HomeHaat-Jobs-Secret: $SECRET" "$API/api/jobs/run/?jobs=expire,refunds"

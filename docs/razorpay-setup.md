@@ -50,13 +50,10 @@ so locally HomeHaat uses the backup path you chose: after you pay, the browser f
 `POST /api/payments/verify/`. The server checks the signature with the Key Secret, asks Razorpay how much was really
 captured, and only then marks the order paid. See "How it works" in `CLAUDE.md`.
 
-## Later (Stage 8): the webhook
+## Online: the webhook
 
-Once the API has a public URL (Render), add a webhook in the dashboard:
+Once the API is online (Render), the webhook is added in the Razorpay dashboard: see **step 7 of
+[deploy.md](deploy.md)**. URL `https://<your API address>/api/payments/webhook/`, the shared secret
+`RAZORPAY_WEBHOOK_SECRET`, and three events: **payment.captured**, **refund.processed**, **refund.failed**.
 
-1. **Account & Settings → Webhooks → Add New Webhook**
-2. URL: `https://<your-api>/api/payments/webhook/`
-3. Secret: make up a long random string and also put it in `.env` / Render as `RAZORPAY_WEBHOOK_SECRET`
-4. Active event: **payment.captured**
-
-The webhook then becomes the source of truth, and the verify endpoint stays as a fallback.
+The webhook then becomes the source of truth, and the verify endpoint stays as a backup.

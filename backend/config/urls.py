@@ -5,13 +5,17 @@ from accounts import views as accounts
 from ai import views as ai
 from cart import views as cart
 from catalog import views as catalog
-from core import media
+from core import jobs, media
+from core import views as core
 from custom_requests import views as custom_requests
 from orders import views as orders
 from payments import views as payments
 from reviews import views as reviews
 
 api = [
+    # server up? (Render health check, waking the free server) and the scheduled jobs (core/jobs.py)
+    path("health/", core.health),
+    path("jobs/run/", jobs.run_jobs_view),
     # accounts
     path("auth/csrf/", accounts.csrf),
     path("auth/signup/", accounts.signup),
@@ -78,5 +82,5 @@ urlpatterns = [
 ]
 
 # Public photos (products, covers). Custom request photos are refused here: they only go through the private route
-# above, which checks the buyer/seller. (In production, photos move to Cloudinary.)
+# above, which checks the buyer/seller. (In production photos are on Cloudinary, core/storage.py: this finds none.)
 urlpatterns += [re_path(r"^media/(?P<path>.*)$", media.serve_public_media)]

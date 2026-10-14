@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ApiError, errorMessage, friendlyMessage } from "./client.ts";
+import { ApiError, errorMessage, friendlyMessage, RETRY_DELAYS_MS, shouldRetry } from "./client.ts";
 
 test("uses Django's own message when there is one", () => {
   assert.equal(friendlyMessage(400, { detail: "Your bag is empty." }), "Your bag is empty.");
@@ -10,7 +10,22 @@ test("uses Django's own message when there is one", () => {
 test("explains a missing connection or a server crash in plain words", () => {
   assert.match(friendlyMessage(0, {}), /Can't reach HomeHaat/);
   assert.match(friendlyMessage(500, {}), /server had a problem/);
-  assert.match(friendlyMessage(502, {}), /server had a problem/);
+});
+
+test("a sleeping free server is explained, not called a crash", () => {
+  for (const status of [502, 503, 504]) assert.match(friendlyMessage(status, {}), /waking up/);
+  assert.equal(friendlyMessage(503, { detail: "AI is switched off." }), "AI is switched off."); // Django's own words win
+});
+
+test("asks again only while the server may be waking up", () => {
+  assert.equal(shouldRetry(new ApiError(0, {}), 0), true); // no reply at all
+  assert.equal(shouldRetry(new ApiError(502, {}), 0), true);
+  assert.equal(shouldRetry(new ApiError(504, {}), RETRY_DELAYS_MS.length - 1), true);
+  assert.equal(shouldRetry(new ApiError(504, {}), RETRY_DELAYS_MS.length), false); // gives up in the end
+  assert.equal(shouldRetry(new ApiError(500, {}), 0), false); // a real crash: asking again won't help
+  assert.equal(shouldRetry(new ApiError(400, { detail: "Your bag is empty." }), 0), false);
+  assert.equal(shouldRetry(new ApiError(404, {}), 0), false);
+  assert.equal(shouldRetry(new ApiError(503, { detail: "AI is busy." }), 0), false); // Django answered
 });
 
 test("shows the first form error instead of a vague message", () => {

@@ -5,5 +5,9 @@ psycopg[binary]==3.3.6
 Pillow==12.3.0
 requests==2.34.2
 python-dotenv==1.2.4
+# production (Render): web server, static files for the admin, photos on Cloudinary
+gunicorn==26.2.0
+whitenoise==6.12.0
+cloudinary==1.46.2
 # dev only: linter
 ruff==0.17.0
