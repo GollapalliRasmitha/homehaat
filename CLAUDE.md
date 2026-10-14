@@ -663,6 +663,12 @@ sees it in a panel and chooses **Use this** or **Dismiss**. The AI saves nothing
 5. **`validate_listing` never trusts the answer:**
    - it must be an object with text `title` and `description`, or it's refused;
    - emoji and hashtags are removed; prices are cut out of the title;
+   - **the title gets the ingredient rule too** (`clean_title`): a word from `GUESS_WORDS` (fruits, vegetables,
+     spices, nuts, flours, flavours like chocolate or vanilla, fabrics, metals, "eggless"…) that the seller didn't
+     type is taken out, with its "and"/"&", and a guessed phrase after "with"/"of" goes as a whole: "Mango and Lemon
+     Pickles" → "Pickles", "Homemade pickle with garlic and chilli" → "Homemade pickle", but with the seller's name
+     "Mango pickle" → "Mango Pickles". If nothing safe is left, the seller's own name is used. Colour words like
+     "orange" or "cream" stay, because a photo shows colour;
    - the description is split into sentences, and a sentence is **dropped** if it mentions a price (₹, Rs, INR,
      price, cost) or a link, a size/weight/quantity ("1 kg", "serves 10"), or an ingredient/material claim ("made
      with…", "silk", "eggless"), **unless the seller wrote those words themselves** in the product name (so "1 kg"

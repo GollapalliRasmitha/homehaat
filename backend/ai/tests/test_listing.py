@@ -25,7 +25,7 @@ class ValidateListingTests(TestCase):
     def test_a_good_answer_passes_cleaned(self):
         out = validate_listing(
             {
-                "title": "  Chocolate   drip cake ",
+                "title": "  Round   drip cake ",
                 "description": "A round cake with a glossy drip on top.",
                 "category": "cakes",
             },
@@ -34,7 +34,7 @@ class ValidateListingTests(TestCase):
         self.assertEqual(
             out,
             {
-                "title": "Chocolate drip cake",
+                "title": "Round drip cake",
                 "description": "A round cake with a glossy drip on top.",
                 "category": "cakes",
             },
@@ -49,28 +49,28 @@ class ValidateListingTests(TestCase):
     def test_prices_are_never_suggested(self):
         out = validate_listing(
             {
-                "title": "Mango pickle ₹250",
+                "title": "Homemade pickle ₹250",
                 "description": (
-                    "Tangy mango pickle in a glass jar. Only ₹250! Rs. 99 for a small jar. Great value at this price."
+                    "A homemade pickle in a glass jar. Only ₹250! Rs. 99 for a small jar. Great value at this price."
                 ),
                 "category": "pickles",
             },
             SLUGS,
         )
-        self.assertEqual(out["title"], "Mango pickle")
-        self.assertEqual(out["description"], "Tangy mango pickle in a glass jar.")
+        self.assertEqual(out["title"], "Homemade pickle")
+        self.assertEqual(out["description"], "A homemade pickle in a glass jar.")
 
     def test_sizes_and_weights_are_dropped_unless_the_seller_wrote_them(self):
         answer = {
             "title": "Chocolate cake",
-            "description": "A rich chocolate cake. It weighs 1 kg and serves 10 pieces.",
+            "description": "A tall round cake. It weighs 1 kg and serves 10 pieces.",
             "category": "cakes",
         }
-        self.assertEqual(validate_listing(answer, SLUGS)["description"], "A rich chocolate cake.")
+        self.assertEqual(validate_listing(answer, SLUGS)["description"], "A tall round cake.")
         kept = validate_listing(
-            answer | {"description": "A rich chocolate cake. It weighs 1 kg."}, SLUGS, hint="Chocolate cake (1 kg)"
+            answer | {"description": "A tall round cake. It weighs 1 kg."}, SLUGS, hint="Chocolate cake (1 kg)"
         )
-        self.assertEqual(kept["description"], "A rich chocolate cake. It weighs 1 kg.")
+        self.assertEqual(kept["description"], "A tall round cake. It weighs 1 kg.")
 
     def test_ingredient_and_material_claims_are_dropped_unless_the_seller_wrote_them(self):
         answer = {
@@ -85,6 +85,55 @@ class ValidateListingTests(TestCase):
             hint="Pure silk saree",
         )
         self.assertIn("silk", out["description"])
+
+    def test_the_title_never_guesses_ingredients_flavours_or_materials(self):
+        # From a photo of a jar, Gemini once titled it "Mango and Lemon Pickles": a guess the seller never made.
+        for guessed, expected in (
+            ("Mango and Lemon Pickles", "Pickles"),
+            ("Lemon & Mango pickle in a glazed jar", "Pickle in a glazed jar"),
+            ("Homemade pickle with garlic and red chilli", "Homemade pickle"),  # the guessed phrase goes
+            ("Mango-Lemon Pickle", "Pickle"),
+            ("Chocolate truffle cake", "Truffle cake"),
+            ("Pure silk saree with gold border", "Saree"),
+        ):
+            out = validate_listing({"title": guessed, "description": "", "category": "pickles"}, SLUGS)
+            self.assertEqual(out["title"], expected, guessed)
+
+    def test_the_title_keeps_ingredients_the_seller_typed(self):
+        answer = {"title": "Mango and Lemon Pickles", "description": "", "category": "pickles"}
+        self.assertEqual(validate_listing(answer, SLUGS, hint="Mango pickle")["title"], "Mango Pickles")
+        self.assertEqual(
+            validate_listing(answer, SLUGS, hint="Lemon and mango pickles")["title"], "Mango and Lemon Pickles"
+        )
+        cake = {"title": "Chocolate cake (1 kg)", "description": "", "category": "cakes"}
+        self.assertEqual(validate_listing(cake, SLUGS, hint="Chocolate cake (1 kg)")["title"], "Chocolate cake (1 kg)")
+
+    def test_a_title_that_was_only_guesses_falls_back_to_the_sellers_name_or_fails(self):
+        answer = {"title": "Mango & Lemon", "description": "A jar of pickle with a red lid.", "category": "pickles"}
+        self.assertEqual(validate_listing(answer, SLUGS, hint="Aunty's achaar")["title"], "Aunty's achaar")
+        with self.assertRaises(ListingError):
+            validate_listing(answer, SLUGS)
+
+    def test_colours_are_kept_because_a_photo_shows_them(self):
+        answer = {
+            "title": "Orange clay lamp",
+            "description": "A cream and orange lamp with a mustard base.",
+            "category": "art",
+        }
+        out = validate_listing(answer, SLUGS)
+        self.assertEqual(
+            (out["title"], out["description"]), ("Orange clay lamp", "A cream and orange lamp with a mustard base.")
+        )
+
+    def test_descriptions_drop_guessed_ingredients_too(self):
+        answer = {
+            "title": "Homemade pickle in a glazed jar",
+            "description": "A homemade pickle in a glazed jar with a red lid. Tangy mango and lemon pieces in oil.",
+            "category": "pickles",
+        }
+        self.assertEqual(
+            validate_listing(answer, SLUGS)["description"], "A homemade pickle in a glazed jar with a red lid."
+        )
 
     def test_links_hashtags_and_emoji_are_removed(self):
         out = validate_listing(
@@ -155,8 +204,8 @@ PER_DAY = "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
 PER_MINUTE = "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
 
 GOOD = {
-    "title": "Chocolate drip cake",
-    "description": "A round chocolate cake with a glossy drip.",
+    "title": "Round drip cake",
+    "description": "A round cake with a glossy drip.",
     "category": "cakes",
 }
 
