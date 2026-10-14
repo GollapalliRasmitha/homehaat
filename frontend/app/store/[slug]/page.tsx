@@ -37,7 +37,7 @@ export default async function StorePage({ params }: PageProps<"/store/[slug]">) 
   }
 
   // Cover: the seller's own upload, or their main category's photo until they add one.
-  const fallbackPhoto = store.main_category?.photo_id ?? PHOTOS.crafts;
+  const fallbackPhoto = store.cover_category?.photo_id ?? PHOTOS.crafts;
   const rating = store.rating === null ? "No reviews yet" : `${store.rating} ★ (${store.review_count})`;
 
   return (
@@ -54,8 +54,8 @@ export default async function StorePage({ params }: PageProps<"/store/[slug]">) 
       </div>
 
       <div
-        className="relative h-[180px] overflow-hidden rounded-[28px] sm:h-[260px]"
-        style={{ background: tintVar(store.main_category?.tint ?? "soft") }}
+        className="relative h-[180px] overflow-hidden rounded-[28px] sm:h-[260px] lg:h-[340px]"
+        style={{ background: tintVar(store.cover_category?.tint ?? "soft") }}
       >
         {/* If a photo fails to load, the tint behind it shows: never a broken-image icon.
             The cover is a wide, short strip, so "center 35%" keeps more of the subject than plain center. */}

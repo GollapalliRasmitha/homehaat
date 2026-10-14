@@ -20,6 +20,11 @@ Cloudinary pulled forward.** Stage 7 must-do: custom request photos visible only
 - Real data only. The only seeded thing is the category list (`seed_categories`). No demo sellers/products/orders, ever.
 - Unknown values show "Not provided by seller". Every number shown is computed from the database.
 - Ask Rasmitha before: adding a paid service or new tool, changing a design token, breaking-model changes, leaving Razorpay test mode.
+- **Safety rule (deleting):** no command or script that deletes files or data may run unless it has first proved it
+  targets the throwaway copy: its own database (`homehaat_e2e`) **and** its own media folder (`MEDIA_ROOT` containing
+  `e2e-media`, never `backend/media`). Use `core.safety.assert_throwaway()` in scripts, or run
+  `manage.py throwaway_check` first in a shell command (it exits with an error otherwise). Refuse if it fails.
+  (Why: once a command had the throwaway database but the real MEDIA_ROOT; only a missing file name saved a photo.)
 
 ## Commands
 
@@ -46,16 +51,17 @@ homehaat/
                           images.py (check + clean uploads); browse.py (full-text search, filters, sort, pages,
                           "Did you mean", trending, public stores); management/commands/seed_categories.py
     cart/                 CartItem; /api/cart/ grouped by seller, guest preview + merge (totals from DB prices)
-    orders/               Order, SellerOrder, OrderItem; services.py + status.py [KEY LOGIC]; checkout, order,
-                          seller-order and overview views
-                          management/commands/expire_orders.py
-    payments/             webhook.py [KEY LOGIC]; razorpay_client.py (only file that calls Razorpay); views.py
+    orders/               Order, SellerOrder, OrderItem, Refund; services.py + status.py + cancel.py [KEY LOGIC];
+                          checkout, order, cancel, seller-order and overview views; management/commands/expire_orders.py
+    payments/             webhook.py + refunds.py [KEY LOGIC]; razorpay_client.py (only file that calls Razorpay);
+                          views.py (verify, webhook incl. refund events); management/commands/retry_refunds.py
     reviews/              Review model; services.py write_review [KEY LOGIC] (only after delivery); views
     custom_requests/      CustomRequest + images; services.py [KEY LOGIC] (rules + accept -> bag); buyer and
                           seller views
     ai/                   listing.py [KEY LOGIC] (prompt, schema, validate_listing); gemini_client.py (only file
                           that calls Gemini); views.py (seller/ai/listing)
-    core/tests/factories.py   test-only helpers (never used by the running site)
+    core/                 safety.py (+ throwaway_check command), media.py (public + private photo serving),
+                          client_ip.py (visitor IP behind the proxy); tests/factories.py (test-only helpers)
   frontend/               Next.js 16 (App Router) + TypeScript + Tailwind v4 + lucide-react + sonner
     app/                  pages (see "Pages" below)
     components/           Header, Footer, ProductCard, ProductImage, CategoryArt, EmptyState, AuthForm,
@@ -64,7 +70,7 @@ homehaat/
                           HeroSearch, ShowcaseCard, CategoryTile(+Grid), ProductGrid, QuickAdd, WishlistButton,
                           MakerCard(+Grid), Monogram, SectionHead, ShareButton, SafeImage/SafeImg, RequestCard,
                           ItemThumb, Stars (+StarInput), ReviewForm, AddressForm (add + update), AccountMenu,
-                          SellerBar, TakingOrders
+                          SellerBar, TakingOrders, PartCancel
     lib/api/*.ts          the ONLY way components get data (client.ts is the only fetch call)
     lib/format.ts         formatINR, rupeesToPaise, deliveryText (+ format.test.ts)
     lib/address-rules.ts  the same address rules as the server, for messages next to each field (+ test)
@@ -79,7 +85,9 @@ homehaat/
     lib/seller-context.tsx useSeller(): the seller's shop, shared by the dashboard pages
     lib/razorpay.ts       loads Checkout.js, opens the payment window (closes when the hold ends)
     lib/session.tsx       who is signed in + bag count; signedIn() merges the guest bag
-  design/  docs/  docker-compose.yml  start-homehaat.ps1  .env.example
+    lib/refunds.ts        refundText(): plain words for a refund, buyer or seller (+ test)
+  frontend/proxy.ts       Next.js 16 proxy: passes the visitor IP to Django with PROXY_SECRET
+  design/  docs/  docker-compose.yml  start-homehaat.ps1  "Start HomeHaat.bat" (double-click)  .env.example
 ```
 
 ## Design system (UI-UX.md)
@@ -128,7 +136,7 @@ Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference
 | `/explore` | search & category: title, search box, sort, In stock only, price range, category chips, page (all in the URL); real total, "Did you mean …?", Previous/Next (24 per page); matching makers above the grid |
 | `/categories` | 8 tiles with live product counts |
 | `/makers` | all open shops |
-| `/store/[slug]` | cover (upload, else the main category photo), "Not taking orders right now" when paused, monogram, name, kind · area, bio, facts, Request a custom order / Manage my shop, Share, ARIA tabs per category + Reviews |
+| `/store/[slug]` | cover (upload, else the photo of the category it sells most in, else its main category; 340px tall from 1024px), "Not taking orders right now" when paused, monogram, name, kind · area, bio, facts, Request a custom order / Manage my shop, Share, ARIA tabs per category + Reviews |
 | `/wishlist` | saved products (from this browser) |
 | `/custom` | request form (maker, description, up to 3 photos, needed-by, budget; `?maker=` preselects) + Your requests (Accept and add to bag / Decline / Add to bag again) |
 | `/product/[id]` | gallery (up to 5), maker link, price + stock pill, description, quantity, note, Add to bag, Save, delivery rows, More from this seller |
@@ -136,12 +144,12 @@ Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference
 | `/checkout` | Address → Review (grouped) → Pay; sold-out list with "Remove them from my bag" |
 | `/checkout/confirming/[orderId]` | "Confirming payment…" — verifies, then polls the order |
 | `/orders` | "Buying · My orders" (failed attempts hidden), each maker's status |
-| `/orders/[id]` | one block per seller order with OrderTimeline; `?placed=1` shows "Order placed"; delivered → **Write a review** / Your review + Edit |
+| `/orders/[id]` | one block per seller order with OrderTimeline; `?placed=1` shows "Order placed"; per maker: **Cancel this part** (New) / **Ask to cancel** (Preparing), refund status; delivered → **Write a review** / Your review + Edit |
 | `/signin`, `/signup`, `/account` | email + password |
 | `/account/addresses` | "Buying · Saved addresses": list, Update address (old ones that break the rules), Add an address |
 | `/sell` | Open your shop (StoreForm: link auto from name and editable, cover photo) → then Add a product |
 | `/seller` | **Seller mode**: the black `SellerBar` replaces the header; SellerShell (`app/seller/layout.tsx`) = tabs Overview · Shop orders (count) · Products · Custom requests · Reviews · Settings, and the page's h1 "Selling · <tab>" (+ Paused badge) → **Overview**: Taking orders switch, greeting, 4 StatCards (products "N · M out of stock"), open orders |
-| `/seller/orders` | "Selling · Shop orders": status filter chips with counts; next-step button; Cancel with confirmation (buttons full width on phones) |
+| `/seller/orders` | "Selling · Shop orders": status filter chips with counts; next-step button; Cancel with confirmation; the buyer's cancel request (Accept and refund / Decline); refund status (buttons full width on phones) |
 | `/seller/products` | rows (`ProductRow`): photo, name, "₹price · stock · sold", Live / Out of stock / Hidden pill; Mark out of stock · Back in stock (inline "How many can you make?" panel) · Hide/Show · Edit · Delete (inline confirmation card) |
 | `/seller/products/new`, `/seller/products/[id]` | ProductForm with up to 5 photos; **Write listing with AI** (only when AI is on) → suggestion with Use this / Dismiss |
 | `/seller/requests` | filter chips with counts; Send quote (₹ + note) / Decline with confirm; the Overview shows "N requests waiting for your price" |
@@ -158,10 +166,12 @@ Tokens added in Stage 4: `--mono-1…5` (monogram dark tones, from the reference
 `{count, page, pages, page_size, results, suggestion}`) · `products/<id>` · `stores`
 (`?q= limit=`) · `stores/<slug>` · `stores/<slug>/reviews` · `cart` · `cart/items` · `cart/items/<id>` · `cart/preview` (guest,
 no sign-in) · `cart/merge` · `checkout` ·
-`orders` · `orders/<id>` · `payments/verify` · `payments/webhook` · `seller/overview` · `seller/store` (GET/POST/
+`orders` · `orders/<id>` · `orders/parts/<id>/cancel` · `orders/parts/<id>/request-cancel` · `payments/verify` ·
+`payments/webhook` (payment.captured, refund.processed, refund.failed) · `private-media/requests/<file>` (buyer/seller only) · `seller/overview` · `seller/store` (GET/POST/
 PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/products/<id>` ·
 `seller/products/<id>` DELETE (→ `{result: deleted|archived, past_orders}`) · `seller/products/<id>/images` (POST) · `seller/products/<id>/images/order` · `seller/products/<id>/images/<img>`
-(DELETE) · `seller/orders` (`?status=`) · `seller/orders/<id>/status` (POST `{status}`) · `seller/reviews` ·
+(DELETE) · `seller/orders` (`?status=`) · `seller/orders/<id>/status` (POST `{status}`) · `seller/orders/<id>/cancel-request`
+(POST `{accept}`) · `seller/overview` (+ `refund_problems`) · `seller/reviews` ·
 `seller/requests` · `seller/requests/<id>/quote` (POST `{quote_paise, note}`) · `seller/requests/<id>/decline` ·
 `requests` (GET mine / POST new, 10 per hour) · `requests/<id>` · `requests/<id>/images` (≤3, while open) ·
 `requests/<id>/accept` · `requests/<id>/decline` · `requests/<id>/add-to-bag` · `reviews` (POST `{seller, rating, comment}`) ·
@@ -188,8 +198,8 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
   pressing Pay again also releases their own earlier unpaid attempt. Razorpay Checkout gets a `timeout` so the
   window closes when the hold ends.
 - **Late payment** (money arrives after the hold ended): `mark_order_paid` takes the stock again per seller; a seller
-  whose items are gone gets their part *cancelled with `refund_needed`* (no live refunds in test mode). The order is
-  still marked paid, because the money was taken.
+  whose items are gone gets their part cancelled by the system **and refunded** (`orders/cancel.system_cancel`, no
+  restock because that stock was never taken). The order is still marked paid, because the money was taken.
 - **Guest bag** lives in `localStorage` (product ids, qty, note only). The server prices it (`cart/preview`) and merges
   it at sign-in/sign-up (`cart/merge`: adds quantities, caps at stock and 50, skips your own products).
 - My orders hides `failed` attempts (closed payment windows, expired holds); the detail page still opens.
@@ -197,8 +207,11 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
   normal one (ports 3001/8001, database `homehaat_e2e`). Normal runs use `.next`.
 - **Local payments** use the signed `/api/payments/verify/` backup (cloudflared tunnel skipped by choice). The webhook
   code is built and tested and goes live in Stage 8.
-- `Seller.main_category` (nullable) was added to the Section 6 model: it's the cover-photo fallback and default
-  product category (UI-UX "Open your shop: … category").
+- `Seller.main_category` (nullable) was added to the Section 6 model: it's the default product category and the
+  second cover fallback. **Open your shop** has no pre-selected category any more (it's required; the server refuses
+  a new shop without one): the old default (Cakes) gave an art shop a cake cover. **Cover fallback**
+  (`cover_category`): the category the shop has the most live products in (annotated in `browse.all_stores`, one
+  query for the Makers list), then its main category.
 - `CustomRequest.images` is a separate `CustomRequestImage` table (up to 3), like `ProductImage`.
 - `mark_order_paid(order, payment_id, amount_paise)` takes the amount too, so the webhook and verify paths share one
   amount check.
@@ -229,7 +242,17 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
   still opens and decodes every file, accepts only JPEG/PNG/WebP up to 5 MB, turns it upright, shrinks it to
   1600 px and **re-saves it without EXIF** (no GPS location of the seller's home). Max 5 per product; order is
   `ProductImage.position`. The "resized copy for cards" and Cloudinary are Stage 7.
-- **Cancelling a paid seller order** sets `refund_needed` and puts that order's items back into stock.
+- **Cancelling** (buyer, seller or system) always goes through `orders/cancel.py`: status, stock back and one `Refund`
+  row (items + that maker's delivery fee) in one transaction; the Razorpay refund is sent on commit (section 15).
+  Buyer: New → cancel at once (custom items too); Preparing → "Ask to cancel" (not for custom items), the seller
+  accepts (cancel + refund) or declines (a declined request can't be asked again); after Out for delivery → no.
+- **Refunds** (`orders.Refund`, one-to-one with SellerOrder; statuses pending / processed / failed, Razorpay refund id,
+  attempts, last error). Shown to the buyer ("Refund of ₹740 started. It usually takes 5–7 days to reach you.") and the
+  seller (card + "N refunds are delayed" on the Overview). Failed ones are retried by `manage.py retry_refunds`
+  (start script; a GitHub Actions schedule in Stage 8) and from Django admin (Refunds → Retry); the same command also
+  checks pending ones with Razorpay, because webhooks can't reach localhost. `refund.processed` / `refund.failed`
+  webhooks update them in production. Test mode only, like payments. `Order.payment_status` stays "paid" (refunds are
+  per part).
 - **Shop link (slug)**: made from the name, editable at Open your shop and in Store settings; lowercase letters,
   numbers and dashes; unique (keeping your own is fine).
 - **Shopping vs selling.** The shopping header (every page except /seller) has only buying links plus one small
@@ -290,6 +313,15 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
   stock) and focuses the name, so the seller edits before saving.
 - Throttle counts live in Django's default cache (in memory, per server process): fine for one server; noted for
   deploy.
+- **Visitor IP behind the proxy** (`core/client_ip.py` + `frontend/proxy.ts`): the Next.js proxy forwards no client
+  IP, so Django saw everyone as the Next.js server and the sign-in limit (10/min) would have been shared by all
+  visitors. The proxy now sends `X-HomeHaat-Client-IP` plus `X-HomeHaat-Proxy-Secret` = `PROXY_SECRET` (same value in
+  both apps); Django trusts the IP only when the secret matches (constant-time compare), otherwise it uses the
+  connecting address, so a faked header can't dodge the limit. Empty secret (local) = nothing trusted.
+- Messages: adding a sold-out product says "This is sold out." (not "Only 0 available."); a quote under ₹1 sent to
+  the server says "Enter a price of ₹1 or more."
+- **Start HomeHaat.bat** (double-click): checks Docker Desktop is installed and running (says so and stops if not),
+  then runs `start-homehaat.ps1` with `-ExecutionPolicy Bypass`.
 - **Overview "earnings this week"** = paid in the last 7 days, items + delivery, cancelled parts excluded.
 - **Test copy media**: `MEDIA_ROOT` can be set by env; the throwaway e2e copy uses its own folder, so it never
   touches real uploads.
@@ -338,8 +370,12 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 - **Request rules**: description 20+ characters, needed-by today or later, budget optional; not to your own shop or a
   paused one; up to 3 reference photos (same cleaning as product photos, no EXIF/GPS), only while open; the seller
   sees the buyer's first name only.
-- Known limit: request photos are served from `/media/requests/` like product photos (unguessable file names, but
-  not access-checked); Stage 7 can move them behind a signed URL if needed.
+- **Custom request photos are private** (`core/media.py`): `/media/requests/…` is refused for everyone, and they're
+  served only through `/api/private-media/requests/<file>`, which checks the session user is that request's buyer or
+  that shop's owner (404 for everyone else, signed out included; `Cache-Control: private`). `public_url()` is the one
+  place photo URLs are made, so an accepted custom item's picture (the same file) follows the same rule in the bag,
+  checkout and orders. When photos move to Cloudinary (deploy), request photos must use Cloudinary's private
+  (authenticated) delivery, or stay behind this view.
 - Known limit: while an item is held, its product page shows the reduced stock ("Sold out" for the last one) until
   the hold is paid or released. That's the honest answer, since another buyer is paying for it right now.
 - Products without a photo show the **fine black line drawing** of their category (UI-UX.md §7), not a "3D-style"
@@ -684,6 +720,55 @@ Gemini (`mock.patch`), so they never call the internet.
 > answer itself: the wrong shape is rejected, and any sentence with a price, a size or an ingredient claim the seller
 > didn't write is removed. The seller always reviews it, and the app works fully with AI switched off."
 
+### 15. Cancelling and refunding one maker's part — `orders/cancel.py` + `payments/refunds.py` [KEY LOGIC]
+
+**What it does:** the buyer paid once for a bag from several makers. Any one maker's part can be cancelled, and the
+buyer gets back exactly that part: its items plus that maker's delivery fee, through a Razorpay **partial refund** of
+the one payment.
+
+**Who may cancel what (the rules, in one file):**
+
+| That maker's part is… | Buyer | Seller |
+|---|---|---|
+| New | **Cancel** at once (custom items too) | Cancel |
+| Preparing | **Ask to cancel** → the seller accepts (cancel + refund) or declines (custom items: no) | Cancel |
+| Out for delivery / Delivered | no | no |
+
+**Step by step (`_cancel`, used by every kind of cancel):**
+1. The seller order row is **locked** (`select_for_update`), and who is asking is checked first (another buyer or
+   seller gets 404, like a missing order). It must be a paid order.
+2. Already cancelled? Return it as it is: a double click or a retry is fine, and nothing happens twice.
+3. Set Cancelled, the time and who did it; put the items back on the shelf with `F("stock") + qty` (not for the
+   late-payment case, where the stock was never taken).
+4. `Refund.objects.get_or_create(seller_order=part, amount=subtotal + delivery_fee)`: the amount is computed here,
+   never read from the request, and the table allows **one refund per part** (one-to-one), so a second can't exist.
+5. `transaction.on_commit(send_refund)`: Razorpay is called only after all of this is saved. If anything failed,
+   nothing is saved and no money moves.
+
+**`send_refund(refund_id)`:**
+1. Lock the refund row. If it already has a Razorpay refund id (or is processed), stop: it was sent.
+2. On a retry, first ask Razorpay for this payment's refunds and look for ours (`notes.homehaat_part`): if Razorpay
+   made it but our request timed out, we adopt it instead of refunding twice.
+3. Otherwise `POST /payments/<id>/refund` with the amount, a receipt and the note. Save the refund id and status
+   (pending → "started, usually 5–7 days"; processed → "sent").
+4. Razorpay refuses or can't be reached → status **failed**, with the reason and the attempt count. The seller sees
+   "1 refund is delayed"; `manage.py retry_refunds` (run by the start script, later on a schedule) and Django admin
+   retry it. The `refund.processed` / `refund.failed` webhooks (signature-checked like payments) update the status in
+   production; locally, `retry_refunds` asks Razorpay instead.
+
+Example: a ₹700 cake (₹40 delivery) and a ₹300 jar (₹30 delivery) paid together as ₹1,070. The buyer cancels the cake
+while it's New → one Refund of **₹740** on that payment; the jar's ₹330 part carries on.
+
+**Why it's safe:** one function for every cancel; who-may-act checked first; the amount comes from the database; one
+refund row per part enforced by the database; Razorpay called only after commit and only once (lock + saved id +
+"look before you refund again"); failures are kept and retried, never lost. A two-thread test presses Cancel twice at
+the same instant and gets one refund and one Razorpay call.
+
+> *Say it:* "Every cancel goes through one function that locks the seller order, checks who's asking, puts the stock
+> back and creates exactly one refund row for that part, in one transaction. After commit we send a Razorpay partial
+> refund for that part's items plus its delivery fee. It's idempotent: the row is unique per part, the sender locks it
+> and won't send twice, and a retry looks for a refund Razorpay already made before sending a new one."
+
 ---
 
 ## Interview notes
@@ -751,6 +836,19 @@ Gemini (`mock.patch`), so they never call the internet.
 3. **How do you stop an AI from inventing facts in a listing?** Three layers: the prompt says not to, the JSON schema
    has no price field, and `validate_listing` drops any sentence with a price, size or ingredient/material claim the
    seller didn't write. The seller reviews the suggestion before anything is saved, and the app works with AI off.
+
+### Stage 7 (part 1)
+1. **How do you make sure a refund is never paid twice?** Three layers. The database allows one Refund row per
+   seller order (one-to-one), the cancel and the row are created in one transaction with the seller order locked, and
+   the sender locks the refund row and only calls Razorpay while no Razorpay refund id is saved. If Razorpay made the
+   refund but the reply was lost, the retry first looks it up by our note instead of refunding again. A two-thread test
+   presses Cancel twice at the same instant and gets one refund.
+2. **How do you refund one seller's part of a single payment?** The buyer paid once, so we use Razorpay's partial
+   refund on that payment, for exactly that part's subtotal plus its delivery fee, computed on the server from the
+   seller order (never from the request). Other makers' parts aren't touched.
+3. **How do you keep a private photo private?** It's never served from the public media path. A view checks the signed-in
+   user is that request's buyer or that shop's owner and answers 404 to everyone else, the same as a missing file, so
+   nobody even learns it exists. One helper builds every photo URL, so every page follows the same rule.
 
 ## QA log
 

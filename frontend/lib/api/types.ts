@@ -1,3 +1,5 @@
+import type { RefundInfo } from "../refunds";
+
 // Shapes returned by the Django API. All money fields are integer paise.
 
 export type Role = "buyer" | "seller" | "admin";
@@ -32,6 +34,7 @@ export interface PublicStore {
   bio: string;
   cover: string | null;
   main_category: Category | null;
+  cover_category: Category | null; // no uploaded cover: the category it sells most in, else its main category
   delivery_days: number;
   delivery_fee_paise: number;
   product_count: number;
@@ -145,6 +148,12 @@ export interface SellerOrder {
   refund_needed: boolean;
   items: OrderItem[];
   can_review: boolean; // delivered: the buyer may review this maker (the server checks again)
+  refund: RefundInfo | null; // this part's Razorpay refund, once it's cancelled after payment
+  cancelled_by: "" | "buyer" | "seller" | "system";
+  can_cancel: boolean; // New: the buyer may cancel it at once
+  can_request_cancel: boolean; // Preparing (not custom): the buyer may ask the maker to cancel
+  cancel_requested: boolean; // asked; waiting for the maker
+  cancel_declined: boolean; // the maker said no
   my_review: { rating: number; comment: string } | null; // the buyer's review of this maker, if any
 }
 
@@ -221,6 +230,9 @@ export interface IncomingOrder {
   subtotal: number;
   delivery_fee: number;
   refund_needed: boolean;
+  refund: RefundInfo | null;
+  cancel_requested: boolean; // the buyer asked to cancel: Accept / Decline
+  cancelled_by: "" | "buyer" | "seller" | "system";
   preparing_at: string | null;
   out_for_delivery_at: string | null;
   delivered_at: string | null;
@@ -234,6 +246,7 @@ export interface SellerOverview {
   open_orders: number;
   products_listed: number;
   out_of_stock: number; // listed products with stock 0
+  refund_problems: { order_id: number; seller_order_id: number; amount: number }[]; // failed refunds, being retried
   rating: number | null; // null = no reviews yet
   review_count: number;
   open_requests: number; // custom requests waiting for a quote

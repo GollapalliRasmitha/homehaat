@@ -12,3 +12,10 @@ export const verifyPayment = (response: RazorpaySuccess) =>
 export const getOrder = (id: number | string) => apiFetch<Order>(`/orders/${id}/`);
 
 export const listOrders = () => apiFetch<Order[]>("/orders/");
+
+/** Cancel one maker's part while it's New. The server refunds exactly that part (items + its delivery fee). */
+export const cancelPart = (partId: number) => apiFetch<Order>(`/orders/parts/${partId}/cancel/`, { method: "POST" });
+
+/** While the maker is preparing it: ask them to cancel. They accept (refund) or decline. */
+export const requestCancel = (partId: number) =>
+  apiFetch<Order>(`/orders/parts/${partId}/request-cancel/`, { method: "POST" });

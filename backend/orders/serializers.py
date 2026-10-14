@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from orders.models import Order, OrderItem, SellerOrder
+from core.media import public_url
+from orders.models import Order, OrderItem, Refund, SellerOrder
 from orders.services import hold_expires_at
 
 
@@ -17,13 +18,26 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     def get_image(self, item):
         first = next(iter(item.product.images.all()), None) if item.product else None  # prefetched
-        return first.image.url if first else None
+        return public_url(first.image) if first else None  # custom items: private route
 
     def get_tint(self, item):
         return item.product.category.tint if item.product else "soft"  # product deleted later: neutral
 
     def get_art(self, item):
         return item.product.category.art if item.product else "gift"
+
+
+def refund_data(seller_order):
+    """{amount, status} of this part's refund, or None. Uses the prefetched one-to-one when it's there."""
+    try:
+        refund = seller_order.refund
+    except Refund.DoesNotExist:
+        return None
+    return {"amount": refund.amount, "status": refund.status}
+
+
+def _is_custom(seller_order) -> bool:
+    return any(item.product and item.product.is_custom for item in seller_order.items.all())  # prefetched
 
 
 class SellerOrderSerializer(serializers.ModelSerializer):
@@ -42,10 +56,43 @@ class SellerOrderSerializer(serializers.ModelSerializer):
             "items",
             "can_review",
             "my_review",
+            "refund",
+            "cancelled_by",
+            "can_cancel",
+            "can_request_cancel",
+            "cancel_requested",
+            "cancel_declined",
         ]
 
     can_review = serializers.SerializerMethodField()
     my_review = serializers.SerializerMethodField()
+    refund = serializers.SerializerMethodField()
+    can_cancel = serializers.SerializerMethodField()
+    can_request_cancel = serializers.SerializerMethodField()
+    cancel_requested = serializers.SerializerMethodField()
+    cancel_declined = serializers.SerializerMethodField()
+
+    # What the buyer's buttons may offer. orders/cancel.py checks the same rules again on the server.
+    def get_can_cancel(self, part):
+        return part.order.payment_status == Order.PaymentStatus.PAID and part.status == SellerOrder.Status.NEW
+
+    def get_can_request_cancel(self, part):
+        return (
+            part.order.payment_status == Order.PaymentStatus.PAID
+            and part.status == SellerOrder.Status.PREPARING
+            and not part.cancel_requested_at
+            and not part.cancel_declined_at
+            and not _is_custom(part)
+        )
+
+    def get_cancel_requested(self, part):
+        return bool(part.cancel_requested_at) and part.status == SellerOrder.Status.PREPARING
+
+    def get_cancel_declined(self, part):
+        return bool(part.cancel_declined_at) and part.status != SellerOrder.Status.CANCELLED
+
+    def get_refund(self, part):
+        return refund_data(part)
 
     def get_seller(self, seller_order):
         return {"slug": seller_order.seller.slug, "name": seller_order.seller.name}
@@ -92,12 +139,23 @@ class IncomingOrderSerializer(serializers.ModelSerializer):
     # Buyer's name, phone and address: visible only to the sellers of this order.
     ship_to = serializers.JSONField(source="order.ship_to")
     items = OrderItemSerializer(many=True, read_only=True)
+    refund = serializers.SerializerMethodField()
+    cancel_requested = serializers.SerializerMethodField()
+
+    def get_refund(self, part):
+        return refund_data(part)
+
+    def get_cancel_requested(self, part):
+        return bool(part.cancel_requested_at) and part.status == SellerOrder.Status.PREPARING
 
     class Meta:
         model = SellerOrder
         fields = [
             "id",
             "order_id",
+            "refund",
+            "cancel_requested",
+            "cancelled_by",
             "paid_at",
             "status",
             "subtotal",

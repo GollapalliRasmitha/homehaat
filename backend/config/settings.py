@@ -149,6 +149,11 @@ REST_FRAMEWORK = {
     },
 }
 
+# --- Proxy ---
+# Shared with the Next.js app (frontend/proxy.ts): proves a forwarded visitor IP really came from our proxy, so the
+# sign-in rate limit counts each visitor separately. Empty = trust no forwarded IP (fine locally).
+PROXY_SECRET = os.getenv("PROXY_SECRET", "")
+
 # --- Razorpay (test mode only) ---
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")

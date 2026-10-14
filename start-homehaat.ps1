@@ -94,6 +94,8 @@ if ($LASTEXITCODE -ne 0) { Fail "migrate failed." }
 if ($LASTEXITCODE -ne 0) { Fail "seed_categories failed." }
 # Give back stock held by orders left unpaid for more than 15 minutes (also run by checkout itself).
 & $python (Join-Path $backend "manage.py") expire_orders
+# Send any refund that failed or wasn't sent yet, and check pending ones (safe to run any time).
+& $python (Join-Path $backend "manage.py") retry_refunds
 
 # --- 6. Two windows ---------------------------------------------------------------
 Step "Opening Django (8000) and Next.js (3000)"

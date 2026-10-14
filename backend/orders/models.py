@@ -57,7 +57,11 @@ class SellerOrder(models.Model):
     out_for_delivery_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
-    refund_needed = models.BooleanField(default=False)  # cancelled after payment (test mode: no live refunds)
+    refund_needed = models.BooleanField(default=False)  # cancelled after payment: see the Refund row
+    # The buyer asked to cancel while it was being prepared; the seller accepts or declines.
+    cancel_requested_at = models.DateTimeField(null=True, blank=True)
+    cancel_declined_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.CharField(max_length=10, blank=True)  # "buyer", "seller" or "system" (late payment)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -78,3 +82,31 @@ class OrderItem(models.Model):
     @property
     def line_total(self) -> int:
         return self.unit_price * self.qty
+
+
+class Refund(models.Model):
+    """
+    The money back for ONE cancelled seller order (its items + that maker's delivery fee), through Razorpay.
+    One-to-one with SellerOrder: the database itself makes a second refund for the same part impossible.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"  # started (or about to be sent); Razorpay usually takes 5-7 days
+        PROCESSED = "processed", "Processed"  # the money is on its way back
+        FAILED = "failed", "Failed"  # Razorpay refused or couldn't be reached: retry_refunds tries again
+
+    seller_order = models.OneToOneField(SellerOrder, on_delete=models.PROTECT, related_name="refund")
+    amount = models.PositiveIntegerField()  # paise, computed on the server: subtotal + delivery_fee
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING, db_index=True)
+    razorpay_refund_id = models.CharField(max_length=40, unique=True, null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    last_error = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Refund of {self.amount} paise for seller order {self.seller_order_id} ({self.status})"

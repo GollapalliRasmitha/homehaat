@@ -126,6 +126,22 @@ Press **Cancel order** (only possible while it's *New* or *Preparing*). HomeHaat
 
 Cancelling can't be undone, so please only cancel if you really can't make it.
 
+### When a buyer wants to cancel
+
+- **While it's New**, the buyer can cancel straight away. You'll see it as cancelled, and the items go back into your stock.
+- **While you're preparing it**, the buyer can only *ask*. Your order card shows **The buyer asked to cancel this
+  order** with two buttons: **Accept and refund**, or **Decline, I'll make it**.
+- **Once it's out for delivery**, it can't be cancelled.
+- **Custom orders** can only be cancelled while they're New, because once you start, you're making something only
+  they wanted.
+
+### Refunds
+
+Whenever an order is cancelled (by you or the buyer), HomeHaat refunds the buyer automatically: exactly that order's
+items plus your delivery fee, nothing from other makers. The order card shows how the refund is doing (*started*,
+*sent*, or *delayed, retrying automatically*). If a refund is delayed, your Overview shows it until it goes through.
+(In this test version no real money moves.)
+
 ---
 
 ## 6. Changing your products

@@ -72,6 +72,7 @@ export function StoreForm({ store, onSaved }: { store?: Store; onSaved: (store: 
     if (slug && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) found.slug = "Use small letters, numbers and dashes, like asha-bakes.";
     if (fee === null) found.fee = "Enter an amount in rupees, like 40.";
     if (!Number.isInteger(days) || days < 0 || days > 30) found.days = "Enter a number of days from 0 to 30.";
+    if (!value("category")) found.category = "Please choose your main category.";
     setErrors(found);
     if (Object.keys(found).length) return;
 
@@ -102,6 +103,7 @@ export function StoreForm({ store, onSaved }: { store?: Store; onSaved: (store: 
           slug: error.fieldError("slug") ?? "",
           fee: error.fieldError("delivery_fee_paise") ?? "",
           days: error.fieldError("delivery_days") ?? "",
+          category: error.fieldError("main_category") ?? "",
         });
       }
       toast(`Couldn't save your shop. ${errorMessage(error)}`);
@@ -170,13 +172,30 @@ export function StoreForm({ store, onSaved }: { store?: Store; onSaved: (store: 
         <label className="field-label" htmlFor="category">
           Main category
         </label>
-        <select id="category" name="category" className="input" defaultValue={store?.main_category ?? categories[0]?.slug}>
+        {/* No pre-selected category: the seller chooses (a default made art shops show a cake cover photo). */}
+        <select
+          id="category"
+          name="category"
+          className="input"
+          required
+          defaultValue={store?.main_category ?? ""}
+          aria-invalid={errors.category ? true : undefined}
+          aria-describedby={errors.category ? "category-error" : undefined}
+        >
+          <option value="" disabled>
+            Choose a category
+          </option>
           {categories.map((c) => (
             <option key={c.slug} value={c.slug}>
               {c.name}
             </option>
           ))}
         </select>
+        {errors.category && (
+          <p id="category-error" className="field-error">
+            {errors.category}
+          </p>
+        )}
       </div>
       <div className="sm:col-span-2">
         <label className="field-label" htmlFor="area">

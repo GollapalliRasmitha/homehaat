@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from cart.models import CartItem
 from catalog.models import Product
-from orders.models import Order, OrderItem, SellerOrder
+from orders.models import Order, OrderItem
 
 
 class PaymentError(Exception):
@@ -96,7 +96,7 @@ def _take_stock_again(order: Order) -> None:
                 # F() = "stock = stock - qty" done by the database, on rows we have locked.
                 Product.objects.filter(pk=item.product_id).update(stock=F("stock") - item.qty)
         else:
-            seller_order.status = SellerOrder.Status.CANCELLED
-            seller_order.cancelled_at = timezone.now()
-            seller_order.refund_needed = True
-            seller_order.save(update_fields=["status", "cancelled_at", "refund_needed"])
+            # Their items are gone: cancel this part and refund it (orders/cancel.py).
+            from orders.cancel import system_cancel
+
+            system_cancel(seller_order)

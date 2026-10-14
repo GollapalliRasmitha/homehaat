@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 
 from cart.models import CartItem
 from catalog.models import Product
+from core.media import public_url
 from core.tests.factories import add_to_cart, make_address, make_category, make_product, make_seller, make_user
 from custom_requests.models import CustomRequest
 from custom_requests.services import NotYourRequestError, RequestError, add_quote_to_bag, apply_action
@@ -224,7 +225,7 @@ class ReferencePhotoAsItemImageTests(TestCase):
         client = APIClient()
         client.force_authenticate(self.buyer)
         line = client.get("/api/cart/").data["groups"][0]["items"][0]
-        self.assertEqual(line["product"]["image"], first.image.url)  # bag (and checkout, which uses the bag)
+        self.assertEqual(line["product"]["image"], public_url(first.image))  # bag (and checkout): the private route
 
     def test_no_reference_photo_means_no_image_so_the_drawing_shows(self):
         self.accept()
@@ -241,12 +242,12 @@ class ReferencePhotoAsItemImageTests(TestCase):
         buyer = APIClient()
         buyer.force_authenticate(self.buyer)
         item = buyer.get(f"/api/orders/{order.id}/").data["seller_orders"][0]["items"][0]
-        self.assertEqual(item["image"], first.image.url)
+        self.assertEqual(item["image"], public_url(first.image))
         self.assertEqual((item["tint"], item["art"]), ("blush", "cake"))  # fallback drawing info
 
         seller = APIClient()
         seller.force_authenticate(self.seller.owner)
-        self.assertEqual(seller.get("/api/seller/orders/").data[0]["items"][0]["image"], first.image.url)
+        self.assertEqual(seller.get("/api/seller/orders/").data[0]["items"][0]["image"], public_url(first.image))
 
         stranger = APIClient()
         stranger.force_authenticate(make_user())

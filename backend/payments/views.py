@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from orders.models import Order
 from payments import razorpay_client
+from payments.refunds import apply_webhook as apply_refund_webhook
 from payments.webhook import (
     PaymentError,
     mark_order_paid,
@@ -35,6 +36,10 @@ def webhook(request):
         return Response({"detail": "Bad signature."}, status=status.HTTP_400_BAD_REQUEST)
 
     event = json.loads(raw_body)
+    if event.get("event") in ("refund.processed", "refund.failed"):
+        # A refund we started has finished (or failed: retry_refunds will send a new one).
+        known = apply_refund_webhook(event["payload"]["refund"]["entity"])
+        return Response({"ok": True, "refund": "updated" if known else "not ours"})
     if event.get("event") != "payment.captured":
         return Response({"ok": True, "ignored": event.get("event")})
 

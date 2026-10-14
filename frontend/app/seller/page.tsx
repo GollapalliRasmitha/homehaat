@@ -63,6 +63,21 @@ export default function OverviewPage() {
         />
       </div>
 
+      {data.refund_problems.length > 0 && (
+        <div className="mb-8 rounded-[18px] border border-error/40 px-5 py-4" role="status">
+          <b>
+            {data.refund_problems.length === 1 ? "1 refund is" : `${data.refund_problems.length} refunds are`} delayed
+          </b>
+          <ul className="mt-1 text-[15px] text-muted">
+            {data.refund_problems.map((r) => (
+              <li key={r.seller_order_id}>
+                {formatINR(r.amount)} for order #{r.order_id}. HomeHaat is retrying it automatically.
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {data.open_requests > 0 && (
         <Link
           href="/seller/requests"

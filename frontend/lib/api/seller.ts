@@ -43,6 +43,10 @@ export const listIncomingOrders = (status?: SellerOrderStatus) =>
 export const changeOrderStatus = (id: number, status: SellerOrderStatus) =>
   apiFetch<IncomingOrder>(`/seller/orders/${id}/status/`, { method: "POST", body: { status } });
 
+/** The buyer asked to cancel: accept (cancel + refund) or decline (keep preparing it). */
+export const answerCancelRequest = (id: number, accept: boolean) =>
+  apiFetch<IncomingOrder>(`/seller/orders/${id}/cancel-request/`, { method: "POST", body: { accept } });
+
 export const getMyReviews = () => apiFetch<SellerReviews>("/seller/reviews/");
 
 // --- products ---

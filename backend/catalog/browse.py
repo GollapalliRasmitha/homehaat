@@ -206,10 +206,20 @@ def suggest_query(q) -> str | None:
 def all_stores() -> QuerySet:
     """Every store, paused or not, with its live product count and real rating (None when there are no reviews).
     A paused store's own page still opens; it just isn't listed and doesn't take orders."""
+    # The category this shop has the most live products in: its cover photo when the seller hasn't uploaded one
+    # (an art shop shows an art photo even if "main category" was left on something else). Ties: category order.
+    top_category = (
+        Product.objects.filter(seller=OuterRef("pk"), is_active=True, is_custom=False, is_archived=False)
+        .values("category")
+        .annotate(n=Count("id"))
+        .order_by("-n", "category__position", "category")
+        .values("category")[:1]
+    )
     return Seller.objects.select_related("main_category").annotate(
         product_count=Count("products", filter=Q(products__is_active=True, products__is_custom=False), distinct=True),
         rating=Avg("reviews__rating"),
         review_count=Count("reviews", distinct=True),
+        top_category_id=Subquery(top_category),
     )
 
 

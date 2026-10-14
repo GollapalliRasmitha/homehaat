@@ -3,6 +3,7 @@ import re
 from rest_framework import serializers
 
 from catalog.models import Category, Product, ProductImage, Seller
+from core.media import public_url
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -22,7 +23,9 @@ class PublicStoreSerializer(serializers.ModelSerializer):
     """What buyers see about a shop. Counts and rating are annotated from the database (browse.public_stores)."""
 
     kind_label = serializers.CharField(source="get_kind_display", read_only=True)
-    main_category = CategorySerializer(read_only=True)  # its photo is the cover when there's no upload
+    main_category = CategorySerializer(read_only=True)
+    # No uploaded cover: show the photo of the category it sells most in, else its main category.
+    cover_category = serializers.SerializerMethodField()
     cover = serializers.SerializerMethodField()
     product_count = serializers.IntegerField(read_only=True)
     rating = serializers.SerializerMethodField()
@@ -40,6 +43,7 @@ class PublicStoreSerializer(serializers.ModelSerializer):
             "area",
             "bio",
             "cover",
+            "cover_category",
             "main_category",
             "delivery_days",
             "delivery_fee_paise",
@@ -53,6 +57,17 @@ class PublicStoreSerializer(serializers.ModelSerializer):
 
     def get_rating(self, store):
         return round(store.rating, 1) if store.rating is not None else None  # None = no reviews yet
+
+    def get_cover_category(self, store):
+        category_id = getattr(store, "top_category_id", None) or store.main_category_id
+        if not category_id:
+            return None
+        # All 8 categories, loaded once per response (not once per shop in the Makers list).
+        root = self.root
+        if not hasattr(root, "_categories"):
+            root._categories = Category.objects.in_bulk()
+        category = root._categories.get(category_id)
+        return CategorySerializer(category).data if category else None
 
 
 class SellerSummarySerializer(serializers.ModelSerializer):
@@ -89,10 +104,10 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def get_image(self, product):
         first = next(iter(product.images.all()), None)  # uses prefetch_related, no extra query
-        return first.image.url if first else None
+        return public_url(first.image) if first else None
 
     def get_images(self, product):
-        return [img.image.url for img in product.images.all()]  # in the seller's chosen order
+        return [public_url(img.image) for img in product.images.all()]  # in the seller's chosen order
 
 
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -126,6 +141,12 @@ class StoreSerializer(serializers.ModelSerializer):
     def get_cover(self, store):
         return store.cover.url if store.cover else None
 
+    def validate(self, attrs):
+        # Opening a shop: the seller must choose (no pre-selected default, which gave art shops a cake cover).
+        if self.instance is None and not attrs.get("main_category"):
+            raise serializers.ValidationError({"main_category": "Please choose your main category."})
+        return attrs
+
     def validate_slug(self, value):
         value = value.strip().lower()
         if not SLUG_RE.match(value):
@@ -146,7 +167,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = ["id", "url", "position"]
 
     def get_url(self, img):
-        return img.image.url
+        return public_url(img.image)
 
 
 class SellerProductSerializer(serializers.ModelSerializer):
@@ -178,4 +199,4 @@ class SellerProductSerializer(serializers.ModelSerializer):
 
     def get_image(self, product):
         first = next(iter(product.images.all()), None)
-        return first.image.url if first else None
+        return public_url(first.image) if first else None

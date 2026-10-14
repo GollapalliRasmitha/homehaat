@@ -9,10 +9,8 @@ and only the status changes: never the money.
 """
 
 from django.db import transaction
-from django.db.models import F
 from django.utils import timezone
 
-from catalog.models import Product
 from orders.models import Order, SellerOrder
 
 S = SellerOrder.Status
@@ -66,17 +64,15 @@ def advance_status(seller_order: SellerOrder, new_status: str, user) -> SellerOr
         wanted = S(new_status).label if new_status in S.values else new_status
         raise StatusError(f"An order that is “{current}” can't be moved to “{wanted}”.")
 
+    if new_status == S.CANCELLED:
+        # Stock back + one Razorpay refund for exactly this part: all in orders/cancel.py.
+        from orders.cancel import seller_cancel  # cancel imports this module, so import here
+
+        return seller_cancel(part)
+
     part.status = new_status
     setattr(part, TIMESTAMP_FIELD[new_status], timezone.now())
     changed = ["status", TIMESTAMP_FIELD[new_status]]
-
-    if new_status == S.CANCELLED:
-        # The buyer already paid: record that they need their money back (test mode: no live refunds).
-        part.refund_needed = True
-        changed.append("refund_needed")
-        # Nothing will be made, so the items go back on the shelf. F() = done by the database.
-        for item in part.items.filter(product__isnull=False):
-            Product.objects.filter(pk=item.product_id).update(stock=F("stock") + item.qty)
 
     # update_fields: only these columns are written, so the money columns can't change here.
     part.save(update_fields=changed)

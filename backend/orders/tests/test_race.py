@@ -46,3 +46,44 @@ class LastItemRaceTests(TransactionTestCase):
         self.assertEqual(Order.objects.count(), 1)
         cake.refresh_from_db()
         self.assertEqual(cake.stock, 0)  # never -1
+
+
+class DoubleCancelRaceTests(TransactionTestCase):
+    """[KEY LOGIC] Two Cancel presses at the same instant (double click, two devices): one refund, sent once."""
+
+    def test_two_cancels_at_once_make_one_refund(self):
+        from unittest import mock
+
+        from core.tests.factories import make_paid_order
+        from orders.cancel import buyer_cancel
+        from orders.models import Refund
+
+        part = make_paid_order(make_product(make_seller(), stock=3))
+        buyer = part.order.buyer
+        start_together = threading.Barrier(2)
+        results = []
+
+        def cancel():
+            try:
+                start_together.wait()
+                buyer_cancel(part, buyer)
+                results.append("ok")
+            finally:
+                connection.close()
+
+        answer = {"id": "rfnd_race", "status": "pending", "notes": {}}
+        with (
+            mock.patch("payments.refunds.razorpay_client.create_refund", return_value=answer) as create,
+            mock.patch("payments.refunds.razorpay_client.list_refunds", return_value=[]),
+        ):
+            threads = [threading.Thread(target=cancel) for _ in range(2)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+        self.assertEqual(results, ["ok", "ok"])  # both presses get an answer, neither an error
+        self.assertEqual(Refund.objects.count(), 1)
+        self.assertEqual(create.call_count, 1)  # Razorpay was asked once
+        part.refresh_from_db()
+        self.assertEqual(part.status, "cancelled")

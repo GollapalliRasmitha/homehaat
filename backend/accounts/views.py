@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import SimpleRateThrottle
 
 from accounts.serializers import AddressSerializer, SignInSerializer, SignUpSerializer, UserSerializer
+from core.client_ip import client_ip
 
 
 class AuthThrottle(SimpleRateThrottle):
@@ -16,7 +17,8 @@ class AuthThrottle(SimpleRateThrottle):
     scope = "auth"
 
     def get_cache_key(self, request, view):
-        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
+        # The visitor's own IP (passed on by the Next.js proxy with a secret), not the proxy's: core/client_ip.py
+        return self.cache_format % {"scope": self.scope, "ident": client_ip(request)}
 
 
 class CsrfRequired(BasePermission):

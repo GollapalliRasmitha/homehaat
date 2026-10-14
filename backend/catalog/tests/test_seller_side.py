@@ -40,20 +40,28 @@ class StoreSettingsTests(TestCase):
         self.client = client_for(self.user)
 
     def test_open_shop_with_my_own_shop_link(self):
-        res = self.client.post("/api/seller/store/", {"name": "Asha's Kitchen", "slug": "asha-bakes"}, format="json")
+        res = self.client.post(
+            "/api/seller/store/",
+            {"name": "Asha's Kitchen", "slug": "asha-bakes", "main_category": "cakes"},
+            format="json",
+        )
         self.assertEqual(res.status_code, 201)
         self.assertEqual(res.data["slug"], "asha-bakes")
 
     def test_shop_link_must_be_unique_and_well_formed(self):
         make_seller(slug="taken")
-        taken = self.client.post("/api/seller/store/", {"name": "X", "slug": "taken"}, format="json")
+        taken = self.client.post(
+            "/api/seller/store/", {"name": "X", "slug": "taken", "main_category": "cakes"}, format="json"
+        )
         self.assertEqual(taken.status_code, 400)
         self.assertIn("slug", taken.data)
-        bad = self.client.post("/api/seller/store/", {"name": "X", "slug": "Has Spaces!"}, format="json")
+        bad = self.client.post(
+            "/api/seller/store/", {"name": "X", "slug": "Has Spaces!", "main_category": "cakes"}, format="json"
+        )
         self.assertEqual(bad.status_code, 400)
 
     def test_edit_settings_and_pause_the_store(self):
-        self.client.post("/api/seller/store/", {"name": "Mine"}, format="json")
+        self.client.post("/api/seller/store/", {"name": "Mine", "main_category": "cakes"}, format="json")
         res = self.client.patch(
             "/api/seller/store/",
             {"name": "Mine renamed", "slug": "mine-renamed", "delivery_fee_paise": 5000, "is_active": False},
@@ -65,12 +73,14 @@ class StoreSettingsTests(TestCase):
         self.assertFalse(store.is_active)
 
     def test_keeping_my_own_slug_is_fine(self):
-        self.client.post("/api/seller/store/", {"name": "Mine", "slug": "mine"}, format="json")
+        self.client.post(
+            "/api/seller/store/", {"name": "Mine", "slug": "mine", "main_category": "cakes"}, format="json"
+        )
         res = self.client.patch("/api/seller/store/", {"slug": "mine", "bio": "Hello"}, format="json")
         self.assertEqual(res.status_code, 200)
 
     def test_pausing_stops_orders_but_the_shop_stays_visible(self):
-        self.client.post("/api/seller/store/", {"name": "Mine"}, format="json")
+        self.client.post("/api/seller/store/", {"name": "Mine", "main_category": "cakes"}, format="json")
         product = make_product(self.user.seller)
         self.client.patch("/api/seller/store/", {"is_active": False}, format="json")
         page = APIClient().get(f"/api/products/{product.id}/")
@@ -79,7 +89,7 @@ class StoreSettingsTests(TestCase):
         self.assertEqual(APIClient().get("/api/products/").json(), [])  # not in lists or search
 
     def test_settings_cannot_change_my_role_or_owner(self):
-        self.client.post("/api/seller/store/", {"name": "Mine"}, format="json")
+        self.client.post("/api/seller/store/", {"name": "Mine", "main_category": "cakes"}, format="json")
         other = make_user()
         self.client.patch("/api/seller/store/", {"owner": other.id, "role": "admin"}, format="json")
         self.user.refresh_from_db()

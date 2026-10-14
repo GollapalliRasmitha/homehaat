@@ -44,3 +44,18 @@ def fetch_payment(payment_id: str) -> dict:
 
 def capture_payment(payment_id: str, amount_paise: int) -> dict:
     return _call("POST", f"/payments/{payment_id}/capture", json={"amount": amount_paise, "currency": "INR"})
+
+
+def create_refund(*, payment_id: str, amount_paise: int, receipt: str, notes: dict) -> dict:
+    """A partial refund of one payment (test mode). `notes` lets us find this refund again if a reply is lost."""
+    body = {"amount": amount_paise, "speed": "normal", "receipt": receipt, "notes": notes}
+    return _call("POST", f"/payments/{payment_id}/refund", json=body)
+
+
+def list_refunds(payment_id: str) -> list:
+    """Every refund Razorpay already made for this payment."""
+    return _call("GET", f"/payments/{payment_id}/refunds", params={"count": 100}).get("items", [])
+
+
+def fetch_refund(refund_id: str) -> dict:
+    return _call("GET", f"/refunds/{refund_id}")

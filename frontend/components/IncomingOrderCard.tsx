@@ -4,9 +4,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { errorMessage } from "@/lib/api/client";
-import { changeOrderStatus } from "@/lib/api/seller";
+import { answerCancelRequest, changeOrderStatus } from "@/lib/api/seller";
 import type { IncomingOrder, SellerOrderStatus } from "@/lib/api/types";
 import { formatINR } from "@/lib/format";
+import { refundText } from "@/lib/refunds";
 import { STATUS_LABEL } from "@/lib/status";
 
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -25,6 +26,19 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { dateStyle:
 export function IncomingOrderCard({ order, onChange }: { order: IncomingOrder; onChange: (o: IncomingOrder) => void }) {
   const [busy, setBusy] = useState(false);
   const next = NEXT_STEP[order.status];
+
+  async function answer(accept: boolean) {
+    setBusy(true);
+    try {
+      const updated = await answerCancelRequest(order.id, accept);
+      onChange(updated);
+      toast(accept ? `Cancelled. ${updated.refund ? refundText(updated.refund, "seller") : ""}` : "Declined. Keep preparing it.");
+    } catch (error) {
+      toast(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function move(status: SellerOrderStatus) {
     setBusy(true);
@@ -79,11 +93,45 @@ export function IncomingOrderCard({ order, onChange }: { order: IncomingOrder; o
         </div>
       </div>
 
-      {order.status === "cancelled" && order.refund_needed && (
-        <p className="mt-3 rounded-[14px] bg-soft px-3.5 py-3 text-sm">
-          Cancelled after payment: the buyer needs a refund of {formatINR(order.subtotal + order.delivery_fee)}. (Test
-          mode: no real money moves.)
+      {order.status === "cancelled" && (
+        <p className="mt-3 rounded-[14px] bg-soft px-3.5 py-3 text-sm" role="status">
+          <b>
+            {order.cancelled_by === "buyer"
+              ? "The buyer cancelled this order."
+              : order.cancelled_by === "system"
+                ? "Cancelled: the items had sold out before the payment arrived."
+                : "You cancelled this order."}
+          </b>{" "}
+          {order.refund ? refundText(order.refund, "seller") : null} (Test mode: no real money moves.)
         </p>
+      )}
+
+      {order.cancel_requested && (
+        <div className="mt-3 rounded-[14px] border border-ink px-3.5 py-3" role="status">
+          <p className="text-[15px]">
+            <b>The buyer asked to cancel this order.</b>{" "}
+            <span className="text-muted">
+              If you accept, they get {formatINR(order.subtotal + order.delivery_fee)} back and the items go back into
+              your stock.
+            </span>
+          </p>
+          <div className="mt-2.5 flex flex-col gap-2.5 sm:flex-row">
+            <ConfirmDialog
+              trigger={
+                <button className="btn btn-black w-full sm:w-auto" disabled={busy}>
+                  Accept and refund
+                </button>
+              }
+              title={`Cancel order #${order.order_id} and refund the buyer?`}
+              text={`The buyer gets ${formatINR(order.subtotal + order.delivery_fee)} back. This can't be undone.`}
+              confirmLabel="Yes, cancel and refund"
+              onConfirm={() => answer(true)}
+            />
+            <button className="btn btn-white w-full sm:w-auto" disabled={busy} onClick={() => answer(false)}>
+              Decline, I&apos;ll make it
+            </button>
+          </div>
+        </div>
       )}
 
       {(next || CAN_CANCEL.includes(order.status)) && (
@@ -102,7 +150,7 @@ export function IncomingOrderCard({ order, onChange }: { order: IncomingOrder; o
                 </button>
               }
               title={`Cancel order #${order.order_id}?`}
-              text="The buyer will see it's cancelled and will need a refund. The items go back into your stock. This can't be undone."
+              text={`The buyer gets ${formatINR(order.subtotal + order.delivery_fee)} back automatically, and the items go back into your stock. This can't be undone.`}
               confirmLabel="Yes, cancel it"
               onConfirm={() => move("cancelled")}
             />

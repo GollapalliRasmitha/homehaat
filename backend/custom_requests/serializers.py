@@ -3,6 +3,7 @@ from datetime import date
 from rest_framework import serializers
 
 from catalog.serializers import SellerSummarySerializer
+from core.media import public_url
 from custom_requests.models import CustomRequest
 
 
@@ -29,7 +30,16 @@ class NewRequestSerializer(serializers.Serializer):
 
 
 class QuoteSerializer(serializers.Serializer):
-    quote_paise = serializers.IntegerField(min_value=100, max_value=100_000_000)
+    quote_paise = serializers.IntegerField(
+        min_value=100,
+        max_value=100_000_000,
+        # In rupees, the way sellers think (the form sends paise; ₹1 = 100 paise).
+        error_messages={
+            "min_value": "Enter a price of ₹1 or more.",
+            "max_value": "That price is too high. Please check it.",
+            "invalid": "Enter a price in rupees, like 450.",
+        },
+    )
     note = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
 
 
@@ -66,7 +76,7 @@ class CustomRequestSerializer(serializers.ModelSerializer):
         return req.buyer.name.split(" ")[0] if req.buyer.name else "A buyer"
 
     def get_images(self, req):
-        return [img.image.url for img in req.images.all()]
+        return [public_url(img.image) for img in req.images.all()]  # private route
 
     def get_in_bag(self, req):
         return bool(req.product_id) and req.product.cart_items.filter(user_id=req.buyer_id).exists()

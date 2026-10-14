@@ -45,6 +45,7 @@ class OpenShopTests(TestCase):
             {
                 "name": "Asha's Kitchen",
                 "kind": "home_baker",
+                "main_category": "cakes",
                 "area": "Indiranagar",
                 "delivery_days": 1,
                 "delivery_fee_paise": 4000,
@@ -61,12 +62,14 @@ class OpenShopTests(TestCase):
         other = make_user()
         other_client = APIClient()
         other_client.force_authenticate(other)
-        other_client.post("/api/seller/store/", {"name": "Asha's Kitchen"}, format="json")
-        res = self.client.post("/api/seller/store/", {"name": "Asha's Kitchen"}, format="json")
+        other_client.post("/api/seller/store/", {"name": "Asha's Kitchen", "main_category": "cakes"}, format="json")
+        res = self.client.post(
+            "/api/seller/store/", {"name": "Asha's Kitchen", "main_category": "cakes"}, format="json"
+        )
         self.assertEqual(res.data["slug"], "ashas-kitchen-2")
 
     def test_seller_adds_a_product_and_cannot_set_another_sellers_id(self):
-        self.client.post("/api/seller/store/", {"name": "Mine"}, format="json")
+        self.client.post("/api/seller/store/", {"name": "Mine", "main_category": "cakes"}, format="json")
         someone_else = make_seller()
         res = self.client.post(
             "/api/seller/products/",
@@ -77,7 +80,7 @@ class OpenShopTests(TestCase):
         self.assertEqual(Product.objects.get(name="Cake").seller.owner, self.user)
 
     def test_seller_a_cannot_see_seller_b_products(self):
-        self.client.post("/api/seller/store/", {"name": "Mine"}, format="json")
+        self.client.post("/api/seller/store/", {"name": "Mine", "main_category": "cakes"}, format="json")
         make_product(name="Not mine")
         self.assertEqual(self.client.get("/api/seller/products/").data, [])
 

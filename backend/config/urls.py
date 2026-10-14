@@ -1,12 +1,11 @@
-from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 
 from accounts import views as accounts
 from ai import views as ai
 from cart import views as cart
 from catalog import views as catalog
+from core import media
 from custom_requests import views as custom_requests
 from orders import views as orders
 from payments import views as payments
@@ -39,6 +38,8 @@ api = [
     path("checkout/", orders.checkout),
     path("orders/", orders.MyOrderList.as_view()),
     path("orders/<int:pk>/", orders.MyOrderDetail.as_view()),
+    path("orders/parts/<int:pk>/cancel/", orders.cancel_part),
+    path("orders/parts/<int:pk>/request-cancel/", orders.request_cancel),
     path("payments/verify/", payments.verify),
     path("payments/webhook/", payments.webhook),
     # seller
@@ -52,11 +53,14 @@ api = [
     path("seller/products/<int:pk>/images/<int:image_id>/", catalog.product_image_delete),
     path("seller/orders/", orders.IncomingOrderList.as_view()),
     path("seller/orders/<int:pk>/status/", orders.change_status),
+    path("seller/orders/<int:pk>/cancel-request/", orders.answer_cancel_request),
     path("seller/reviews/", reviews.my_reviews),
     path("seller/ai/listing/", ai.listing),
     path("seller/requests/", custom_requests.shop_requests),
     path("seller/requests/<int:pk>/quote/", custom_requests.send_quote),
     path("seller/requests/<int:pk>/decline/", custom_requests.seller_decline),
+    # custom request photos: only that buyer and that seller (core/media.py)
+    path("private-media/requests/<str:name>/", media.private_request_photo),
     # reviews (buyer, after delivery)
     path("reviews/", reviews.write),
     # custom requests (buyer)
@@ -73,5 +77,6 @@ urlpatterns = [
     path("api/", include(api)),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Public photos (products, covers). Custom request photos are refused here: they only go through the private route
+# above, which checks the buyer/seller. (In production, photos move to Cloudinary.)
+urlpatterns += [re_path(r"^media/(?P<path>.*)$", media.serve_public_media)]

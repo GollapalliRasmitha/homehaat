@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { OrderItemThumb } from "@/components/ItemThumb";
 import { LoadError } from "@/components/LoadError";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { PartCancel } from "@/components/PartCancel";
 import { ReviewForm } from "@/components/ReviewForm";
 import { ApiError } from "@/lib/api/client";
 import { getOrder } from "@/lib/api/orders";
@@ -90,13 +91,6 @@ function OrderDetail() {
             {paid && <span className={`status st-${part.status}`}>{STATUS_LABEL[part.status]}</span>}
           </div>
           {paid && <OrderTimeline status={part.status} />}
-          {part.status === "cancelled" && (
-            <p className="my-3 text-muted">
-              {part.refund_needed
-                ? "This maker couldn't fill this part of your order. A refund of it is on its way."
-                : "This part of your order was cancelled."}
-            </p>
-          )}
           {part.items.map((item) => (
             <div key={item.id} className="mt-2.5 flex items-center gap-3 text-[15px] text-muted">
               <OrderItemThumb item={item} />
@@ -114,6 +108,8 @@ function OrderDetail() {
             <span>Subtotal</span>
             <span>{formatINR(part.subtotal + part.delivery_fee)}</span>
           </div>
+          {/* Cancel / Ask to cancel, or who cancelled it and how the refund is doing */}
+          {paid && <PartCancel part={part} onOrder={setOrder} />}
           {paid && part.can_review && (
             <ReviewForm
               sellerSlug={part.seller.slug}

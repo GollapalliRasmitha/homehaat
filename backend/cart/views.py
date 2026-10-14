@@ -26,6 +26,10 @@ class Line:
     id: int | None = None
 
 
+def stock_message(stock: int) -> str:
+    return "This is sold out." if stock <= 0 else f"Only {stock} available."
+
+
 def problem_with(line: Line) -> str | None:
     """Why this line can't be bought right now, or None if it's fine."""
     product = line.product
@@ -128,7 +132,7 @@ def add_item(request):
     item = CartItem.objects.filter(user=request.user, product=product).first()
     new_qty = (item.qty if item else 0) + data.validated_data["qty"]
     if new_qty > min(product.stock, MAX_QTY):
-        return Response({"detail": f"Only {product.stock} available."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": stock_message(product.stock)}, status=status.HTTP_400_BAD_REQUEST)
 
     if item:
         item.qty = new_qty
@@ -150,7 +154,7 @@ def change_item(request, item_id):
     data.is_valid(raise_exception=True)
     if "qty" in data.validated_data:
         if data.validated_data["qty"] > item.product.stock:
-            return Response({"detail": f"Only {item.product.stock} available."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": stock_message(item.product.stock)}, status=status.HTTP_400_BAD_REQUEST)
         item.qty = data.validated_data["qty"]
     if "note" in data.validated_data:
         item.note = data.validated_data["note"]

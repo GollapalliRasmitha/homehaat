@@ -14,7 +14,8 @@ from rest_framework.throttling import UserRateThrottle
 from accounts.address_rules import address_problems
 from accounts.models import Address
 from catalog.views import IsSeller
-from orders.models import Order, SellerOrder
+from orders.cancel import answer_cancellation, buyer_cancel, request_cancellation
+from orders.models import Order, Refund, SellerOrder
 from orders.serializers import IncomingOrderSerializer, OrderSerializer
 from orders.services import (
     CheckoutError,
@@ -102,6 +103,7 @@ def orders_with_details():
         "seller_orders__seller",
         "seller_orders__items__product__category",
         "seller_orders__items__product__images",
+        "seller_orders__refund",
     )
 
 
@@ -148,7 +150,7 @@ def paid_parts(seller):
     """This seller's parts of PAID orders, with what's needed to show them."""
     return (
         SellerOrder.objects.filter(seller=seller, order__payment_status=Order.PaymentStatus.PAID)
-        .select_related("order")
+        .select_related("order", "refund")
         .prefetch_related("items__product__category", "items__product__images")
     )
 
@@ -175,6 +177,49 @@ def change_status(request, pk):
 OPEN = [SellerOrder.Status.NEW, SellerOrder.Status.PREPARING, SellerOrder.Status.OUT_FOR_DELIVERY]
 
 
+def _buyer_part(request, pk):
+    return get_object_or_404(SellerOrder, pk=pk)  # cancel.py then checks it's this buyer's (else 404)
+
+
+def _buyer_answer(request, action):
+    """Run a buyer action on one maker's part, then return the whole order as the buyer sees it."""
+    try:
+        part = action()
+    except NotYourOrderError:
+        return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+    except StatusError as exc:
+        return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
+    order = orders_with_details().get(pk=part.order_id)
+    context = {"request": request, "my_reviews": {r.seller_id: r for r in Review.objects.filter(buyer=request.user)}}
+    return Response(OrderSerializer(order, context=context).data)
+
+
+@api_view(["POST"])
+def cancel_part(request, pk):
+    """Buyer: cancel one maker's part while it's New. Refunds exactly that part. Nothing is read from the body."""
+    return _buyer_answer(request, lambda: buyer_cancel(_buyer_part(request, pk), request.user))
+
+
+@api_view(["POST"])
+def request_cancel(request, pk):
+    """Buyer: ask the maker to cancel while they're preparing it."""
+    return _buyer_answer(request, lambda: request_cancellation(_buyer_part(request, pk), request.user))
+
+
+@api_view(["POST"])
+@permission_classes([IsSeller])
+def answer_cancel_request(request, pk):
+    """Seller: {accept: true} cancels and refunds; {accept: false} keeps preparing it."""
+    part = get_object_or_404(SellerOrder, pk=pk)
+    try:
+        part = answer_cancellation(part, request.user, accept=request.data.get("accept") is True)
+    except NotYourOrderError:
+        return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+    except StatusError as exc:
+        return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(IncomingOrderSerializer(paid_parts(request.user.seller).get(pk=part.pk)).data)
+
+
 @api_view(["GET"])
 @permission_classes([IsSeller])
 def overview(request):
@@ -199,6 +244,13 @@ def overview(request):
             "products_listed": live.count(),
             "out_of_stock": live.filter(stock=0).count(),
             "open_requests": seller.custom_requests.filter(status="open").count(),
+            # Refunds Razorpay refused or couldn't take yet: shown to the seller until a retry works.
+            "refund_problems": [
+                {"order_id": r.seller_order.order_id, "seller_order_id": r.seller_order_id, "amount": r.amount}
+                for r in Refund.objects.filter(seller_order__seller=seller, status=Refund.Status.FAILED).select_related(
+                    "seller_order"
+                )
+            ],
             "rating": round(reviews["average"], 1) if reviews["average"] is not None else None,
             "review_count": reviews["count"],
             "incoming": IncomingOrderSerializer(open_parts.order_by("order__paid_at")[:5], many=True).data,
