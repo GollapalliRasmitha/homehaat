@@ -125,7 +125,7 @@ Components so far: `Header`, `Footer`, `ProductCard` (+ `stockTag`), `ProductIma
 drawing on its tint), `CategoryArt` (8 fine-line drawings), `EmptyState` (soft panel, round 120px photo, heading,
 one line, one action), `AuthForm`, `PasswordInput` (show/hide eye toggle, hidden by default — use it for
 **every** password field), `BagLine` (+ `problemText`), `OrderTimeline` (4 bars: New → Preparing → Out for
-delivery → Delivered), `StatCard` (soft panel, big number, muted label), `ConfirmDialog` (Radix AlertDialog for
+delivery → Delivered), `StatCard` (soft panel, big number, optional note under it, muted label), `ConfirmDialog` (Radix AlertDialog for
 "can't be undone"), `PhotoPicker` (drag-and-drop, reorder by drag or ← → buttons, max N, compresses in the
 browser), `StoreForm` (Open your shop + Store settings), `ProductForm` (add/edit), `IncomingOrderCard` (one seller
 order: buyer contact, items, next-step button, Cancel with confirm), `HeroSearch` (82px pill, a plain GET form to
@@ -1006,3 +1006,9 @@ always releases them first. When nobody is using the site, a held item blocks no
   gunicorn, Python 3.14.0 pinned, Cloudinary storage (request photos authenticated), `render.yaml` + `build.sh`,
   `ensure_admin`, `/api/health/`, scheduled jobs endpoint + hourly GitHub Actions + lazy expiry, frontend retries and
   wake-up before Pay, names-only `.env.example` files, `docs/deploy.md`.
+- **Resume-ready (live at https://homehaat.vercel.app)**: `README.md` (pitch, live link, test-mode note, screenshots,
+  features, stack + Mermaid diagram, engineering highlights, local run); `docs/screenshots/` (13 PNGs, desktop 1440 px
+  + phone 390 px @2x) taken from the throwaway copy with fake demo makers/buyers (`@example.test`, "Demo" names and
+  streets; phone numbers masked as 98XXX XXXXX); StatCard note moved under the number and the Overview stats in a
+  2 / 4 column grid (the "4 · 2 out of stock" text wrapped badly). Git history scanned for secrets before going
+  public: none found (only placeholders); the commit author email is public in every commit.

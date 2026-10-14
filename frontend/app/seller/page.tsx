@@ -45,7 +45,7 @@ export default function OverviewPage() {
       </h2>
 
       {/* Every number comes from the database. "—" means there's nothing to count yet. */}
-      <div className="mb-10 mt-6 grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3.5">
+      <div className="mb-10 mt-6 grid grid-cols-2 gap-3.5 md:grid-cols-4">
         <StatCard value={formatINR(data.earnings_week)} label="Earned in the last 7 days" />
         <StatCard value={String(data.open_orders)} label="Open orders" />
         <StatCard
