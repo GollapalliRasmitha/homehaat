@@ -37,11 +37,17 @@ Sign in as a seller → **My shop → Products → Add product** → add a photo
 ## Good to know
 
 - **Keys:** both the older `AIza…` keys and the newer `AQ.…` keys work (they're sent in a header).
-- **Messages sellers can see:** *"AI couldn't describe this photo. Try a plain photo of your product."* when Google
-  refuses a photo (for example a cartoon character); *"The AI helper is busy right now…"* when Google is overloaded;
-  otherwise *"Couldn't write a listing, please fill it in yourself."*
+- **Messages sellers can see:**
+  - *"Google's AI is busy right now. Please try again in a minute…"*: Google is overloaded (503) or slow. HomeHaat
+    already waited 2 seconds and tried once more before showing this.
+  - *"Today's free AI limit is used up. Please try again tomorrow…"*: the key's free daily quota is used up (429).
+  - *"AI couldn't describe this photo. Try a plain photo of your product."*: Google refused the photo (for example a
+    cartoon character).
+  - otherwise *"Couldn't write a listing, please fill it in yourself."*
+- **Waiting:** up to about 50 seconds when Google is busy (Flash-Lite gets 20 s, Flash 15 s, plus one retry).
 - **If it stops working:** the Django window shows a line starting with `AI:` with Google's exact reason (the key is
-  never printed). If Google retires a model name, the next one in the list is tried automatically.
+  never printed), e.g. `Gemini answered 503 (busy)` or `Gemini answered 429 (daily_limit)`. If Google retires a model
+  name, the next one in the list is tried automatically.
 - **Limits:** each seller can use it 10 times per hour (`ai_listing` in `settings.py`). Google's free tier also
   has its own daily limit for the whole key.
 - **What is sent to Google:** only the photo (already shrunk, with its location data removed) and the product name

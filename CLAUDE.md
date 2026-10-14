@@ -275,13 +275,17 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
   (`GET seller/ai/listing`). 10 per hour per seller (DRF throttle `ai_listing`). It never saves anything. Setup:
   `docs/ai-setup.md`. Custom request photos are never sent to AI.
 - **Gemini models and errors** (`ai/gemini_client.py`): Google closed `gemini-2.5-flash` to new keys (404) and full
-  Flash is often overloaded (503) or slow, so models are tried in order: a 404/429/5xx/timeout moves to the next
-  (15 s read timeout, 30 s in total); a 400/401/403 (key or request problem) stops at once. Flash-Lite is first: it
+  Flash is often overloaded (503) or slow, so models are tried in order: a 404/429/5xx/timeout moves to the next; a
+  400/401/403 (key or request problem) stops at once. Read timeout: Flash-Lite 20 s, others 15 s. If every model was
+  only busy, wait 2 s and retry the busy ones once. Everything fits in `TIME_BUDGET` = 50 s, and the Next.js proxy
+  waits 60 s (`experimental.proxyTimeout` in `next.config.ts`; its default of 30 s would cut the retry off). A 429
+  naming a `...PerDay...` quota is `daily_limit` (not retried) → "Today's free AI limit is used up. Please try again
+  tomorrow…"; a per-minute 429, 5xx or timeout is `busy` → "Google's AI is busy right now. Please try again in a
+  minute…" (busy wins if the models disagree, because a minute later may work). Flash-Lite is first: it
   answers in ~2 s and a short photo description is an easy task. Every failure is logged as `AI: <model>: <status>:
   <Google's message>` with the key removed. Google refusing a photo (`promptFeedback.blockReason`, or a
   `finishReason` like `SAFETY`/`IMAGE_SAFETY`/`PROHIBITED_CONTENT`) → 422 "AI couldn't describe this photo. Try a
-  plain photo of your product." (not retried on another model); all models busy → 503 "The AI helper is busy right
-  now…". New `AQ.` keys work the same as `AIza` keys (header `x-goog-api-key`).
+  plain photo of your product." (not retried on another model). New `AQ.` keys work the same as `AIza` keys (header `x-goog-api-key`).
 - The AI suggestion is shown in a panel first; **Use this** fills name, description and category (never price or
   stock) and focuses the name, so the seller edits before saving.
 - Throttle counts live in Django's default cache (in memory, per server process): fine for one server; noted for

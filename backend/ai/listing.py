@@ -13,7 +13,8 @@ import re
 from ai import gemini_client
 
 FAILED = "Couldn't write a listing, please fill it in yourself."
-BUSY = "The AI helper is busy right now. Please try again in a minute, or fill it in yourself."
+BUSY = "Google's AI is busy right now. Please try again in a minute, or fill it in yourself."
+DAILY_LIMIT = "Today's free AI limit is used up. Please try again tomorrow, or fill it in yourself."
 BLOCKED = "AI couldn't describe this photo. Try a plain photo of your product."
 MAX_TITLE = 80
 MAX_DESCRIPTION = 1000
@@ -160,5 +161,6 @@ def write_listing(image: bytes, mime_type: str, category_slugs, hint: str = "") 
     except gemini_client.GeminiBlocked as exc:
         raise ListingError(str(exc), BLOCKED) from exc  # e.g. a cartoon character or other protected content
     except gemini_client.GeminiError as exc:
-        raise ListingError(str(exc), BUSY if exc.busy else FAILED) from exc
+        message = {"busy": BUSY, "daily_limit": DAILY_LIMIT}.get(exc.kind, FAILED)
+        raise ListingError(str(exc), message) from exc
     return validate_listing(answer, category_slugs, hint)

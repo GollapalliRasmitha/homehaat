@@ -12,7 +12,7 @@ from PIL import Image
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from ai.listing import BLOCKED, BUSY, FAILED, ListingError, validate_listing
+from ai.listing import BLOCKED, BUSY, DAILY_LIMIT, FAILED, ListingError, validate_listing
 from catalog.models import ProductImage
 from core.tests.factories import make_category, make_product, make_seller, make_user
 
@@ -132,6 +132,28 @@ def google_error(status, message):
     return response
 
 
+def quota_error(quota_id):
+    """Google's 429, which names the quota that ran out, e.g. ...PerDay... or ...PerMinute..."""
+    response = mock.Mock(status_code=429)
+    response.json.return_value = {
+        "error": {
+            "code": 429,
+            "message": "You exceeded your current quota, please check your plan and billing details.",
+            "status": "RESOURCE_EXHAUSTED",
+            "details": [
+                {
+                    "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+                    "violations": [{"quotaMetric": "generate_content_free_tier_requests", "quotaId": quota_id}],
+                }
+            ],
+        }
+    }
+    return response
+
+
+PER_DAY = "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+PER_MINUTE = "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+
 GOOD = {
     "title": "Chocolate drip cake",
     "description": "A round chocolate cake with a glossy drip.",
@@ -221,12 +243,76 @@ class ListingApiTests(TestCase):
             models = [c.args[0].split("/models/")[1].split(":")[0] for c in post.call_args_list]
             self.assertEqual(models, ["gemini-test", "gemini-backup"])
 
+    @mock.patch("ai.gemini_client.time.sleep")
     @mock.patch("ai.gemini_client.requests.post")
-    def test_every_model_busy_says_try_again_later(self, post):
-        post.side_effect = [google_error(503, "high demand"), requests.ConnectionError("down")]
+    def test_every_model_busy_twice_says_try_again_in_a_minute(self, post, sleep):
+        busy = [google_error(503, "high demand"), requests.ConnectionError("down")]
+        post.side_effect = busy + busy  # the first round, then the automatic retry
         response = self.post()
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["detail"], BUSY)
+        self.assertEqual(post.call_count, 4)
+        sleep.assert_called_once_with(2)
+
+    @mock.patch("ai.gemini_client.time.sleep")
+    @mock.patch("ai.gemini_client.requests.post")
+    def test_busy_then_one_automatic_retry_after_2_seconds_succeeds(self, post, sleep):
+        post.side_effect = [requests.Timeout("read"), google_error(503, "high demand"), gemini_reply(GOOD)]
+        response = self.post()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), GOOD)
+        sleep.assert_called_once_with(2)
+        models = [c.args[0].split("/models/")[1].split(":")[0] for c in post.call_args_list]
+        self.assertEqual(models, ["gemini-test", "gemini-backup", "gemini-test"])
+
+    @mock.patch("ai.gemini_client.time.sleep")
+    @mock.patch("ai.gemini_client.requests.post")
+    def test_daily_free_limit_used_up_says_try_tomorrow_and_does_not_retry(self, post, sleep):
+        post.side_effect = [quota_error(PER_DAY), quota_error(PER_DAY)]
+        response = self.post()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"], DAILY_LIMIT)
+        self.assertEqual(post.call_count, 2)  # each model once; retrying today can't help
+        sleep.assert_not_called()
+
+    @mock.patch("ai.gemini_client.time.sleep")
+    @mock.patch("ai.gemini_client.requests.post")
+    def test_a_per_minute_limit_counts_as_busy_and_is_retried(self, post, sleep):
+        post.side_effect = [quota_error(PER_MINUTE), google_error(503, "high demand"), gemini_reply(GOOD)]
+        self.assertEqual(self.post().status_code, 200)
+        sleep.assert_called_once_with(2)
+
+    @mock.patch("ai.gemini_client.time.sleep")
+    @mock.patch("ai.gemini_client.requests.post")
+    def test_one_model_out_for_today_and_one_busy_retries_only_the_busy_one(self, post, sleep):
+        post.side_effect = [quota_error(PER_DAY), google_error(503, "high demand"), google_error(503, "still busy")]
+        response = self.post()
+        self.assertEqual(response.json()["detail"], BUSY)  # trying again in a minute may still work
+        models = [c.args[0].split("/models/")[1].split(":")[0] for c in post.call_args_list]
+        self.assertEqual(models, ["gemini-test", "gemini-backup", "gemini-backup"])
+
+    @mock.patch("ai.gemini_client.time.sleep")
+    @mock.patch("ai.gemini_client.requests.post")
+    def test_flash_lite_gets_a_longer_timeout(self, post, sleep):
+        post.side_effect = [requests.Timeout("read"), gemini_reply(GOOD)]
+        with override_settings(GEMINI_MODELS=["gemini-flash-lite-latest", "gemini-flash-latest"]):
+            self.assertEqual(self.post().status_code, 200)
+        lite, flash = (c.kwargs["timeout"] for c in post.call_args_list)
+        self.assertEqual(lite, (5, 20))
+        self.assertEqual(flash, (5, 15))
+
+    @mock.patch("ai.gemini_client.time.monotonic")
+    @mock.patch("ai.gemini_client.time.sleep")
+    @mock.patch("ai.gemini_client.requests.post")
+    def test_no_retry_when_the_time_budget_is_used_up(self, post, sleep, monotonic):
+        # The clock: 0 s when we start, and 45 s gone once the first model has answered (too late to retry).
+        clock = iter([0.0, 0.0, 0.0])
+        monotonic.side_effect = lambda: next(clock, 45.0)
+        post.side_effect = [requests.Timeout("read"), requests.Timeout("read")]
+        response = self.post()
+        self.assertEqual(response.json()["detail"], BUSY)
+        self.assertEqual(post.call_count, 2)
+        sleep.assert_not_called()
 
     @mock.patch("ai.gemini_client.requests.post")
     def test_a_photo_google_wont_describe_gets_a_clear_message(self, post):

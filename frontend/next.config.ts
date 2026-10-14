@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
   // Keep "/api/cart/" exactly as written. Django URLs end with a slash, and
   // Next.js would otherwise redirect "/api/cart/" to "/api/cart".
   skipTrailingSlashRedirect: true,
+  experimental: {
+    // How long the /api proxy waits for Django (default 30 s). The AI helper may take up to 50 s when Google is
+    // busy (two models, one retry: ai/gemini_client.py TIME_BUDGET), so give it a little more than that.
+    proxyTimeout: 60_000,
+  },
   async rewrites() {
     return [
       // ":path*" drops the trailing slash, so we add it back for Django.
