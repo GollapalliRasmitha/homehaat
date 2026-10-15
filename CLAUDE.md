@@ -1012,3 +1012,8 @@ always releases them first. When nobody is using the site, a held item blocks no
   streets; phone numbers masked as 98XXX XXXXX); StatCard note moved under the number and the Overview stats in a
   2 / 4 column grid (the "4 · 2 out of stock" text wrapped badly). Git history scanned for secrets before going
   public: none found (only placeholders); the commit author email is public in every commit.
+- **README photos**: `docs/demo-photos/` = 20 free Unsplash photos (each page checked: "Unsplash License", not
+  Unsplash+; photographers in `CREDITS.md`), one per demo product, attached only on the throwaway copy through
+  `clean_image` like a real upload. Demo shops now cover all 8 categories (added Crunch Corner, Knot & Paper,
+  Bead & Thread); products renamed where no fitting free photo existed (no kolam/Madhubani photos; museum paintings
+  skipped). Only the banana loaf is out of stock, on purpose. Screenshots retaken; README has a photo credits line.

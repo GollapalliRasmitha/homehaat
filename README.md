@@ -30,6 +30,9 @@ On a phone:
 
 All names, shops and addresses in the screenshots are made-up demo data.
 
+Photo credits: [Unsplash](https://unsplash.com) (free under the Unsplash License); photographers are listed in
+[docs/demo-photos/CREDITS.md](docs/demo-photos/CREDITS.md).
+
 ## Features
 
 **For buyers**
