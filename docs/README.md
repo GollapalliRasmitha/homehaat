@@ -4,4 +4,4 @@ HomeHaat docs (seller guide, deploy guide) go here.
 - [deploy.md](deploy.md): putting HomeHaat online for free (Neon, Cloudinary, Render, Vercel, GitHub), click by click
 - [razorpay-setup.md](razorpay-setup.md): getting Razorpay test keys
 - [screenshots/](screenshots): the README screenshots (fake demo data)
-- [demo-photos/](demo-photos): the Unsplash photos used for the demo products (credits inside)
+- [../backend/catalog/showcase/](../backend/catalog/showcase): the Unsplash photos of the demo products (credits inside)

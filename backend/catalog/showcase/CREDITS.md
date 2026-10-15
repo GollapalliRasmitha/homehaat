@@ -1,6 +1,6 @@
 # Demo photo credits
 
-These photos are used only for the fake demo products in the README screenshots (`docs/screenshots/`). They are from
+These photos are used only for the demo products (the README screenshots and `manage.py seed_showcase`). They are from
 [Unsplash](https://unsplash.com) and free to use under the [Unsplash License](https://unsplash.com/license). Each one
 was checked on its Unsplash page: all are "Free to use under the Unsplash License" (none are Unsplash+). They were
 cropped to a square and resized.

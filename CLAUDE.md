@@ -17,7 +17,9 @@ Visual reference: `design/HomeHaat-demo-empty.html` (copy its look, never its da
   committed. Never put real keys in code, docs or chat.
 - **[KEY LOGIC]** functions: tests first, then code, then a plain-English explanation in "How it works" below.
 - Money is **integer paise** everywhere (₹450 = `45000`). Display only through `formatINR` (`frontend/lib/format.ts`).
-- Real data only. The only seeded thing is the category list (`seed_categories`). No demo sellers/products/orders, ever.
+- Real data only. The only seeded thing is the category list (`seed_categories`). No demo sellers/products/orders,
+  ever, with ONE exception Rasmitha chose (15 Oct 2026): `seed_showcase` may add the labelled demo shops and
+  products to the live site (never orders or reviews, never the real local data; How it works 18).
 - Unknown values show "Not provided by seller". Every number shown is computed from the database.
 - Ask Rasmitha before: adding a paid service or new tool, changing a design token, breaking-model changes, leaving Razorpay test mode.
 - **Safety rule (deleting):** no command or script that deletes files or data may run unless it has first proved it
@@ -49,7 +51,8 @@ homehaat/
                           pincode/mobile, real letters)
     catalog/              Category, Seller, Product, ProductImage; public products; seller store/products/photos
                           images.py (check + clean uploads); browse.py (full-text search, filters, sort, pages,
-                          "Did you mean", trending, public stores); management/commands/seed_categories.py
+                          "Did you mean", trending, public stores); management/commands/seed_categories.py;
+                          seed_showcase.py [KEY LOGIC] + showcase_data.py + showcase/ (Unsplash photos, CREDITS.md)
     cart/                 CartItem; /api/cart/ grouped by seller, guest preview + merge (totals from DB prices)
     orders/               Order, SellerOrder, OrderItem, Refund; services.py + status.py + cancel.py [KEY LOGIC];
                           checkout, order, cancel, seller-order and overview views; management/commands/expire_orders.py
@@ -871,6 +874,30 @@ always releases them first. When nobody is using the site, a held item blocks no
 > server can read with a signed URL after checking the user. And because the free server sleeps, reads retry,
 > and Pay wakes the server with a health check before creating the order."
 
+### 18. Demo shops on the live site — `manage.py seed_showcase` [KEY LOGIC]
+
+**What it does:** fills the live marketplace with the 8 demo shops and 20 products from the README screenshots
+(`catalog/showcase_data.py`, photos in `catalog/showcase/`), so visitors and recruiters see a full site.
+
+**Rules (all tested in `catalog/tests/test_seed_showcase.py`):**
+1. **Where:** only online (DEBUG off) or on the throwaway copy (`assert_throwaway`); on the real local data it refuses.
+   On Render, `build.sh` runs it only while `SEED_SHOWCASE=true` is set in the dashboard.
+2. **Create only, never change:** a shop link (slug) that already exists is left alone, and if a real seller owns it
+   the demo shop is skipped; an existing owner email without its shop is skipped; a product is added only if that
+   demo shop has no product with that name. Nothing is ever updated or deleted, so a second run creates nothing, and a
+   run cut off halfway is completed by the next one (owner + shop are one transaction, product + photo another).
+3. **Nobody can sign in as a demo owner:** `create_user(email, None)` stores Django's unusable password (`!` + a
+   random marker, which no password can match); emails are `showcase-…@example.test`; no phone, no address, not staff.
+4. **Photos** go through `clean_image`, exactly like a seller's upload (decoded, resized, EXIF removed, random name),
+   and the configured storage puts them on Cloudinary online. Credits stay in `catalog/showcase/CREDITS.md`.
+5. **Honest:** each shop's description starts "Demo shop with sample products."; no orders and no reviews are made up,
+   so ratings and Trending stay real. One product (the banana loaf) is sold out on purpose to show that state.
+
+> *Say it:* "The showcase seeder is idempotent and append-only: it looks things up by stable keys, creates only what's
+> missing, never updates or deletes, refuses to run on real local data, and is switched on per deploy with an
+> environment variable. A test snapshots existing users, shops, products, orders and refunds and proves they're
+> byte-for-byte unchanged after it runs."
+
 ---
 
 ## Interview notes
@@ -964,6 +991,15 @@ always releases them first. When nobody is using the site, a held item blocks no
    server…". The order is only created once the server answers, the stock hold starts then, and payment confirmation
    is idempotent and retried.
 
+### Live showcase
+1. **How do you seed demo data into production safely?** An append-only, idempotent command: it identifies rows by
+   stable keys (shop link, owner email, product name), creates only what's missing and never updates or deletes.
+   It runs only when an environment variable is set for that deploy, and refuses on local real data.
+2. **How do you make sure nobody can log in as a demo account?** They're created with Django's unusable password, so
+   no password ever matches, plus non-deliverable `@example.test` emails; a test tries to sign in and checks it fails.
+3. **Why no fake reviews or orders?** Made-up reviews on a live site would mislead visitors; ratings and "Trending"
+   are always computed from real data, so the demo shops show "No reviews yet" until real buyers review them.
+
 ## QA log
 
 - **13 Oct 2026, full checklist (sections 1–9) on a throwaway copy:** two items failed and were fixed with tests:
@@ -1012,8 +1048,12 @@ always releases them first. When nobody is using the site, a held item blocks no
   streets; phone numbers masked as 98XXX XXXXX); StatCard note moved under the number and the Overview stats in a
   2 / 4 column grid (the "4 · 2 out of stock" text wrapped badly). Git history scanned for secrets before going
   public: none found (only placeholders); the commit author email is public in every commit.
-- **README photos**: `docs/demo-photos/` = 20 free Unsplash photos (each page checked: "Unsplash License", not
+- **README photos**: `docs/demo-photos/` (now `backend/catalog/showcase/`) = 20 free Unsplash photos (each page checked: "Unsplash License", not
   Unsplash+; photographers in `CREDITS.md`), one per demo product, attached only on the throwaway copy through
   `clean_image` like a real upload. Demo shops now cover all 8 categories (added Crunch Corner, Knot & Paper,
   Bead & Thread); products renamed where no fitting free photo existed (no kolam/Madhubani photos; museum paintings
   skipped). Only the banana loaf is out of stock, on purpose. Screenshots retaken; README has a photo credits line.
+- **Live showcase**: `manage.py seed_showcase` (How it works 18) adds the same 8 demo shops and 20 products to the
+  online database, only when `SEED_SHOWCASE=true` is set on Render (`build.sh`); photos moved to
+  `backend/catalog/showcase/` so the Render build (root `backend`) has them; `render.yaml` now has `AI_ENABLED=true`
+  (it was `false`). Tested on the throwaway copy: run 1 = 8 shops + 20 products, run 2 = nothing new.

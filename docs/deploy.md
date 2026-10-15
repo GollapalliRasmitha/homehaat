@@ -100,7 +100,7 @@ What HomeHaat does with it:
    | `DJANGO_ADMIN_PASSWORD` | the admin password you chose |
 
    You don't need to fill in the others: `DJANGO_SECRET_KEY` is made by Render, and `DJANGO_DEBUG=false`,
-   `AI_ENABLED=false`, `PYTHON_VERSION` are already set by `render.yaml`.
+   `AI_ENABLED=true`, `PYTHON_VERSION` are already set by `render.yaml`.
 6. Click **Apply** (or **Deploy Blueprint**). Render builds the API. This takes a few minutes. Click the service and
    open **Logs** (or **Events**) to watch. Near the end you should see lines like:
    - `Applying …  OK` (the database tables being created)
@@ -217,6 +217,24 @@ also checks the payment directly, so nothing is lost.
 
 ---
 
+## Demo shops (optional): fill the live site for visitors
+
+`manage.py seed_showcase` adds 8 demo shops and 20 products with photos (the ones in the README screenshots). It only
+**creates** what's missing. It never changes or deletes any user, shop, product, order or refund, and running it
+again adds nothing. The demo owners have `@example.test` emails and passwords nobody can use, so nobody can sign in
+as them. Each shop's description starts with "Demo shop with sample products." No orders or reviews are made up.
+
+It runs during a deploy only while `SEED_SHOWCASE` is `true`:
+
+1. Render → **homehaat-api** → **Environment** → **Add Environment Variable**: key `SEED_SHOWCASE`, value `true`
+   → **Save, rebuild, and deploy** (or **Save changes**, then **Manual Deploy → Deploy latest commit**).
+2. In **Logs** (or **Events** → the deploy), look for `Showcase: 8 shop(s) and 20 product(s) created.`
+3. Open the website: the home page, **Makers** and **Explore** now show the shops and products with photos.
+4. Switch it off: **Environment** → delete `SEED_SHOWCASE` (or set it to `false`) → **Save changes**. Leaving it on
+   is harmless (later deploys print `0 shop(s) and 0 product(s) created`), but off is tidier.
+
+To hide a demo shop later, use Django admin (Sellers → the shop → untick "Is active").
+
 ## Which value goes where
 
 | Name | Render | Vercel | GitHub | Razorpay | Where it comes from |
@@ -231,8 +249,9 @@ also checks the payment directly, so nothing is lost.
 | `PROXY_SECRET` | ✓ | ✓ | | | step 0, secret 1 |
 | `JOBS_SECRET` | ✓ | | ✓ as `HOMEHAAT_JOBS_SECRET` (secret) | | step 0, secret 2 |
 | API address | (Render shows it) | ✓ as `API_INTERNAL_URL` | ✓ as `HOMEHAAT_API_URL` (variable) | ✓ in the webhook URL | Render, top of the service page |
-| `AI_ENABLED`, `GEMINI_API_KEY` | ✓ | | | | `docs/ai-setup.md` (`AI_ENABLED=true` to switch it on) |
+| `AI_ENABLED` (`true` in `render.yaml`), `GEMINI_API_KEY` | ✓ | | | | `docs/ai-setup.md`; the AI button shows only when the key is set too |
 | `DJANGO_ADMIN_EMAIL`, `DJANGO_ADMIN_PASSWORD` | ✓ (remove the password after step 5) | | | | you choose |
+| `SEED_SHOWCASE` = `true` | ✓ (only while you want the demo shops created; then delete it) | | | | you choose |
 
 All the names are also listed (without values) in `.env.example` (API) and `frontend/.env.example` (website).
 

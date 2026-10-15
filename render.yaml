@@ -38,11 +38,13 @@ services:
         sync: false
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false
-      - key: AI_ENABLED
-        value: "false"
+      - key: AI_ENABLED        # the AI listing helper; it also needs GEMINI_API_KEY below
+        value: "true"
       - key: GEMINI_API_KEY
         sync: false
       - key: DJANGO_ADMIN_EMAIL
         sync: false
       - key: DJANGO_ADMIN_PASSWORD  # delete it after the first deploy (the account stays)
         sync: false
+      # SEED_SHOWCASE is NOT listed here on purpose: add it by hand in the dashboard (value "true") only when you want
+      # the demo shops created at the next deploy, then delete it (docs/deploy.md, "Demo shops").
