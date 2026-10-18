@@ -1057,8 +1057,11 @@ always releases them first. When nobody is using the site, a held item blocks no
   online database, only when `SEED_SHOWCASE=true` is set on Render (`build.sh`); photos moved to
   `backend/catalog/showcase/` so the Render build (root `backend`) has them; `render.yaml` now has `AI_ENABLED=true`
   (it was `false`). Tested on the throwaway copy: run 1 = 8 shops + 20 products, run 2 = nothing new.
-- **Demo video** (`docs/demo/homehaat-demo.mp4`, 83 s, 1920×1080, H.264 + AAC, 26.7 MB; poster
-  `docs/demo/homehaat-demo-poster.jpg`, linked at the top of README.md): recorded on the throwaway copy only (reset,
+- **Explainer video** (`docs/demo/homehaat-demo.mp4`, 60 s, 13 MB, linked at the top of README.md): the same 8 scenes
+  and timing as Oppora's explainer (logo, problem, how it works, your order, fair refunds, AI helper, under the hood,
+  stats + links), dark warm glows, Instrument Serif accents; drawn on a canvas (`docs/demo/maker/explainer.html`).
+- **Walkthrough video** (`docs/demo/homehaat-walkthrough.mp4`, 83 s, 1920×1080, H.264 + AAC, 26.7 MB; poster
+  `docs/demo/homehaat-walkthrough-poster.jpg`, linked under the explainer): recorded on the throwaway copy only (reset,
   `seed_showcase`, a fake buyer), with a real Razorpay test payment and partial refund and a real AI suggestion. Made
   with Chrome only (`docs/demo/maker/`: CDP capture → canvas frames → WebCodecs → own MP4 writer); captions in the
   style of Oppora's explainer (eyebrow + headline + italic accent, end card with stats and links) in HomeHaat's look;

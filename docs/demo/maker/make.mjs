@@ -8,7 +8,8 @@ const ROOT = `${SCRATCH}/video`;
 const OUT = "C:/Users/rasmi/homehaat/docs/demo";
 const [mode, ...times] = process.argv.slice(2);
 const types = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".jpg": "image/jpeg" };
-const names = { video: "homehaat-demo.mp4", poster: "homehaat-demo-poster.png", endcard: "homehaat-demo-endcard.png" };
+const prefix = process.env.PREFIX || "homehaat-demo";
+const names = { video: `${prefix}.mp4`, poster: `${prefix}-poster.png`, endcard: `${prefix}-endcard.png` };
 const server = createServer((req, res) => {
   if (req.method === "POST" && req.url.startsWith("/out/")) {
     const parts = [];
@@ -31,7 +32,7 @@ const server = createServer((req, res) => {
 const b = await launch(9343);
 const page = await openPage(b);
 await page.s("Emulation.clearDeviceMetricsOverride");
-await page.go("http://127.0.0.1:9420/compose.html", 2500);
+await page.go("http://127.0.0.1:9420/" + (process.env.PAGE || "compose.html"), 2500);
 if (mode === "preview") {
   mkdirSync(`${ROOT}/preview`, { recursive: true });
   for (const t of times) {

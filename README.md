@@ -8,14 +8,16 @@ from many makers and pay once; the order is split per maker.**
 > **Note:** the first load may take about a minute while the free server wakes up. Payments run in **Razorpay test
 > mode**: at checkout choose **Netbanking → Success**. No real money moves.
 
-## Demo video (83 s)
+## Demo video (60 s)
 
-[![Watch the HomeHaat demo: shop from two makers, pay once, cancel one part, then the seller side](docs/demo/homehaat-demo-poster.jpg)](docs/demo/homehaat-demo.mp4)
+[![Watch the HomeHaat explainer video](docs/demo/homehaat-demo-poster.jpg)](docs/demo/homehaat-demo.mp4)
 
-Shopping from two makers → one bag → one Razorpay **test** payment (Netbanking → Success) → order placed → cancelling
-one maker's part with a partial refund → the seller side (orders, ✨ AI listing helper, out of stock, pausing the
-shop). Recorded on a local test copy with the demo shops; every name is made up and phone numbers are masked.
-The background music was made for this video.
+A one-minute explainer: the problem, how one bag works across many makers, one payment split per maker, refunding
+just one maker's part, the AI listing helper and what it's built with.
+
+Want to see the real app in action? The **[83-second walkthrough](docs/demo/homehaat-walkthrough.mp4)** shows a
+complete purchase from two makers with a Razorpay **test** payment, a partial refund and the seller side, recorded on
+a local test copy with the demo shops (made-up names, masked phone numbers). Both videos use music made for them.
 
 ![HomeHaat home page](docs/screenshots/home.png)
 
