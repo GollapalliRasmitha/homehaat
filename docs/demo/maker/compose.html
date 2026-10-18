@@ -1,0 +1,293 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>HomeHaat demo video maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Instrument+Serif:ital@1&display=block" rel="stylesheet">
+<style>body{margin:0;background:#222}canvas{width:960px;height:540px}</style>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script src="mp4.js"></script>
+<script>
+// HomeHaat demo video, in the style of the Oppora explainer (eyebrow + headline with one accent phrase, cards,
+// end card with stats and links), in HomeHaat's own look (UI-UX.md: ink #111, warm off-white, Instrument Serif italic).
+const W = 1920, H = 1080, FPS = 30;
+const INK = "#111111", MUTED = "#5F5F5F", SOFT = "#F6F5F2", SAND = "#F2EFEA", LINE = "#EAEAEA";
+const c = document.getElementById("c"), g = c.getContext("2d");
+const ease = (t) => (t < 0 ? 0 : t > 1 ? 1 : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const clamp01 = (t) => Math.max(0, Math.min(1, t));
+
+// The app window on the canvas: screenshots are 1920x1080; shown at 0.8 inside a browser-like frame.
+const SC = 0.76, WX = (W - 1920 * SC) / 2, WY = 206, BAR = 34;
+const toCanvas = (p) => ({ x: WX + p.x * SC, y: WY + BAR + p.y * SC });
+
+let images = {}, beats = [], timeline = [];
+const INTRO = 3.2, OUTRO = 7.5, XFADE = 0.35;
+
+async function load() {
+  const data = await (await fetch("beats.json")).json();
+  beats = data.beats;
+  const names = new Set(beats.flatMap((b) => [b.img, b.inset && b.inset.img].filter(Boolean)));
+  await Promise.all([...names].map((n) => new Promise((r) => { const im = new Image(); im.onload = () => { images[n] = im; r(); }; im.src = "frames/" + n; })));
+  let t = INTRO, cap = null, cur = { x: 1500, y: 760 };
+  for (const b of beats) {
+    if (b.caption) cap = { ...b.caption, since: t };
+    const from = cur;
+    if (b.cursor) cur = b.cursor;
+    timeline.push({ ...b, start: t, end: t + b.dur, cap, from, to: cur });
+    t += b.dur;
+  }
+  await document.fonts.load("700 60px 'Inter Tight'");
+  await document.fonts.load("italic 60px 'Instrument Serif'");
+  await document.fonts.ready;
+}
+const total = () => INTRO + beats.reduce((s, b) => s + b.dur, 0) + OUTRO;
+
+// ---------- drawing helpers ----------
+function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+function bg() {
+  g.fillStyle = SOFT; g.fillRect(0, 0, W, H);
+  // soft warm glow, like Oppora's gradient but in HomeHaat's tones
+  const gr = g.createRadialGradient(W * 0.85, H * 0.05, 50, W * 0.85, H * 0.05, 900);
+  gr.addColorStop(0, "rgba(245,237,236,0.9)"); gr.addColorStop(1, "rgba(245,237,236,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  const gr2 = g.createRadialGradient(W * 0.1, H * 1.0, 50, W * 0.1, H * 1.0, 800);
+  gr2.addColorStop(0, "rgba(237,240,234,0.9)"); gr2.addColorStop(1, "rgba(237,240,234,0)");
+  g.fillStyle = gr2; g.fillRect(0, 0, W, H);
+}
+function headline(x, y, eyebrow, title, accent, size, alpha, align = "left") {
+  g.save(); g.globalAlpha = alpha; g.textBaseline = "alphabetic"; g.textAlign = "left";
+  g.font = `600 ${Math.round(size * 0.3)}px 'Inter Tight'`;
+  const eb = eyebrow.toUpperCase();
+  g.letterSpacing = "3px";
+  const ebw = g.measureText(eb).width;
+  g.fillStyle = MUTED;
+  g.fillText(eb, align === "center" ? x - ebw / 2 : x, y - size * 0.95);
+  g.letterSpacing = "-1.5px";
+  g.font = `700 ${size}px 'Inter Tight'`;
+  const t1 = title + " ";
+  const w1 = g.measureText(t1).width;
+  g.font = `italic 400 ${Math.round(size * 1.08)}px 'Instrument Serif'`;
+  g.letterSpacing = "0px";
+  const w2 = g.measureText(accent).width;
+  const x0 = align === "center" ? x - (w1 + w2) / 2 : x;
+  g.font = `700 ${size}px 'Inter Tight'`; g.letterSpacing = "-1.5px"; g.fillStyle = INK; g.fillText(t1, x0, y);
+  g.font = `italic 400 ${Math.round(size * 1.08)}px 'Instrument Serif'`; g.letterSpacing = "0px"; g.fillText(accent, x0 + w1, y);
+  g.restore();
+}
+function wordmark(x, y, size, alpha = 1) {
+  g.save(); g.globalAlpha = alpha; g.font = `800 ${size}px 'Inter Tight'`; g.letterSpacing = `${-size * 0.05}px`;
+  g.fillStyle = INK; g.textAlign = "center"; g.fillText("homehaat", x, y); g.restore();
+}
+function pill(x, y, text, opts = {}) {
+  g.save(); g.font = `${opts.weight || 600} ${opts.size || 30}px 'Inter Tight'`; g.letterSpacing = "0px";
+  const w = g.measureText(text).width + (opts.pad || 44) * 2, h = (opts.size || 30) * 2.1;
+  rr(x - w / 2, y - h / 2, w, h, h / 2);
+  g.fillStyle = opts.fill || INK; g.fill();
+  if (opts.stroke) { g.strokeStyle = opts.stroke; g.lineWidth = 2; g.stroke(); }
+  g.fillStyle = opts.color || "#fff"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, x, y + 1);
+  g.restore(); return w;
+}
+function cursorShape(x, y, alpha, pressed) {
+  g.save(); g.globalAlpha = alpha; g.translate(x, y); const s = pressed ? 0.9 : 1; g.scale(s * 1.35, s * 1.35);
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 24); g.lineTo(6.5, 18.5); g.lineTo(10.5, 27.5); g.lineTo(14.5, 25.8); g.lineTo(10.6, 17); g.lineTo(18.5, 17); g.closePath();
+  g.shadowColor = "rgba(0,0,0,0.3)"; g.shadowBlur = 6; g.shadowOffsetY = 2;
+  g.fillStyle = INK; g.fill(); g.shadowColor = "transparent"; g.strokeStyle = "#fff"; g.lineWidth = 1.6; g.stroke();
+  g.restore();
+}
+
+function drawShot(name, beat, alpha, zoom) {
+  const im = images[name]; if (!im) return;
+  g.save(); g.globalAlpha = alpha;
+  rr(WX, WY + BAR, 1920 * SC, 1080 * SC, [0, 0, 18, 18]); g.clip();
+  const cx = WX + 960 * SC, cy = WY + BAR + 540 * SC;
+  g.translate(cx, cy); g.scale(zoom, zoom); g.translate(-cx, -cy);
+  g.drawImage(im, WX, WY + BAR, 1920 * SC, 1080 * SC);
+  for (const m of beat.masks || []) {
+    const p = toCanvas({ x: m.x, y: m.y });
+    rr(p.x, p.y, m.w * SC, m.h * SC, m.r * SC); g.fillStyle = m.fill; g.fill();
+    g.fillStyle = m.color; g.font = `400 ${17 * SC * 1.2}px 'Inter Tight'`; g.textBaseline = "middle";
+    g.fillText(m.text, WX + m.tx * SC, p.y + (m.h * SC) / 2);
+  }
+  if (beat.inset) {
+    g.fillStyle = "rgba(17,17,17,0.45)"; g.fillRect(WX, WY + BAR, 1920 * SC, 1080 * SC);
+    const ins = images[beat.inset.img], p = toCanvas({ x: beat.inset.x, y: beat.inset.y }), w = beat.inset.w * SC, h = beat.inset.h * SC;
+    g.save(); g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = 40; g.shadowOffsetY = 12;
+    rr(p.x, p.y - 30, w, h + 30, 14); g.fillStyle = "#fff"; g.fill(); g.restore();
+    rr(p.x, p.y - 30, w, 30, [14, 14, 0, 0]); g.fillStyle = "#EFEFEF"; g.fill();
+    g.fillStyle = MUTED; g.font = "500 15px 'Inter Tight'"; g.textBaseline = "middle"; g.textAlign = "center";
+    g.fillText("Razorpay test bank (no real money)", p.x + w / 2, p.y - 15); g.textAlign = "left";
+    g.save(); rr(p.x, p.y, w, h, [0, 0, 14, 14]); g.clip(); g.drawImage(ins, p.x, p.y, w, h); g.restore();
+  }
+  g.restore();
+}
+function windowFrame() {
+  g.save(); g.shadowColor = "rgba(17,17,17,0.14)"; g.shadowBlur = 50; g.shadowOffsetY = 18;
+  rr(WX, WY, 1920 * SC, 1080 * SC + BAR, 18); g.fillStyle = "#fff"; g.fill(); g.restore();
+  rr(WX, WY, 1920 * SC, BAR, [18, 18, 0, 0]); g.fillStyle = "#F3F2EF"; g.fill();
+  ["#E0DED9", "#E0DED9", "#E0DED9"].forEach((col, i) => { g.beginPath(); g.arc(WX + 24 + i * 22, WY + BAR / 2, 6.5, 0, 7); g.fillStyle = col; g.fill(); });
+  g.fillStyle = MUTED; g.font = "500 15px 'Inter Tight'"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("HomeHaat · demo shops · Razorpay test mode", WX + 960 * SC, WY + BAR / 2 + 1); g.textAlign = "left";
+}
+
+// ---------- scenes ----------
+function intro(t) {
+  bg();
+  const a = ease(t / 0.8), out = 1 - ease((t - (INTRO - 0.4)) / 0.4);
+  wordmark(W / 2, 470 - (1 - a) * 30, 150, a * out);
+  headline(W / 2, 640, "A marketplace for home businesses", "Made at home.", "Made for you.", 76, ease((t - 0.5) / 0.8) * out, "center");
+  g.save(); g.globalAlpha = ease((t - 1.1) / 0.7) * out;
+  g.font = "500 30px 'Inter Tight'"; g.fillStyle = MUTED; g.textAlign = "center";
+  g.fillText("One bag · many makers · one payment, split per maker", W / 2, 740); g.restore();
+}
+function outro(t) {
+  bg();
+  const a = (d) => ease((t - d) / 0.7);
+  wordmark(W / 2, 330, 120, a(0));
+  const stats = [["360+", "automated tests"], ["₹0", "hosting (free plans)"], ["1 payment", "split per maker"]];
+  stats.forEach(([n, l], i) => {
+    const x = W / 2 + (i - 1) * 380, y = 470, al = a(0.25 + i * 0.15);
+    g.save(); g.globalAlpha = al; rr(x - 170, y - 10 + (1 - al) * 20, 340, 150, 24); g.fillStyle = "#fff"; g.fill();
+    g.fillStyle = INK; g.font = "800 56px 'Inter Tight'"; g.textAlign = "center"; g.letterSpacing = "-2px"; g.fillText(n, x, y + 70 + (1 - al) * 20);
+    g.letterSpacing = "0px"; g.fillStyle = MUTED; g.font = "500 24px 'Inter Tight'"; g.fillText(l, x, y + 112 + (1 - al) * 20); g.restore();
+  });
+  g.save(); g.globalAlpha = a(0.8); pill(W / 2, 720, "homehaat.vercel.app", { size: 38, weight: 700 }); g.restore();
+  g.save(); g.globalAlpha = a(1.0); pill(W / 2, 820, "github.com/GollapalliRasmitha/homehaat", { size: 28, fill: "#fff", color: INK, stroke: LINE, weight: 600 }); g.restore();
+  g.save(); g.globalAlpha = a(1.3); g.font = "500 26px 'Inter Tight'"; g.fillStyle = MUTED; g.textAlign = "center";
+  g.fillText("Built by Rasmitha Gollapalli · Django + Next.js · demo shops, test payments", W / 2, 935); g.restore();
+}
+function mainScene(t) {
+  bg();
+  const i = timeline.findIndex((b) => t >= b.start && t < b.end);
+  const b = timeline[i], prev = timeline[i - 1];
+  const lt = t - b.start;
+  // caption (top left), slides in when it changes
+  if (b.cap) {
+    const k = ease((t - b.cap.since) / 0.55);
+    headline(WX + 4, 150 - (1 - k) * 18, b.cap.eyebrow, b.cap.title, b.cap.accent, 58, k);
+  }
+  windowFrame();
+  const z = (bb, local) => 1 + 0.012 * clamp01(local / bb.dur);
+  if (prev && lt < XFADE && prev.img !== b.img) {
+    drawShot(prev.img, prev, 1, z(prev, prev.dur));
+    drawShot(b.img, b, ease(lt / XFADE), z(b, lt));
+  } else drawShot(b.img, b, 1, z(b, lt));
+  // pointer: moves to this beat's target, then clicks
+  const move = Math.min(0.85, b.dur * 0.42);
+  const k = ease(lt / move);
+  const p = toCanvas({ x: b.from.x + (b.to.x - b.from.x) * k, y: b.from.y + (b.to.y - b.from.y) * k });
+  const clickT = move + 0.12;
+  if (b.click && lt > clickT && lt < clickT + 0.55) {
+    const r = (lt - clickT) / 0.55;
+    g.save(); g.beginPath(); g.arc(p.x, p.y, 14 + r * 34, 0, 7); g.fillStyle = `rgba(17,17,17,${0.22 * (1 - r)})`; g.fill(); g.restore();
+  }
+  cursorShape(p.x, p.y, 1, b.click && lt > clickT && lt < clickT + 0.15);
+}
+function drawAt(t) {
+  if (t < INTRO) { intro(t); return; }
+  const mainEnd = INTRO + beats.reduce((s, b) => s + b.dur, 0);
+  if (t < mainEnd) {
+    mainScene(t);
+    if (t - INTRO < 0.5) { g.save(); g.globalAlpha = 1 - ease((t - INTRO) / 0.5); intro(INTRO - 0.41); g.restore(); }
+    return;
+  }
+  outro(t - mainEnd);
+  if (t - mainEnd < 0.5) { const a = ease((t - mainEnd) / 0.5); g.save(); g.globalAlpha = 1 - a; mainScene(mainEnd - 0.001); g.restore(); }
+}
+
+// ---------- music: an original gentle loop, made here (no licence needed) ----------
+async function music(seconds) {
+  const sr = 44100, ctx = new OfflineAudioContext(2, Math.ceil(seconds * sr), sr);
+  const master = ctx.createGain(); master.gain.value = 0.0001;
+  master.gain.setValueAtTime(0.0001, 0); master.gain.exponentialRampToValueAtTime(0.5, 2.5);
+  master.gain.setValueAtTime(0.5, seconds - 3.5); master.gain.exponentialRampToValueAtTime(0.0001, seconds - 0.2);
+  const comp = ctx.createDynamicsCompressor(); master.connect(comp); comp.connect(ctx.destination);
+  const delay = ctx.createDelay(1); delay.delayTime.value = 0.375; const fb = ctx.createGain(); fb.gain.value = 0.28;
+  const wet = ctx.createGain(); wet.gain.value = 0.35; delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(master);
+  const bpm = 96, beat = 60 / bpm, bar = beat * 4;
+  const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const chords = [[48, 55, 64, 71], [45, 52, 60, 67], [41, 48, 57, 64], [43, 50, 59, 62]]; // Cmaj7, Am7, Fmaj7, G6
+  const pad = (t, notes, len) => notes.forEach((m, j) => {
+    [0, 0.07].forEach((det) => {
+      const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), v = ctx.createGain();
+      o.type = "triangle"; o.frequency.value = hz(m) * (1 + det / 100); f.type = "lowpass"; f.frequency.value = 1400;
+      v.gain.setValueAtTime(0, t); v.gain.linearRampToValueAtTime(0.045, t + 0.9); v.gain.setValueAtTime(0.045, t + len - 0.6); v.gain.linearRampToValueAtTime(0, t + len + 0.4);
+      o.connect(f); f.connect(v); v.connect(master); o.start(t); o.stop(t + len + 0.5);
+    });
+  });
+  const pluck = (t, m, vel) => {
+    const o = ctx.createOscillator(), v = ctx.createGain(); o.type = "sine"; o.frequency.value = hz(m);
+    v.gain.setValueAtTime(0, t); v.gain.linearRampToValueAtTime(vel, t + 0.01); v.gain.exponentialRampToValueAtTime(0.0008, t + 0.9);
+    o.connect(v); v.connect(master); v.connect(delay); o.start(t); o.stop(t + 1);
+  };
+  const bass = (t, m, len) => {
+    const o = ctx.createOscillator(), v = ctx.createGain(); o.type = "sine"; o.frequency.value = hz(m - 12);
+    v.gain.setValueAtTime(0, t); v.gain.linearRampToValueAtTime(0.12, t + 0.05); v.gain.exponentialRampToValueAtTime(0.01, t + len);
+    o.connect(v); v.connect(master); o.start(t); o.stop(t + len);
+  };
+  const pattern = [0, 2, 1, 3, 2, 1, 3, 2];
+  for (let b = 0, t = 0; t < seconds; b++, t += bar) {
+    const ch = chords[b % 4];
+    pad(t, ch, bar);
+    bass(t, ch[0], beat * 1.8); bass(t + beat * 2, ch[0], beat * 1.8);
+    if (t > bar * 2 - 0.01) for (let s = 0; s < 8; s++) pluck(t + s * beat / 2, ch[pattern[s]] + 12, s % 2 ? 0.05 : 0.08);
+  }
+  return ctx.startRendering();
+}
+
+// ---------- encode ----------
+async function render(onProgress) {
+  const seconds = total(), frames = Math.round(seconds * FPS);
+  const vSamples = []; let avcC = null;
+  const ve = new VideoEncoder({
+    output: (chunk, meta) => { if (meta && meta.decoderConfig && meta.decoderConfig.description) avcC = new Uint8Array(meta.decoderConfig.description); const d = new Uint8Array(chunk.byteLength); chunk.copyTo(d); vSamples.push({ data: d, key: chunk.type === "key" }); },
+    error: (e) => { throw e; },
+  });
+  ve.configure({ codec: "avc1.640028", width: W, height: H, bitrate: 2_400_000, bitrateMode: "variable", framerate: FPS, avc: { format: "avc" }, latencyMode: "quality" });
+  for (let f = 0; f < frames; f++) {
+    drawAt(f / FPS);
+    const vf = new VideoFrame(c, { timestamp: Math.round((f * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
+    ve.encode(vf, { keyFrame: f % (FPS * 2) === 0 }); vf.close();
+    while (ve.encodeQueueSize > 8) await new Promise((r) => setTimeout(r, 2));
+    if (f % 4 === 0) await new Promise((r) => setTimeout(r, 0)); // let Chrome answer progress checks
+    if (f % 60 === 0) onProgress(f / frames);
+  }
+  await ve.flush(); ve.close();
+
+  let audio = null;
+  try {
+    const buf = await music(seconds);
+    const aSamples = []; let asc = null;
+    const ae = new AudioEncoder({
+      output: (chunk, meta) => { if (meta && meta.decoderConfig && meta.decoderConfig.description) asc = new Uint8Array(meta.decoderConfig.description); const d = new Uint8Array(chunk.byteLength); chunk.copyTo(d); aSamples.push({ data: d }); },
+      error: (e) => { throw e; },
+    });
+    ae.configure({ codec: "mp4a.40.2", sampleRate: 44100, numberOfChannels: 2, bitrate: 128000 });
+    const L = buf.getChannelData(0), R = buf.getChannelData(1), step = 4410;
+    for (let i = 0; i < L.length; i += step) {
+      const n = Math.min(step, L.length - i), planar = new Float32Array(n * 2);
+      planar.set(L.subarray(i, i + n), 0); planar.set(R.subarray(i, i + n), n);
+      const ad = new AudioData({ format: "f32-planar", sampleRate: 44100, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round((i * 1e6) / 44100), data: planar });
+      ae.encode(ad); ad.close();
+    }
+    await ae.flush(); ae.close();
+    if (!asc) asc = new Uint8Array([0x12, 0x10]); // AAC-LC, 44.1 kHz, stereo
+    audio = { sampleRate: 44100, channels: 2, asc, bitrate: 128000, samples: aSamples };
+  } catch (e) { console.warn("no music:", e); }
+
+  return writeMp4({ width: W, height: H, timescale: 90000, frameTicks: 90000 / FPS, avcC, samples: vSamples }, audio);
+}
+
+window.makeVideo = async () => {
+  await load();
+  const mp4 = await render((p) => (document.title = "rendering " + Math.round(p * 100) + "%"));
+  await fetch("/out/video", { method: "POST", body: mp4 });
+  // A still for the README (the bag with two makers) and one of the end card.
+  const pick = timeline.find((b) => b.cap && /two makers/i.test(b.cap.title));
+  for (const [name, t] of [["poster", pick.start + pick.dur * 0.8], ["endcard", total() - 1]]) {
+    drawAt(t);
+    const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+    await fetch("/out/" + name, { method: "POST", body: blob });
+  }
+  return { seconds: total(), bytes: mp4.length, audio: true };
+};
+window.preview = async (t) => { if (!timeline.length) await load(); drawAt(t); return c.toDataURL("image/jpeg", 0.85); };
+</script>

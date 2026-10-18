@@ -1057,3 +1057,10 @@ always releases them first. When nobody is using the site, a held item blocks no
   online database, only when `SEED_SHOWCASE=true` is set on Render (`build.sh`); photos moved to
   `backend/catalog/showcase/` so the Render build (root `backend`) has them; `render.yaml` now has `AI_ENABLED=true`
   (it was `false`). Tested on the throwaway copy: run 1 = 8 shops + 20 products, run 2 = nothing new.
+- **Demo video** (`docs/demo/homehaat-demo.mp4`, 83 s, 1920×1080, H.264 + AAC, 26.7 MB; poster
+  `docs/demo/homehaat-demo-poster.jpg`, linked at the top of README.md): recorded on the throwaway copy only (reset,
+  `seed_showcase`, a fake buyer), with a real Razorpay test payment and partial refund and a real AI suggestion. Made
+  with Chrome only (`docs/demo/maker/`: CDP capture → canvas frames → WebCodecs → own MP4 writer); captions in the
+  style of Oppora's explainer (eyebrow + headline + italic accent, end card with stats and links) in HomeHaat's look;
+  original WebAudio background music. Oppora's own video (`oppora/Oppora-explainer.mp4`, 60 s animated explainer,
+  ffmpeg-encoded, with music) isn't in its repo or README, so there was no GIF to copy.
