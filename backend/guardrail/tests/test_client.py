@@ -51,6 +51,29 @@ class SendTests(TestCase):
         self.assertEqual(event["meta"], {"reason": "x"})  # only allow-listed keys
         self.assertNotIn("hunter2", json.dumps(event))
 
+    def test_every_event_has_its_own_uid_and_keeps_it_through_retries(self):
+        first, second = client.build_event("login_failed"), client.build_event("login_failed")
+        self.assertRegex(first["uid"], r"^[0-9a-f]{32}$")
+        self.assertNotEqual(first["uid"], second["uid"])
+
+        # GuardRail slow: it may have stored the batch even though we gave up waiting.
+        with mock.patch.object(client.requests, "post", side_effect=requests.Timeout("slow")):
+            client.deliver([first])
+        with mock.patch.object(client.requests, "post", return_value=answer(202)) as post:
+            client.flush_outbox()
+        resent = json.loads(post.call_args.kwargs["data"])["events"][0]
+        self.assertEqual(resent["uid"], first["uid"])  # same uid, so GuardRail stores it only once
+
+    def test_actor_id_tells_accounts_apart_without_the_email(self):
+        victim = client.build_event("login_failed", actor="Victim@Example.com")
+        vivek = client.build_event("login_failed", actor="vivek@example.com")
+        self.assertEqual(victim["actor"], vivek["actor"])  # both "vi****@example.com" once masked
+        self.assertNotEqual(victim["actor_id"], vivek["actor_id"])  # ...but GuardRail can still tell them apart
+        self.assertEqual(victim["actor_id"], client.build_event("login_failed", actor="victim@example.com")["actor_id"])
+        self.assertRegex(victim["actor_id"], r"^[0-9a-f]{32}$")
+        self.assertNotIn("victim", json.dumps(victim))
+        self.assertNotIn("actor_id", client.build_event("login_failed"))
+
     def test_sends_signed_request_with_short_timeout(self):
         with mock.patch.object(client.requests, "post", return_value=answer(202)) as post:
             self.assertEqual(client.send_batch([self.event()]), "ok")

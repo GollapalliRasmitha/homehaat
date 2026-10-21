@@ -11,6 +11,8 @@ HomeHaat.
 3. GuardRail down, slow, 5xx or 429 -> the events go into the OutboxEvent table and are sent again later: right
    after the next successful send, and by the scheduled "guardrail" job (core/jobs.py). The outbox is capped.
    A 4xx answer means GuardRail refused them (it would refuse again), so they're dropped and logged.
+   Every event carries a random "uid", kept through retries: if GuardRail saved a batch but answered too slowly,
+   the retry is recognised and stored once (at-least-once sending + de-duplication = each event exactly once).
 4. Off switch: nothing happens unless GUARDRAIL_ENABLED=true AND GUARDRAIL_URL AND GUARDRAIL_SECRET are set.
 """
 
@@ -22,6 +24,7 @@ import queue
 import secrets
 import threading
 import time
+import uuid
 from datetime import timedelta
 
 import requests
@@ -66,8 +69,23 @@ def mask_actor(value: str | None) -> str | None:
     return f"{value[:2]}****"
 
 
+def actor_id(value: str | None) -> str | None:
+    """
+    A keyed hash of the full email: same account -> same id, different accounts -> different ids, but nobody can turn
+    it back into the email. GuardRail's per-account rules need it because masked emails collide
+    ("victim@" and "vivek@" both become "vi****@"). Keyed with GUARDRAIL_SECRET, so it can't be built from a list
+    of known emails by someone without the secret.
+    """
+    value = (value or "").strip().lower()
+    if not value:
+        return None
+    return hmac.new(settings.GUARDRAIL_SECRET.encode(), f"actor:{value}".encode(), hashlib.sha256).hexdigest()[:32]
+
+
 def build_event(event_type: str, request=None, *, actor=None, path=None, status_code=None, meta=None) -> dict:
-    event = {"type": event_type, "occurred_at": timezone.now().isoformat()}
+    # uid: a random id made once, here. Retries resend the same uid, so GuardRail can store each event only once
+    # even when a slow answer made us retry something it had already saved.
+    event = {"type": event_type, "uid": uuid.uuid4().hex, "occurred_at": timezone.now().isoformat()}
     if request is not None:
         event["ip"] = client_ip(request) or None
         event["country"] = client_country(request)
@@ -79,6 +97,7 @@ def build_event(event_type: str, request=None, *, actor=None, path=None, status_
             actor = user.email
     event["path"] = (path or "").split("?", 1)[0].split("#", 1)[0][:300] or None
     event["actor"] = mask_actor(actor)
+    event["actor_id"] = actor_id(actor)
     event["status_code"] = status_code
     event["meta"] = {k: v for k, v in (meta or {}).items() if k in META_KEYS}
     return {k: v for k, v in event.items() if v not in (None, "", {})}

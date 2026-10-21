@@ -919,13 +919,16 @@ moments, and **must never be slowed down or broken by it**.
 - **When GuardRail is down / slow / 5xx / 429:** the events are saved in `OutboxEvent` (max 5,000, oldest dropped) and
   sent again after the next successful send and by the scheduled `guardrail` job (How it works 16). Other 4xx =
   GuardRail refused them, so they're dropped and logged.
+- **Each event has a `uid`** (random, made once, kept through retries): if GuardRail saved a batch but answered too
+  slowly, the retry is recognised and stored once. **`actor_id`** = HMAC-SHA256(`GUARDRAIL_SECRET`, "actor:" + email),
+  first 32 hex: lets GuardRail's per-account rules tell accounts apart (masked emails collide) without the email.
 - **Privacy:** emails masked (`pr****@gmail.com`), paths cut at `?` (reset links carry tokens), user agent trimmed,
   only allow-listed extra details. The visitor's country comes from Vercel through `frontend/proxy.ts`, trusted only
   with `PROXY_SECRET`, like the IP (`core/client_ip.client_country`).
 - **Off switch:** nothing is sent unless `GUARDRAIL_ENABLED=true`, `GUARDRAIL_URL` and a 32+ character
   `GUARDRAIL_SECRET` (= GuardRail's `INGEST_SECRET_HOMEHAAT`) are all set. Tests turn it on themselves and use
   `GUARDRAIL_SYNC` to send inline.
-- **Tests (30, in `guardrail/tests/`):** the signature matches GuardRail's reference value; down / 5xx / 429 → outbox;
+- **Tests (32, in `guardrail/tests/`):** the signature matches GuardRail's reference value; down / 5xx / 429 → outbox;
   4xx → dropped; outbox cap; flush; switched off → nothing sent; every hook; sign-in answers unchanged when
   GuardRail is down or off; the password never appears in anything sent.
 
@@ -1105,4 +1108,5 @@ moments, and **must never be slowed down or broken by it**.
 - **GuardRail connection (21 Oct 2026):** new `backend/guardrail/` app (How it works 19) sends security events to
   GuardRail; additive only (one-line `report(...)` calls in `payments/views.py` and `payments/refunds.py`, a
   `guardrail` scheduled job, `client_country`, the proxy passes Vercel's country). Off unless `GUARDRAIL_*` is set.
-  30 new tests; all 353 backend tests and 45 frontend tests pass.
+  30 new tests; all 353 backend tests and 45 frontend tests pass. Later (GuardRail Stage 4): events also carry `uid`
+  (retries stored once) and `actor_id` (keyed account hash); 2 more tests.
