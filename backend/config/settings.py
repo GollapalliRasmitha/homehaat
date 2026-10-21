@@ -70,9 +70,11 @@ INSTALLED_APPS = [
     "reviews",
     "custom_requests",
     "ai",
+    "guardrail",  # sends security events to GuardRail (monitoring); switched off unless configured
 ]
 
 MIDDLEWARE = [
+    "guardrail.middleware.GuardRailMiddleware",  # first, so it sees every final status (reports only, never changes)
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",  # Django admin's CSS/JS in production (no separate server)
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -220,6 +222,14 @@ PROXY_SECRET = env("PROXY_SECRET")
 JOBS_SECRET = env("JOBS_SECRET")
 # Also release expired stock holds when pages load (at most once a minute). Off in tests, which call it directly.
 LAZY_JOBS = not TESTING
+
+# --- GuardRail (security monitoring, guardrail/client.py) ---
+# Events are sent in the background with a 2 s timeout; failures wait in an outbox and never affect visitors.
+# Off unless all three are set. GUARDRAIL_SECRET = the same value as INGEST_SECRET_HOMEHAAT in GuardRail.
+GUARDRAIL_ENABLED = env_bool("GUARDRAIL_ENABLED", False) and not TESTING  # tests switch it on themselves
+GUARDRAIL_URL = env("GUARDRAIL_URL")
+GUARDRAIL_SECRET = env("GUARDRAIL_SECRET")
+GUARDRAIL_SYNC = False  # tests only: send inline instead of in the background thread
 
 # --- Razorpay (test mode only) ---
 RAZORPAY_KEY_ID = env("RAZORPAY_KEY_ID")

@@ -4,6 +4,7 @@ Scheduled jobs without a paid scheduler [KEY LOGIC].
 Two jobs keep HomeHaat tidy:
 - "expire": give back stock held by checkouts left unpaid for 15 minutes (orders.services.expire_unpaid_orders).
 - "refunds": send failed refunds again and check pending ones (payments.refunds.retry_refunds).
+- "guardrail": send security events that GuardRail couldn't take earlier (guardrail.client.flush_outbox).
 
 Render's cron jobs cost money, so they run in three free ways:
 1. A GitHub Actions schedule (.github/workflows/scheduled-jobs.yml) calls POST /api/jobs/run/ with JOBS_SECRET in a
@@ -41,7 +42,13 @@ def _refunds():
     return retry_refunds()
 
 
-JOBS = {"expire": _expire, "refunds": _refunds}
+def _guardrail():
+    from guardrail.client import flush_outbox, is_enabled
+
+    return flush_outbox() if is_enabled() else "off"
+
+
+JOBS = {"expire": _expire, "refunds": _refunds, "guardrail": _guardrail}
 
 
 def run_jobs(names) -> tuple[dict, bool]:
@@ -70,7 +77,7 @@ def run_jobs_view(request):
         return JsonResponse({"detail": "Scheduled jobs are switched off (JOBS_SECRET is not set)."}, status=503)
     if not secret_matches(request.headers.get("X-HomeHaat-Jobs-Secret", "")):
         return JsonResponse({"detail": "Not allowed."}, status=403)
-    names = [n.strip() for n in request.GET.get("jobs", "expire,refunds").split(",") if n.strip()]
+    names = [n.strip() for n in request.GET.get("jobs", "expire,refunds,guardrail").split(",") if n.strip()]
     unknown = [n for n in names if n not in JOBS]
     if unknown or not names:
         return JsonResponse({"detail": f"Unknown job: {', '.join(unknown) or '(none)'}."}, status=400)

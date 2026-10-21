@@ -63,6 +63,10 @@ homehaat/
                           seller views
     ai/                   listing.py [KEY LOGIC] (prompt, schema, validate_listing); gemini_client.py (only file
                           that calls Gemini); views.py (seller/ai/listing)
+    guardrail/            sends security events to GuardRail (Rasmitha's monitoring dashboard, separate repo):
+                          client.py [KEY LOGIC] (report(), signed background sender, 2 s timeout, OutboxEvent retry,
+                          off switch); signals.py (login failed/success/admin); middleware.py (scanner paths, 429s,
+                          403s; only reads responses); models.py (OutboxEvent). How it works 19.
     core/                 safety.py (+ throwaway_check command), media.py (public + private photo serving),
                           client_ip.py (visitor IP behind the proxy); storage.py (Cloudinary, the only file that
                           calls it); jobs.py [KEY LOGIC] (scheduled jobs endpoint + lazy expiry) + middleware.py;
@@ -188,7 +192,8 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
 `requests` (GET mine / POST new, 10 per hour) · `requests/<id>` · `requests/<id>/images` (≤3, while open) ·
 `requests/<id>/accept` · `requests/<id>/decline` · `requests/<id>/add-to-bag` · `reviews` (POST `{seller, rating, comment}`) ·
 `seller/ai/listing` (GET `{enabled}` / POST photo `image` or `image_id` + `name` → `{title, description, category}`, 10/hour) ·
-`health` (GET, no database) · `jobs/run` (POST, header `X-HomeHaat-Jobs-Secret`, `?jobs=expire,refunds`)
+`health` (GET, no database) · `jobs/run` (POST, header `X-HomeHaat-Jobs-Secret`, `?jobs=expire,refunds,guardrail`;
+`guardrail` resends events GuardRail couldn't take earlier)
 
 ## Decisions and assumptions
 
@@ -898,6 +903,36 @@ always releases them first. When nobody is using the site, a held item blocks no
 > environment variable. A test snapshots existing users, shops, products, orders and refunds and proves they're
 > byte-for-byte unchanged after it runs."
 
+### 19. Security events to GuardRail — `backend/guardrail/` [KEY LOGIC]
+
+GuardRail is a separate project (Rasmitha's monitoring dashboard). HomeHaat tells it about security-relevant
+moments, and **must never be slowed down or broken by it**.
+
+- **What is reported:** failed / successful / admin sign-ins (Django's `user_login_failed` and `user_logged_in`
+  signals, so no view changed and the password is never seen), scanner paths like `/.env` or `/wp-admin`, rate-limit
+  hits (any 429), 403s for signed-in users or a wrong jobs secret (a middleware that only reads responses), forged
+  Razorpay webhooks and checkout signatures, `payment.failed` and amount mismatches, and refunds sent to Razorpay
+  (`transaction.on_commit`, so a rolled-back refund is never reported).
+- **How:** `report()` builds a small event and puts it in an in-memory queue, inside `try/except`, and returns at
+  once. A background thread signs batches of up to 50 with HMAC-SHA256 (GuardRail's `v1:timestamp:nonce:body`
+  scheme, a new random nonce each time) and POSTs them with a **2-second timeout**.
+- **When GuardRail is down / slow / 5xx / 429:** the events are saved in `OutboxEvent` (max 5,000, oldest dropped) and
+  sent again after the next successful send and by the scheduled `guardrail` job (How it works 16). Other 4xx =
+  GuardRail refused them, so they're dropped and logged.
+- **Privacy:** emails masked (`pr****@gmail.com`), paths cut at `?` (reset links carry tokens), user agent trimmed,
+  only allow-listed extra details. The visitor's country comes from Vercel through `frontend/proxy.ts`, trusted only
+  with `PROXY_SECRET`, like the IP (`core/client_ip.client_country`).
+- **Off switch:** nothing is sent unless `GUARDRAIL_ENABLED=true`, `GUARDRAIL_URL` and a 32+ character
+  `GUARDRAIL_SECRET` (= GuardRail's `INGEST_SECRET_HOMEHAAT`) are all set. Tests turn it on themselves and use
+  `GUARDRAIL_SYNC` to send inline.
+- **Tests (30, in `guardrail/tests/`):** the signature matches GuardRail's reference value; down / 5xx / 429 → outbox;
+  4xx → dropped; outbox cap; flush; switched off → nothing sent; every hook; sign-in answers unchanged when
+  GuardRail is down or off; the password never appears in anything sent.
+
+> *Say it:* "HomeHaat reports security events fire-and-forget: the request only queues a masked event, and a
+> background thread signs and sends batches with a two-second timeout. If the monitor is down, events wait in an
+> outbox table and a scheduled job retries them, so visitors never notice."
+
 ---
 
 ## Interview notes
@@ -1067,3 +1102,7 @@ always releases them first. When nobody is using the site, a held item blocks no
   style of Oppora's explainer (eyebrow + headline + italic accent, end card with stats and links) in HomeHaat's look;
   original WebAudio background music. Oppora's own video (`oppora/Oppora-explainer.mp4`, 60 s animated explainer,
   ffmpeg-encoded, with music) isn't in its repo or README, so there was no GIF to copy.
+- **GuardRail connection (21 Oct 2026):** new `backend/guardrail/` app (How it works 19) sends security events to
+  GuardRail; additive only (one-line `report(...)` calls in `payments/views.py` and `payments/refunds.py`, a
+  `guardrail` scheduled job, `client_country`, the proxy passes Vercel's country). Off unless `GUARDRAIL_*` is set.
+  30 new tests; all 353 backend tests and 45 frontend tests pass.

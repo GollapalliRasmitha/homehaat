@@ -38,8 +38,8 @@ jobs:
       - name: Wake the server (free Render servers sleep after 15 idle minutes)
         if: steps.setup.outputs.ready == 'yes'
         run: curl --silent --show-error --fail --retry 6 --retry-delay 10 --retry-all-errors --max-time 60 "$API/api/health/"
-      - name: Release expired holds and retry refunds
+      - name: Release expired holds, retry refunds, resend waiting GuardRail events
         if: steps.setup.outputs.ready == 'yes'
         run: |
           curl --silent --show-error --fail-with-body --max-time 90 -X POST \
-            -H "X-HomeHaat-Jobs-Secret: $SECRET" "$API/api/jobs/run/?jobs=expire,refunds"
+            -H "X-HomeHaat-Jobs-Secret: $SECRET" "$API/api/jobs/run/?jobs=expire,refunds,guardrail"

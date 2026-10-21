@@ -14,6 +14,7 @@ import logging
 from django.db import transaction
 from django.utils import timezone
 
+from guardrail.client import report
 from orders.models import Refund
 from payments import razorpay_client
 
@@ -64,6 +65,8 @@ def send_refund(refund_id: int) -> Refund:
                 notes={"homehaat_part": _note_for(refund)},
             )
         _save_answer(refund, answer)
+        meta = {"gateway": "razorpay", "amount_paise": refund.amount, "order_ref": str(refund.seller_order.order_id)}
+        transaction.on_commit(lambda: report("refund_issued", meta=meta))  # only once it's really saved
     except razorpay_client.RazorpayError as exc:
         refund.status = Refund.Status.FAILED
         refund.last_error = str(exc)[:300]

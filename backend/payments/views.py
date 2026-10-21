@@ -8,6 +8,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from guardrail.client import report
 from orders.models import Order
 from payments import razorpay_client
 from payments.refunds import apply_webhook as apply_refund_webhook
@@ -33,6 +34,7 @@ def webhook(request):
     raw_body = request.body
     if not verify_webhook_signature(raw_body, request.headers.get("X-Razorpay-Signature", ""), secret):
         log.warning("Webhook with a bad signature was rejected.")
+        report("webhook_signature_failed", request, meta={"gateway": "razorpay", "reason": "bad_signature"})
         return Response({"detail": "Bad signature."}, status=status.HTTP_400_BAD_REQUEST)
 
     event = json.loads(raw_body)
@@ -40,6 +42,9 @@ def webhook(request):
         # A refund we started has finished (or failed: retry_refunds will send a new one).
         known = apply_refund_webhook(event["payload"]["refund"]["entity"])
         return Response({"ok": True, "refund": "updated" if known else "not ours"})
+    if event.get("event") == "payment.failed":
+        _report_failed_payment(request, event)
+        return Response({"ok": True, "ignored": event.get("event")})
     if event.get("event") != "payment.captured":
         return Response({"ok": True, "ignored": event.get("event")})
 
@@ -52,8 +57,23 @@ def webhook(request):
         mark_order_paid(order, payment["id"], payment["amount"])
     except PaymentError as exc:
         log.error("Webhook refused for order %s: %s", order.pk, exc)
+        report("payment_failed", request, meta=_failure_meta("amount_mismatch", order))
         return Response({"detail": "Payment doesn't match the order."}, status=status.HTTP_400_BAD_REQUEST)
     return Response({"ok": True})
+
+
+def _failure_meta(reason: str, order: Order | None) -> dict:
+    meta = {"gateway": "razorpay", "reason": reason[:60]}
+    if order is not None:
+        meta["order_ref"] = str(order.pk)
+    return meta
+
+
+def _report_failed_payment(request, event: dict) -> None:
+    """payment.failed from Razorpay (a declined card, say). Only reported: nothing about the order changes."""
+    payment = ((event.get("payload") or {}).get("payment") or {}).get("entity") or {}
+    order = Order.objects.filter(razorpay_order_id=payment.get("order_id")).first() if payment.get("order_id") else None
+    report("payment_failed", request, meta=_failure_meta(str(payment.get("error_reason") or "payment_failed"), order))
 
 
 class VerifySerializer(serializers.Serializer):
@@ -80,6 +100,7 @@ def verify(request):
     if not verify_checkout_signature(
         rzp_order_id, payment_id, data.validated_data["razorpay_signature"], settings.RAZORPAY_KEY_SECRET
     ):
+        report("webhook_signature_failed", request, meta={"gateway": "razorpay", "reason": "checkout_signature"})
         return Response({"detail": "Bad signature."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
@@ -97,6 +118,7 @@ def verify(request):
         mark_order_paid(order, payment_id, payment["amount"])  # same function as the webhook
     except PaymentError as exc:
         log.error("Verify refused for order %s: %s", order.pk, exc)
+        report("payment_failed", request, meta=_failure_meta("amount_mismatch", order))
         return Response({"detail": "Payment doesn't match the order."}, status=status.HTTP_400_BAD_REQUEST)
 
     order.refresh_from_db()

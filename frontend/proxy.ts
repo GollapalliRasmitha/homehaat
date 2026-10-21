@@ -19,9 +19,13 @@ export function proxy(request: NextRequest) {
   const ip = request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
   headers.delete("x-homehaat-client-ip"); // never pass on a value the browser sent itself
   headers.delete("x-homehaat-proxy-secret");
+  headers.delete("x-homehaat-client-country");
   if (ip) {
     headers.set("x-homehaat-client-ip", ip);
     headers.set("x-homehaat-proxy-secret", secret);
+    // The visitor's country (2 letters), set by Vercel; Django passes it on to GuardRail's security events.
+    const country = request.headers.get("x-vercel-ip-country");
+    if (country) headers.set("x-homehaat-client-country", country);
   }
   return NextResponse.next({ request: { headers } });
 }
