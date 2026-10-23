@@ -216,6 +216,9 @@ REST_FRAMEWORK = {
 # Shared with the Next.js app (frontend/proxy.ts): proves a forwarded visitor IP really came from our proxy, so the
 # sign-in rate limit counts each visitor separately. Empty = trust no forwarded IP (fine locally).
 PROXY_SECRET = env("PROXY_SECRET")
+# Requests that skip the website: how far from the end of X-Forwarded-For the visitor is (core/client_ip.py).
+# Render = 3 (visitor, Cloudflare, Render's relay). Local = 0: not used.
+TRUSTED_PROXY_HOPS = int(env("TRUSTED_PROXY_HOPS") or 0)
 
 # --- Scheduled jobs (core/jobs.py) ---
 # The GitHub Actions schedule sends this in a header to POST /api/jobs/run/. Empty = the endpoint is switched off.

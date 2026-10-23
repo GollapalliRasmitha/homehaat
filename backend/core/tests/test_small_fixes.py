@@ -97,3 +97,33 @@ class ClientIpTests(TestCase):
             sign_in("203.0.113.7")
         self.assertEqual(sign_in("203.0.113.7").status_code, 429)  # this visitor hit the limit...
         self.assertNotEqual(sign_in("198.51.100.20").status_code, 429)  # ...but another visitor isn't blocked
+
+
+@override_settings(PROXY_SECRET="proxy-test-secret", TRUSTED_PROXY_HOPS=3)
+class DirectToRenderTests(TestCase):
+    """Requests that skip the website (scanners hitting the Render address). Measured on Render, 23 Oct 2026:
+    X-Forwarded-For ends "..., visitor, Cloudflare, Render's relay", and Cloudflare writes the visitor's address
+    after anything the visitor sent. So the visitor is 3rd from the end (TRUSTED_PROXY_HOPS=3), and REMOTE_ADDR is
+    only Render's relay, the same for everyone."""
+
+    CHAIN = "192.0.2.1, 192.0.2.2, 203.0.113.50, 172.69.131.168, 10.20.30.40"  # fakes, visitor, Cloudflare, relay
+
+    def req(self, **headers):
+        return RequestFactory().get("/", REMOTE_ADDR="10.20.30.99", **headers)
+
+    def test_the_visitor_is_third_from_the_end_and_fakes_at_the_front_are_ignored(self):
+        self.assertEqual(client_ip(self.req(HTTP_X_FORWARDED_FOR=self.CHAIN)), "203.0.113.50")
+
+    def test_a_chain_shorter_than_expected_is_not_trusted(self):
+        self.assertEqual(client_ip(self.req(HTTP_X_FORWARDED_FOR="203.0.113.50, 10.20.30.40")), "10.20.30.99")
+
+    def test_a_broken_entry_is_not_trusted(self):
+        self.assertEqual(client_ip(self.req(HTTP_X_FORWARDED_FOR="x, 172.69.131.168, 10.20.30.40")), "10.20.30.99")
+
+    def test_the_website_header_still_wins(self):
+        r = self.req(
+            HTTP_X_FORWARDED_FOR=self.CHAIN,
+            HTTP_X_HOMEHAAT_CLIENT_IP="198.51.100.20",
+            HTTP_X_HOMEHAAT_PROXY_SECRET="proxy-test-secret",
+        )
+        self.assertEqual(client_ip(r), "198.51.100.20")

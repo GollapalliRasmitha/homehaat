@@ -28,6 +28,8 @@ services:
         value: localhost
       - key: PROXY_SECRET      # same value as in Vercel
         sync: false
+      - key: TRUSTED_PROXY_HOPS  # requests that skip the website: visitor is 3rd from the end of X-Forwarded-For
+        value: "3"
       - key: JOBS_SECRET       # same value as the GitHub secret HOMEHAAT_JOBS_SECRET
         sync: false
       - key: CLOUDINARY_URL
