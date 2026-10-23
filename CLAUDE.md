@@ -367,6 +367,11 @@ PATCH) · `seller/store/cover` (POST/DELETE) · `seller/products` · `seller/pro
   visitors. The proxy now sends `X-HomeHaat-Client-IP` plus `X-HomeHaat-Proxy-Secret` = `PROXY_SECRET` (same value in
   both apps); Django trusts the IP only when the secret matches (constant-time compare), otherwise it uses the
   connecting address, so a faked header can't dodge the limit. Empty secret (local) = nothing trusted.
+  **Requests that skip the website** (straight to the Render API, e.g. scanners): on Render the connecting address is
+  Render's relay, the same for everyone. `X-Forwarded-For` there ends "visitor, Cloudflare, Render's relay" (measured
+  23 Oct 2026 with fake documentation addresses; Cloudflare writes the real address after anything the visitor sent),
+  so `TRUSTED_PROXY_HOPS=3` (Render env) counts back to the visitor; a shorter or broken chain falls back to the
+  connecting address. 0 / empty locally. GuardRail's events and the sign-in limit both use `client_ip`.
 - Messages: adding a sold-out product says "This is sold out." (not "Only 0 available."); a quote under ₹1 sent to
   the server says "Enter a price of ₹1 or more."
 - **Start HomeHaat.bat** (double-click): checks Docker Desktop is installed and running (says so and stops if not),
