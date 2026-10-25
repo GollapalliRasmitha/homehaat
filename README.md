@@ -10,12 +10,14 @@ from many makers and pay once; the order is split per maker.**
 
 ## Demo video (60 s)
 
-[![Watch the HomeHaat explainer video](docs/demo/homehaat-demo-poster.jpg)](docs/demo/homehaat-demo.mp4)
+[![Watch the HomeHaat explainer video on YouTube](docs/demo/homehaat-demo-poster.jpg)](https://youtu.be/l2jDt198HFY)
+
+**[▶ Watch on YouTube](https://youtu.be/l2jDt198HFY)**
 
 A one-minute explainer: the problem, how one bag works across many makers, one payment split per maker, refunding
 just one maker's part, the AI listing helper and what it's built with.
 
-Want to see the real app in action? The **[83-second walkthrough](docs/demo/homehaat-walkthrough.mp4)** shows a
+Want to see the real app in action? The **[83-second walkthrough (YouTube)](https://youtu.be/J-GBse7W6Ns)** shows a
 complete purchase from two makers with a Razorpay **test** payment, a partial refund and the seller side, recorded on
 a local test copy with the demo shops (made-up names, masked phone numbers). Both videos use music made for them.
 
