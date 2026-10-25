@@ -10,9 +10,9 @@ from many makers and pay once; the order is split per maker.**
 
 ## Demo video (60 s)
 
-[![Watch the HomeHaat explainer video on YouTube](docs/demo/homehaat-demo-poster.jpg)](https://youtu.be/l2jDt198HFY)
+[![Watch the HomeHaat explainer video on YouTube](docs/demo/homehaat-demo-poster.jpg)](https://youtu.be/nH9BJCr3Dno)
 
-**[▶ Watch on YouTube](https://youtu.be/l2jDt198HFY)**
+**[▶ Watch on YouTube](https://youtu.be/nH9BJCr3Dno)**
 
 A one-minute explainer: the problem, how one bag works across many makers, one payment split per maker, refunding
 just one maker's part, the AI listing helper and what it's built with.
